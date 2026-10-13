@@ -36,6 +36,10 @@ next-env.d.ts
 .DS_Store
 *.pem
 
+# benchmark secrets (KMS 未接入前的本地密钥，禁止提交)
+scripts/benchmarks/*api-key*.json
+scripts/benchmarks/*secret*.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*

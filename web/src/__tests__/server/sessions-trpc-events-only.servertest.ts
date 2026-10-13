@@ -90,7 +90,6 @@ maybe("sessions trpc (events_only write mode)", () => {
         excludeClickhouseRead: false,
         templateFlag: true,
         searchBar: false,
-        v4BetaToggleVisible: false,
         observationEvals: false,
         experimentsV4Enabled: false,
       },

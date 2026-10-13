@@ -433,7 +433,6 @@ const session: Session = {
       observationEvals: false,
       templateFlag: false,
       searchBar: false,
-      v4BetaToggleVisible: false,
       experimentsV4Enabled: false,
     },
     admin: false,

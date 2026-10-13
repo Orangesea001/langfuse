@@ -2,7 +2,7 @@
 import { showErrorToast, showSuccessToast } from "@/src/features/notifications";
 import { useSession } from "next-auth/react";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics";
-import { useReadPath, V4_PREVIEW_LABEL } from "@/src/features/events";
+import { useReadPath } from "@/src/features/events";
 import { featurePreviewLabels } from "@/src/features/feature-flags/available-flags";
 import { api } from "@/src/utils/api";
 
@@ -56,7 +56,7 @@ export function ControlledFeaturePreviewModal({
         !isV4 ||
         authSession.data?.environment.enableExperimentalFeatures === true,
       warningReason: !isV4
-        ? `Compact Session View is only available on the events-backed session view. Turn on ${V4_PREVIEW_LABEL} to enable it.`
+        ? "Compact Session View is only available on the events-backed session view."
         : authSession.data?.environment.enableExperimentalFeatures === true
           ? "This preview is enabled by LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES, so a per-user opt-out does not disable it."
           : undefined,
@@ -72,7 +72,7 @@ export function ControlledFeaturePreviewModal({
         !isModernSessionEnabled ||
         authSession.data?.environment.enableExperimentalFeatures === true,
       warningReason: !isV4
-        ? `Compact Session View is only available on the events-backed session view. Turn on ${V4_PREVIEW_LABEL} to enable it.`
+        ? "Compact Session View is only available on the events-backed session view."
         : !isModernSessionEnabled
           ? "Enable Compact Session View before enabling the Session Timeline."
           : authSession.data?.environment.enableExperimentalFeatures === true

@@ -37,8 +37,7 @@ import {
 } from "@/src/features/v4-migration/migrationData";
 import { PARTNER_INTEGRATION_FAQ_URL } from "@/src/features/v4-migration/partnerIntegrationDocs";
 import { V4MigrationLoadingState } from "@/src/features/v4-migration/V4MigrationLoadingState";
-import { useReadPath, V4PreviewToggleRow } from "@/src/features/events";
-
+// useReadPath was removed with the v3 read path (SwitchBackSection deleted).
 const V4_DOCS_URL = "https://langfuse.com/docs/v4";
 const SDK_UPGRADE_URL =
   "https://langfuse.com/docs/observability/sdk/upgrade-path";
@@ -660,43 +659,7 @@ function V4MigrationStatusPageContent() {
             </div>
           </div>
         </div>
-
-        <SwitchBackSection />
       </div>
     </ContainerPage>
-  );
-}
-
-// User-level v3/v4 UI toggle, the same one the migration side panel shows.
-// Hides itself when the session cannot toggle v4 (legacy/events_only write
-// mode, post-rollout auto-enrollment).
-function SwitchBackSection() {
-  const { canToggleV4, isV4 } = useReadPath();
-  const hasDeadline = useHasV4MigrationDeadline();
-
-  if (!canToggleV4) {
-    return null;
-  }
-
-  return (
-    <div className="mt-6">
-      <p className="text-base font-bold">
-        {isV4
-          ? "Need to switch back to the legacy UI (v3)?"
-          : "Switch back to the latest UI (v4)"}
-      </p>
-      <div className="flex flex-col gap-4 pt-4">
-        {isV4 && (
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            The features powering the legacy v3 UI will be sunset{" "}
-            {hasDeadline
-              ? `on ${V4_MIGRATION_DEADLINE}`
-              : "once your administrator disables the legacy mode"}
-            . We strongly recommend switching to the latest UI (v4) before then.
-          </p>
-        )}
-        <V4PreviewToggleRow />
-      </div>
-    </div>
   );
 }

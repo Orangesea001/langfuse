@@ -23,7 +23,6 @@ const session: Session = {
       searchBar: false,
       excludeClickhouseRead: false,
       templateFlag: true,
-      v4BetaToggleVisible: false,
       observationEvals: false,
       experimentsV4Enabled: false,
     },

@@ -4,7 +4,8 @@
 // EventsTable stays a deep import: it reaches the whole trace/peek graph, so
 // re-exporting it here would make every consumer of this index part of that
 // graph and turn several feature pairs into runtime cycles.
-export { V4PreviewToggleRow } from "@/src/features/events/components/V4SidebarToggle";
+// V4PreviewToggleRow was removed together with the legacy V3 read-path
+// toggle: this deployment is V4-only (events_only write mode).
 export {
   canReuseOutlierPlaceholder,
   formatBucketRange,
@@ -22,7 +23,3 @@ export {
   buildEventsTablePathForObservationType,
   buildEventsTablePathForSpanName,
 } from "@/src/features/events/lib/eventsTablePaths";
-export { V4_PREVIEW_LABEL } from "@/src/features/events/lib/v4PreviewLabel";
-// shouldAutoEnableV4 / canToggleV4 stay on the deep lib path (or a future
-// server surface). Re-exporting them here would make every server consumer of
-// the client door pull V4PreviewToggleRow and blow up Turbopack RSC builds.

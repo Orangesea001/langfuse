@@ -23,8 +23,7 @@ const mocks = vi.hoisted(() => ({
   // ready projects are hidden, so most cases need one open action item.
   evalCount: 1,
   lastTracePending: false,
-  canToggleV4: true,
-  isV4: false,
+  // canToggleV4/isV4 were removed with the legacy V3 read path.
   // Cloud is bound by the dated v3 sunset; self-hosted is not.
   hasDeadline: true,
 }));
@@ -104,18 +103,6 @@ vi.mock("@/src/features/v4-migration/useV4UpgradeUiEnabled", () => ({
   useV4UpgradeUiEnabled: () => true,
 }));
 
-vi.mock("@/src/features/events/hooks/useReadPath", () => ({
-  useReadPath: () => ({
-    canToggleV4: mocks.canToggleV4,
-    isV4: mocks.isV4,
-  }),
-}));
-
-// The toggle itself is covered where it lives; here we only assert placement.
-vi.mock("@/src/features/events/components/V4SidebarToggle", () => ({
-  V4PreviewToggleRow: () => <div data-testid="v4-preview-toggle-row" />,
-}));
-
 vi.mock("@/src/features/v4-migration/hooks/useV4MigrationData", () => ({
   useAccountV4MigrationData: () =>
     new Map([
@@ -167,9 +154,7 @@ describe("V4MigrationStatusPage", () => {
     };
     mocks.evalCount = 1;
     mocks.lastTracePending = false;
-    mocks.canToggleV4 = true;
     mocks.hasDeadline = true;
-    mocks.isV4 = false;
   });
 
   it("keeps the project table readable through horizontal scrolling", () => {
@@ -259,49 +244,6 @@ describe("V4MigrationStatusPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers v3 users a switch to the latest UI without a sunset note", () => {
-    mocks.isV4 = false;
-
-    render(<V4MigrationStatusPage />);
-
-    expect(
-      screen.getByText("Switch back to the latest UI (v4)"),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("v4-preview-toggle-row")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/legacy v3 UI will be sunset/),
-    ).not.toBeInTheDocument();
-  });
-
-  it("warns v4 users about the v3 sunset when offering the switch back", () => {
-    mocks.isV4 = true;
-
-    render(<V4MigrationStatusPage />);
-
-    expect(
-      screen.getByText("Need to switch back to the legacy UI (v3)?"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /The features powering the legacy v3 UI will be sunset on November 16, 2026\./,
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("v4-preview-toggle-row")).toBeInTheDocument();
-  });
-
-  it("hides the switch-back section when the session cannot toggle v4", () => {
-    mocks.canToggleV4 = false;
-
-    render(<V4MigrationStatusPage />);
-
-    expect(
-      screen.queryByText("Switch back to the latest UI (v4)"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("v4-preview-toggle-row"),
-    ).not.toBeInTheDocument();
-  });
-
   it("uses the November 16, 2026 deadline throughout the FAQ", () => {
     render(<V4MigrationStatusPage />);
 
@@ -325,19 +267,6 @@ describe("V4MigrationStatusPage", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/on November 16, 2026/)).not.toBeInTheDocument();
     expect(screen.queryByText(/On November 16, 2026/)).not.toBeInTheDocument();
-  });
-
-  it("drops the dated sunset from the switch-back warning when self-hosted", () => {
-    mocks.isV4 = true;
-    mocks.hasDeadline = false;
-
-    render(<V4MigrationStatusPage />);
-
-    expect(
-      screen.getByText(
-        /The features powering the legacy v3 UI will be sunset once your administrator disables the legacy mode\./,
-      ),
-    ).toBeInTheDocument();
   });
 
   it("only shows the status pill when action is required", () => {

@@ -520,13 +520,11 @@ const enforceTraceAccess = (readSource: "v3" | "v4") =>
 
     const traceId = result.data.traceId;
     const projectId = result.data.projectId;
-    const timestamp = result.data.timestamp;
-    const fromTimestamp = result.data.fromTimestamp;
     const verbosity = result.data.verbosity;
-    const isEventsOnly = env.LANGFUSE_MIGRATION_V4_WRITE_MODE === "events_only";
 
-    const useEventsTraceSource =
-      readSource === "v4" && env.LANGFUSE_MIGRATION_V4_WRITE_MODE !== "legacy";
+    // V3 legacy trace-table reads were removed — this deployment is v4-only
+    // (events_only write mode), so every read goes to the events tables.
+    const useEventsTraceSource = env.LANGFUSE_MIGRATION_V4_WRITE_MODE !== "legacy";
 
     let clickhouseTrace = traceId
       ? useEventsTraceSource
@@ -540,45 +538,11 @@ const enforceTraceAccess = (readSource: "v3" | "v4") =>
               shouldJsonParse: false,
             },
           })
-        : // eslint-disable-next-line @typescript-eslint/no-deprecated
-          await getTraceById({
-            traceId,
-            projectId,
-            timestamp: isEventsOnly ? undefined : (timestamp ?? undefined),
-            fromTimestamp:
-              fromTimestamp ??
-              (isEventsOnly ? timestamp : undefined) ??
-              undefined,
-            renderingProps: {
-              truncated: verbosity === "truncated",
-              shouldJsonParse: false, // we do not want to parse the input/output for tRPC
-            },
-          })
+        : null
       : null;
 
     // In dual write mode the lookup above reads the legacy traces table, but
-    // internally produced traces (e.g. code-eval execution traces) were written
-    // to the events tables only — fall back so trace-level auth does not 404 on
-    // a trace the events-backed views can render (LFE-10884). The timestamp can
-    // identify a clicked observation, so use it as a bounded lookup anchor rather
-    // than as the synthesized trace timestamp (LFE-10947).
-    if (
-      traceId &&
-      !clickhouseTrace &&
-      readSource === "v3" &&
-      env.LANGFUSE_MIGRATION_V4_WRITE_MODE === "dual"
-    ) {
-      clickhouseTrace = await getTraceByIdFromEventsTable({
-        traceId,
-        projectId,
-        fromTimestamp: fromTimestamp ?? timestamp ?? undefined,
-        renderingProps: {
-          truncated: verbosity === "truncated",
-          shouldJsonParse: false,
-        },
-      });
-    }
-
+    // that fallback path was removed with the v3 legacy read path.
     if (traceId && !clickhouseTrace) {
       logger.error(
         `Trace with id ${traceId} not found for project ${projectId}`,

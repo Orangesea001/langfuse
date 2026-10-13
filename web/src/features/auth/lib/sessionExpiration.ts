@@ -31,6 +31,32 @@ export async function getSessionLoginAt(
   return row.loginAt;
 }
 
+/**
+ * Same as getSessionLoginAt but anchored on the user id — required for
+ * emailless SSO logins (e.g. Meituan MTCAS), where User.email is null and
+ * the JWT token carries no email to look up.
+ */
+export async function getSessionLoginAtByUserId(
+  userId: string,
+  db: PrismaQueryable = prisma,
+): Promise<Date> {
+  const [row] = await db.$queryRaw<{ loginAt: Date }[]>`
+    SELECT GREATEST(
+      timezone('UTC', clock_timestamp()),
+      COALESCE(
+        "sessions_expired_at" + INTERVAL '1 millisecond',
+        '-infinity'::timestamp
+      )
+    ) AS "loginAt"
+    FROM "users"
+    WHERE "id" = ${userId}
+  `;
+  if (!row?.loginAt) {
+    throw new Error("Failed to read database login timestamp");
+  }
+  return row.loginAt;
+}
+
 export async function advanceSessionsExpiredAtForUser(
   userId: string,
   db: PrismaQueryable = prisma,

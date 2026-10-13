@@ -264,6 +264,11 @@ export const env = createEnv({
     AUTH_CUSTOM_SCOPE: z.string().optional(),
     AUTH_CUSTOM_CLIENT_AUTH_METHOD: zAuthMethod,
     AUTH_CUSTOM_CHECKS: zAuthChecks,
+    // Meituan SSO via the legacy MTCAS protocol (aip-style).
+    AUTH_MT_CAS_CLIENT_ID: z.string().optional(),
+    AUTH_MT_CAS_CLIENT_SECRET: z.string().optional(),
+    AUTH_MT_CAS_LOGIN_SERVER: z.string().optional(),
+    AUTH_MT_CAS_VALIDATE_SERVER: z.string().optional(),
     AUTH_CUSTOM_ID_TOKEN_SIGNED_RESPONSE_ALG: zIdTokenAlg,
     AUTH_CUSTOM_ALLOW_ACCOUNT_LINKING: z.enum(["true", "false"]).optional(),
     AUTH_CUSTOM_ID_TOKEN: z.enum(["true", "false"]).optional().default("true"),
@@ -951,6 +956,10 @@ export const env = createEnv({
     AUTH_CUSTOM_SCOPE: process.env.AUTH_CUSTOM_SCOPE,
     AUTH_CUSTOM_CLIENT_AUTH_METHOD: process.env.AUTH_CUSTOM_CLIENT_AUTH_METHOD,
     AUTH_CUSTOM_CHECKS: process.env.AUTH_CUSTOM_CHECKS,
+    AUTH_MT_CAS_CLIENT_ID: process.env.AUTH_MT_CAS_CLIENT_ID,
+    AUTH_MT_CAS_CLIENT_SECRET: process.env.AUTH_MT_CAS_CLIENT_SECRET,
+    AUTH_MT_CAS_LOGIN_SERVER: process.env.AUTH_MT_CAS_LOGIN_SERVER,
+    AUTH_MT_CAS_VALIDATE_SERVER: process.env.AUTH_MT_CAS_VALIDATE_SERVER,
     AUTH_CUSTOM_ID_TOKEN_SIGNED_RESPONSE_ALG:
       process.env.AUTH_CUSTOM_ID_TOKEN_SIGNED_RESPONSE_ALG,
     AUTH_CUSTOM_ALLOW_ACCOUNT_LINKING:

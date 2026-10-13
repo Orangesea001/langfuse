@@ -8,6 +8,7 @@ vi.mock("../../env", () => ({
     LANGFUSE_CUSTOM_SSO_NAME_CLAIM: "name",
     LANGFUSE_CUSTOM_SSO_SUB_CLAIM: "sub",
     LANGFUSE_CUSTOM_SSO_IMAGE_CLAIM: "picture",
+    LANGFUSE_CUSTOM_SSO_CLIENT_ASSERTION_AUD: "https://ssosv.sankuai.com/sson/auth/oidc/v1/token",
   },
 }));
 
@@ -127,5 +128,59 @@ describe("CustomSSOProvider", () => {
     // callback openid-client accepts once the token response has an id_token.
     expect(provider.options).toMatchObject({ idToken: true });
     expect(provider.options).not.toHaveProperty("fetchUserInfo");
+  });
+
+  // IdPs without an email claim, e.g. Meituan SSO where `sub` is the MIS
+  // login and userinfo returns no email field.
+  it("passes a null email through when no email claim is present", async () => {
+    const provider = CustomSSOProvider({ ...baseOptions, fetchUserInfo: true });
+
+    const { profile } = await requestProfile(
+      provider,
+      fakeTokenSet(),
+      vi.fn(async () => ({ sub: "linshu07", name: "林述" })),
+    );
+
+    expect(provider.profile(profile as any, fakeTokenSet() as any))
+      .toMatchObject({
+        id: "linshu07",
+        name: "林述",
+        email: null,
+      });
+  });
+
+  it("keeps the subject as the identity anchor for emailless logins", () => {
+    const provider = CustomSSOProvider(baseOptions);
+
+    const result = provider.profile(
+      { sub: "linshu07", name: "林述" } as any,
+      {} as any,
+    ) as any;
+
+    expect(result.id).toBe("linshu07");
+    expect(result.email).toBeNull();
+  });
+
+  it("passes a real email claim through when present", () => {
+    const provider = CustomSSOProvider(baseOptions);
+
+    const result = provider.profile(
+      { sub: "linshu07", name: "林述", email: "linshu07@meituan.com" } as any,
+      {} as any,
+    ) as any;
+
+    expect(result.email).toBe("linshu07@meituan.com");
+  });
+
+  it("exposes the client-assertion aud override on the openid-client config", () => {
+    const provider = CustomSSOProvider(baseOptions);
+
+    // Meituan SSO validates client_secret_jwt aud against the token endpoint
+    // URL, not the issuer; openid-client defaults to the issuer.
+    expect(provider.client).toMatchObject({
+      clientAssertionPayload: {
+        aud: "https://ssosv.sankuai.com/sson/auth/oidc/v1/token",
+      },
+    });
   });
 });

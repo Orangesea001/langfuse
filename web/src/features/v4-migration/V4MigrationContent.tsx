@@ -9,7 +9,6 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Info,
 } from "lucide-react";
 import { env } from "@/src/env.mjs";
 import { useIsInAppAgentLauncherVisible } from "@/src/features/in-app-agent/components/InAppAiAgentProvider";
@@ -52,7 +51,8 @@ import {
   type MigrationCountState,
   type ProjectMigrationReadiness,
 } from "@/src/features/v4-migration/migrationData";
-import { useReadPath, V4PreviewToggleRow } from "@/src/features/events";
+// useReadPath was removed with the v3 read path; this deployment always
+// reads v4, so evidence links always target the v4 tables.
 import { numberFormatter } from "@/src/utils/numbers";
 import { formatCompactRelativeTime } from "@/src/utils/dates";
 import { useQueryProjectOrOrganization } from "@/src/features/projects/hooks";
@@ -86,8 +86,6 @@ const OTEL_V4_MIGRATION_URL =
   "https://langfuse.com/integrations/native/opentelemetry/migration-to-v4";
 const DEPRECATED_API_MIGRATION_URL =
   "https://langfuse.com/faq/all/deprecated-api-migration";
-const OBSERVATIONS_DATA_MODEL_URL =
-  "https://langfuse.com/docs/observability/data-model#observations-and-traces";
 const DEPRECATED_INTEGRATION_MIGRATION_URLS: Record<string, string> = {
   PostHog:
     "https://langfuse.com/integrations/analytics/posthog#migrate-export-source",
@@ -1494,12 +1492,9 @@ export function V4MigrationDetailsContent({
     projectId,
     enabled: Boolean(projectId),
   });
-  const { canToggleV4, isV4 } = useReadPath();
-  // Evidence links target the v4 events table; with the v4 preview off the
-  // route renders the v3 observations table, which cannot express the
-  // ingestionApiKey filter — the link would open an unfiltered table. Keep
-  // the key as plain text there instead of a misleading link.
-  const evidenceProjectId = isV4 ? projectId : undefined;
+  // The v3 read path was removed; this deployment always reads the v4
+  // events tables, so evidence links can always target the v4 tables.
+  const evidenceProjectId = projectId;
 
   // PostHog is the external system here: the panel's checks resolve
   // asynchronously after open, so the "how much work was shown" event can
@@ -1687,47 +1682,6 @@ export function V4MigrationDetailsContent({
             sdk={migrationData.sdk}
             projectId={evidenceProjectId}
           />
-
-          {/* Always the last checklist row. Hides itself when the session
-              cannot toggle v4 (legacy/events_only write mode, post-rollout
-              auto-enrollment). Neutral dot + muted text: an optional helper
-              in the settled-summary style, not pending work. */}
-          {canToggleV4 && (
-            <div className="flex w-full items-center gap-2.5 py-2.5">
-              <V4MigrationStatusDot variant="neutral" />
-              <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
-                Compare traces while you upgrade
-                <HoverCard openDelay={200}>
-                  <HoverCardTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Why compare traces?"
-                      className="shrink-0"
-                    >
-                      <Info className="h-3.5 w-3.5" />
-                    </button>
-                  </HoverCardTrigger>
-                  <HoverCardPortal>
-                    <HoverCardContent className="w-80 text-sm">
-                      The latest SDK no longer sets trace input and output;{" "}
-                      <ExternalLink
-                        href={OBSERVATIONS_DATA_MODEL_URL}
-                        analytics={{
-                          section: "compare_row",
-                          link: "observations_data_model_docs",
-                        }}
-                      >
-                        v4 infers them from observations
-                      </ExternalLink>
-                      .
-                    </HoverCardContent>
-                  </HoverCardPortal>
-                </HoverCard>
-              </span>
-              <span className="flex-1" />
-              <V4PreviewToggleRow projectId={projectId} />
-            </div>
-          )}
         </div>
       </div>
 

@@ -85,7 +85,6 @@ describe("dashboard widget minVersion", () => {
         featureFlags: {
           excludeClickhouseRead: false,
           templateFlag: true,
-          v4BetaToggleVisible: false,
           observationEvals: false,
           experimentsV4Enabled: false,
           searchBar: false,

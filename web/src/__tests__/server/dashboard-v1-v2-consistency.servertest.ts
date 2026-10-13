@@ -514,7 +514,6 @@ describe("dashboard v1 vs v2 consistency", () => {
         featureFlags: {
           excludeClickhouseRead: false,
           templateFlag: true,
-          v4BetaToggleVisible: false,
           observationEvals: false,
           experimentsV4Enabled: false,
           searchBar: false,

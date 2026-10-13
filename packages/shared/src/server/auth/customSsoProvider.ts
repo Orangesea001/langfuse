@@ -5,13 +5,21 @@ import type {
 } from "next-auth/providers/oauth";
 import { env } from "../../env";
 
+/**
+ * Client-assertion audience override for IdPs that validate the JWT `aud`
+ * against the endpoint URL instead of the issuer, e.g. Meituan SSO where
+ * client_secret_jwt must carry aud=[token endpoint URL] (see the Meituan
+ * OIDC docs, "应用认证 jwt 生成"). openid-client defaults to the issuer value.
+ */
+const CLIENT_ASSERTION_AUD = env.LANGFUSE_CUSTOM_SSO_CLIENT_ASSERTION_AUD;
+
 const CUSTOM_EMAIL_CLAIM = env.LANGFUSE_CUSTOM_SSO_EMAIL_CLAIM;
 const CUSTOM_NAME_CLAIM = env.LANGFUSE_CUSTOM_SSO_NAME_CLAIM;
 const CUSTOM_SUB_CLAIM = env.LANGFUSE_CUSTOM_SSO_SUB_CLAIM;
 const CUSTOM_IMAGE_CLAIM = env.LANGFUSE_CUSTOM_SSO_IMAGE_CLAIM;
 
 interface CustomSSOUser extends Record<string, any> {
-  email: string;
+  email?: string | null;
   id: string;
   name: string;
   verified: boolean;
@@ -31,6 +39,19 @@ export type CustomSSOProviderOptions<P> = OAuthUserConfig<P> & {
    */
   fetchUserInfo?: boolean;
 };
+
+/**
+ * Extra openid-client client options for client_secret_jwt auth.
+ *
+ * openid-client builds the client assertion with aud=issuer. Meituan SSO
+ * expects aud=<token endpoint URL>, which is what this override provides via
+ * openid-client's clientAssertionPayload mechanism.
+ */
+function clientAssertionOptions(): Record<string, unknown> {
+  return CLIENT_ASSERTION_AUD
+    ? { clientAssertionPayload: { aud: CLIENT_ASSERTION_AUD } }
+    : {};
+}
 
 /**
  * NextAuth prefers `userinfo.request` over the ID token claims when building
@@ -63,19 +84,24 @@ export function CustomSSOProvider<P extends CustomSSOUser>(
   const { fetchUserInfo, ...oauthOptions } = options;
 
   return {
-    id: "custom",
+    id: "mt-sso",
     name: "CustomSSOProvider",
     type: "oauth",
     wellKnown: `${options.issuer}/.well-known/openid-configuration`,
     authorization: { params: { scope: "openid email profile" } }, // overridden by options.authorization to be able to set custom scopes, deep merged with this default
     checks: ["pkce", "state"],
     ...(fetchUserInfo ? { userinfo: userinfoEndpointProfile } : {}),
+    client: clientAssertionOptions(),
     profile(profile) {
       const image = profile[CUSTOM_IMAGE_CLAIM];
+      const subject = profile[CUSTOM_SUB_CLAIM];
       return {
-        id: profile[CUSTOM_SUB_CLAIM],
+        id: subject,
         name: profile[CUSTOM_NAME_CLAIM],
-        email: profile[CUSTOM_EMAIL_CLAIM],
+        // IdPs without an email claim (e.g. Meituan SSO, where the subject is
+        // the MIS login) log in without any email at all: `email` stays null
+        // and the identity is anchored on the subject (providerAccountId).
+        email: profile[CUSTOM_EMAIL_CLAIM] ?? null,
         image: typeof image === "string" && image.length > 0 ? image : null,
       };
     },

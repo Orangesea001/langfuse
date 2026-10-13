@@ -43,8 +43,8 @@ import {
   useColumnVisibility,
 } from "@/src/features/column-visibility";
 import { GitCompareArrows, LightbulbIcon } from "lucide-react";
+import { Spinner } from "@/src/components/design-system/Spinner/Spinner";
 import { createDateTableColumn } from "@/src/components/design-system/table/columns/createDateTableColumn";
-import { createNumberTableColumn } from "@/src/components/design-system/table/columns/createNumberTableColumn";
 import { createIOTableColumn } from "@/src/components/design-system/table/columns/createIOTableColumn";
 import Link from "next/link";
 import { TableActionMenu } from "@/src/features/table/components/TableActionMenu";
@@ -317,6 +317,15 @@ export default function ExperimentsTable({
     return toAbsoluteTimeRange(timeRange) ?? undefined;
   }, [timeRange]);
 
+  // Relative ranges are moving windows: "last 30 days" means up to *now*.
+  // The memo above converts the preset to absolute timestamps only once at
+  // mount, so a `<=` bound would freeze the window at page-load time and the
+  // 5s progress poll would keep excluding run items written after that —
+  // the classic symptom of "item count only updates on refresh". Keep the
+  // lower bound (it still excludes genuinely old rows) and drop the upper
+  // bound for relative ranges. Absolute custom ranges keep both bounds.
+  const isRelativeTimeRange = "range" in timeRange;
+
   const dateRangeFilter: FilterState = tableDateRange
     ? [
         {
@@ -325,7 +334,7 @@ export default function ExperimentsTable({
           operator: ">=",
           value: tableDateRange.from,
         },
-        ...(tableDateRange.to
+        ...(!isRelativeTimeRange && tableDateRange.to
           ? [
               {
                 column: "startTime",
@@ -438,6 +447,7 @@ export default function ExperimentsTable({
     metricsLoading,
     isShowingMostRecent,
     mostRecentCount,
+    runningExperimentIds,
   } = useExperimentsTableData({
     projectId,
     filterState,
@@ -583,12 +593,32 @@ export default function ExperimentsTable({
       defaultHidden: true,
       singleLine: rowHeight === "s",
     }),
-    createNumberTableColumn<ExperimentsTableRow>({
+    {
+      // Same column as the stock itemCount number, plus a spinner while the
+      // worker is still writing items for this run (count moving between polls).
       accessorKey: "itemCount",
+      id: "itemCount",
       header: getExperimentsColumnName("itemCount"),
       size: 100,
-      formatter: (value) => numberFormatter(value, 0, 0),
-    }),
+      cell: ({ row }) => {
+        const value: number = row.original.itemCount;
+        const isRunning = runningExperimentIds.has(row.original.id);
+
+        return (
+          <span className="flex items-center gap-1.5 whitespace-nowrap">
+            {isRunning ? (
+              <Spinner
+                size="xxs"
+                variant="muted"
+                display="inline"
+                aria-label="Experiment in progress"
+              />
+            ) : null}
+            {numberFormatter(value, 0, 0)}
+          </span>
+        );
+      },
+    },
     {
       accessorKey: "errorCount",
       id: "errorCount",

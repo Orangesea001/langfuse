@@ -225,7 +225,15 @@ function DatasetRunsTableInternal(
       limit: paginationState.pageSize,
       filter: userFilterState,
     },
-    { enabled: Boolean(props.projectId) && Boolean(props.datasetId) },
+    {
+      enabled: Boolean(props.projectId) && Boolean(props.datasetId),
+      // Dataset runs are written progressively by the worker (one item per
+      // model call), so a snapshot-only table keeps showing stale item counts
+      // until a manual refresh. Poll while the page is open — including when
+      // the tab is in the background, matching the global experiments table.
+      refetchInterval: 5_000,
+      refetchIntervalInBackground: true,
+    },
   );
 
   const runsMetrics = api.datasets.runsByDatasetIdMetrics.useQuery(
@@ -237,6 +245,8 @@ function DatasetRunsTableInternal(
     },
     {
       enabled: runs.isSuccess,
+      refetchInterval: 5_000,
+      refetchIntervalInBackground: true,
     },
   );
 

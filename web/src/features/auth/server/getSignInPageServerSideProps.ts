@@ -1,16 +1,17 @@
 /* eslint-disable no-nested-ternary */
 import { type GetServerSideProps } from "next";
+import { getToken } from "next-auth/jwt";
 import { env } from "@/src/env.mjs";
 import { isAnySsoConfigured } from "@/src/ee/features/multi-tenant-sso/utils";
 import { isEmailVerificationRequired } from "@/src/features/auth-credentials/lib/credentialsUtils";
 import { type PageProps } from "@/src/features/auth/SignInPage";
 
 // Also used in src/pages/auth/sign-up.tsx via the pages/auth/sign-in shim.
-export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
+export const getServerSideProps: GetServerSideProps<PageProps> = async (
+  context,
+) => {
   const sso: boolean = await isAnySsoConfigured();
-  return {
-    props: {
-      authProviders: {
+  const authProviders = {
         google:
           env.AUTH_GOOGLE_CLIENT_ID !== undefined &&
           env.AUTH_GOOGLE_CLIENT_SECRET !== undefined,
@@ -79,15 +80,73 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
         wordpress:
           env.AUTH_WORDPRESS_CLIENT_ID !== undefined &&
           env.AUTH_WORDPRESS_CLIENT_SECRET !== undefined,
-        custom:
-          env.AUTH_CUSTOM_CLIENT_ID !== undefined &&
-          env.AUTH_CUSTOM_CLIENT_SECRET !== undefined &&
-          env.AUTH_CUSTOM_ISSUER !== undefined &&
-          env.AUTH_CUSTOM_NAME !== undefined
-            ? { name: env.AUTH_CUSTOM_NAME }
+        mtSso:
+          // OIDC provider (AUTH_CUSTOM_*) or MTCAS provider (AUTH_MT_CAS_*)
+          (env.AUTH_CUSTOM_CLIENT_ID !== undefined &&
+            env.AUTH_CUSTOM_CLIENT_SECRET !== undefined &&
+            env.AUTH_CUSTOM_ISSUER !== undefined &&
+            env.AUTH_CUSTOM_NAME !== undefined) ||
+          (env.AUTH_MT_CAS_CLIENT_ID !== undefined &&
+            env.AUTH_MT_CAS_CLIENT_SECRET !== undefined &&
+            env.AUTH_MT_CAS_LOGIN_SERVER !== undefined &&
+            env.AUTH_MT_CAS_VALIDATE_SERVER !== undefined)
+            ? { name: env.AUTH_CUSTOM_NAME ?? "Meituan SSO" }
             : false,
         sso,
-      },
+      } satisfies PageProps["authProviders"];
+
+  // Aip-style auto-redirect: on deployments where Meituan SSO (MTCAS) is the
+  // ONLY sign-in method (credentials disabled, no other SSO providers), the
+  // sign-in page itself immediately forwards to the SSO provider so users
+  // never see it — matching aip, where visiting the app always lands on the
+  // company SSO login. Escape hatches that keep the page visible:
+  // - ?noRedirect=1            (manual access to the buttons)
+  // - ?error=...               (NextAuth bounced back with an auth error —
+  //                             auto-redirecting again would loop forever)
+  // - an existing session      (already signed in; just show the page)
+  // - multi-tenant SSO enabled (provider selection depends on the domain)
+  const {
+    mtSso,
+    credentials,
+    sso: multiTenantSso,
+    ...otherProviders
+  } = authProviders;
+  const mtCasIsOnlyMethod =
+    mtSso !== false &&
+    credentials === false &&
+    multiTenantSso === false &&
+    !Object.values(otherProviders).some(Boolean);
+
+  if (mtCasIsOnlyMethod) {
+    const hasAuthError = context.query.error !== undefined;
+    const manualEscape = context.query.noRedirect === "1";
+    const callbackUrl =
+      typeof context.query.callbackUrl === "string"
+        ? context.query.callbackUrl
+        : "/";
+    const hasSession = Boolean(
+      await getToken({
+        req: context.req,
+        secret: process.env.NEXTAUTH_SECRET,
+        secureCookie: context.req.headers["x-forwarded-proto"] === "https",
+      }),
+    );
+
+    if (!hasAuthError && !manualEscape && !hasSession) {
+      return {
+        redirect: {
+          destination: `/api/auth/signin/mt-sso?callbackUrl=${encodeURIComponent(
+            callbackUrl,
+          )}`,
+          permanent: false,
+        },
+      };
+    }
+  }
+
+  return {
+    props: {
+      authProviders,
       signUpDisabled: env.AUTH_DISABLE_SIGNUP === "true",
       emailVerificationRequired: isEmailVerificationRequired(),
       runningOnHuggingFaceSpaces: env.NEXTAUTH_URL?.replace(

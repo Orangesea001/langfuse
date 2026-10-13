@@ -523,6 +523,9 @@ export class ApiAuthService {
     const newApiKey = OrgEnrichedApiKey.parse({
       ...apiKeyAndOrganisation,
       createdAt: apiKeyAndOrganisation.createdAt?.toISOString(),
+      // Prisma 读出的 Date 对象不满足 z.iso.datetime()，需一并转 ISO 字符串
+      lastUsedAt: apiKeyAndOrganisation.lastUsedAt?.toISOString() ?? null,
+      expiresAt: apiKeyAndOrganisation.expiresAt?.toISOString() ?? null,
       orgId,
       organizationCreatedAt: organizationCreatedAt.toISOString(),
       plan: getOrganizationPlanServerSide(cloudConfig),

@@ -19,7 +19,10 @@ import {
 import { isGatewayEnabledForOrganization } from "@/src/features/ai-gateway/server/availability";
 import { env } from "@/src/env.mjs";
 import { createProjectMembershipsOnSignup } from "@/src/features/auth/lib/createProjectMembershipsOnSignup";
-import { getSessionLoginAt } from "@/src/features/auth/lib/sessionExpiration";
+import {
+  getSessionLoginAt,
+  getSessionLoginAtByUserId,
+} from "@/src/features/auth/lib/sessionExpiration";
 import { type AdClickIds } from "@/src/features/auth/lib/signupAttribution";
 import {
   type AdapterUser,
@@ -44,6 +47,7 @@ import KeycloakProvider from "next-auth/providers/keycloak";
 import WorkOSProvider from "next-auth/providers/workos";
 import WordPressProvider from "next-auth/providers/wordpress";
 import { type Provider } from "next-auth/providers/index";
+import { MtCasProvider } from "@langfuse/shared/src/server";
 import { getCookieName, getCookieOptions } from "./utils/cookies";
 import { nextAuthLogger } from "./utils/nextAuthLogger";
 import {
@@ -84,9 +88,15 @@ import {
 } from "@/src/features/events/lib/v4Rollout";
 import { canCreateOrganizations } from "@/src/features/organizations/server/canCreateOrganizations";
 
-const staticProviders: Provider[] = [
-  CredentialsProvider({
-    name: "credentials",
+// aip-style single-channel auth: when password login is disabled
+// (AUTH_DISABLE_USERNAME_PASSWORD=true), the credentials provider is not
+// registered at all — MTCAS SSO is the only sign-in channel that exists,
+// mirroring aip where no password path is reachable.
+const staticProviders: Provider[] = [];
+if (env.AUTH_DISABLE_USERNAME_PASSWORD !== "true") {
+  staticProviders.push(
+    CredentialsProvider({
+      name: "credentials",
     credentials: {
       email: {
         label: "Email",
@@ -159,8 +169,9 @@ const staticProviders: Provider[] = [
 
       return userObj;
     },
-  }),
-];
+    }),
+  );
+}
 
 // Password-reset for password reset of credentials provider
 if (env.SMTP_CONNECTION_URL && env.EMAIL_FROM_ADDRESS) {
@@ -195,7 +206,10 @@ if (
       allowDangerousEmailAccountLinking:
         env.AUTH_CUSTOM_ALLOW_ACCOUNT_LINKING === "true",
       authorization: {
-        params: { scope: env.AUTH_CUSTOM_SCOPE ?? "openid email profile" },
+        params: {
+          scope: env.AUTH_CUSTOM_SCOPE ?? "openid email profile",
+          loginProtocol: "OIDC",
+        },
       },
       client: {
         token_endpoint_auth_method: env.AUTH_CUSTOM_CLIENT_AUTH_METHOD,
@@ -209,6 +223,32 @@ if (
       ...(env.AUTH_CUSTOM_CHECKS ? { checks: env.AUTH_CUSTOM_CHECKS } : {}),
     }),
   );
+
+// Meituan SSO via the legacy MTCAS protocol (same flow as aip): explicit
+// endpoints, MWS BA signed token/userinfo calls, no discovery, no OIDC.
+// Mutually exclusive with the OIDC provider above — only one of the two
+// provider blocks must be configured.
+if (
+  env.AUTH_MT_CAS_CLIENT_ID &&
+  env.AUTH_MT_CAS_CLIENT_SECRET &&
+  env.AUTH_MT_CAS_LOGIN_SERVER &&
+  env.AUTH_MT_CAS_VALIDATE_SERVER
+) {
+  if (env.AUTH_CUSTOM_CLIENT_ID) {
+    throw new Error(
+      "Both MTCAS (AUTH_MT_CAS_*) and OIDC (AUTH_CUSTOM_*) SSO providers are configured. Configure only one.",
+    );
+  }
+  staticProviders.push(
+    MtCasProvider({
+      clientId: env.AUTH_MT_CAS_CLIENT_ID,
+      clientSecret: env.AUTH_MT_CAS_CLIENT_SECRET,
+      loginServer: env.AUTH_MT_CAS_LOGIN_SERVER,
+      validateServer: env.AUTH_MT_CAS_VALIDATE_SERVER,
+      name: env.AUTH_CUSTOM_NAME ?? "Meituan SSO",
+    }),
+  );
+}
 
 if (env.AUTH_GOOGLE_CLIENT_ID && env.AUTH_GOOGLE_CLIENT_SECRET)
   staticProviders.push(
@@ -632,9 +672,12 @@ const createExtendedPrismaAdapter = (signupAttribution?: {
       throw new Error("Sign up is disabled.");
     }
     if (!profile.email) {
-      throw new Error(
-        "Cannot create db user as login profile does not contain an email: " +
-          JSON.stringify(profile),
+      // Emailless SSO logins (e.g. Meituan SSO, where the OIDC subject is the
+      // user's MIS login and no email claim is available) create users with a
+      // null email. Identity is anchored on providerAccountId (`sub`), and
+      // User.email is nullable, so only validate the email when present.
+      logger.info(
+        "Creating db user without an email (emailless SSO login)",
       );
     }
 
@@ -755,7 +798,11 @@ export async function getAuthOptions(signupAttribution?: {
       },
       async jwt({ token, user }) {
         if (user) {
-          const loginAt = await getSessionLoginAt(token.email!);
+          // Emailless SSO logins (Meituan MTCAS) carry token.email === null;
+          // anchor the login timestamp on the adapter user id instead.
+          const loginAt = token.email
+            ? await getSessionLoginAt(token.email)
+            : await getSessionLoginAtByUserId(user.id);
           token.loginAt = loginAt.getTime();
         }
         return token;
@@ -764,7 +811,11 @@ export async function getAuthOptions(signupAttribution?: {
         return instrumentAsync({ name: "next-auth-session" }, async (span) => {
           const dbUser = await prisma.user.findUnique({
             where: {
-              email: token.email!.toLowerCase(),
+              // Emailless SSO logins have no token.email — fall back to the
+              // user id (token.sub) as the lookup anchor.
+              ...(token.email
+                ? { email: token.email.toLowerCase() }
+                : { id: token.sub ?? "" }),
               OR: [
                 { sessionsExpiredAt: null },
                 {
@@ -989,22 +1040,23 @@ export async function getAuthOptions(signupAttribution?: {
       },
       async signIn({ user, account, profile, email: emailFlow }) {
         return instrumentAsync({ name: "next-auth-sign-in" }, async () => {
-          // Block sign in without valid user.email
-          const email = user.email?.toLowerCase();
-          if (!email) {
-            logger.error("No email found in user object");
-            throw new Error("No email found in user object");
-          }
-          if (z.email().safeParse(email).success === false) {
+          // Email validations only apply when the login carries an email.
+          // Emailless SSO logins (e.g. Meituan SSO, where the OIDC subject is
+          // the user's MIS login) carry no email at all; identity is anchored
+          // on providerAccountId (`sub`).
+          const email = user.email?.toLowerCase() ?? null;
+          if (email && z.email().safeParse(email).success === false) {
             logger.error("Invalid email found in user object");
             throw new Error("Invalid email found in user object");
           }
 
           // EE: Check custom SSO enforcement, enforce the specific SSO provider on email domain
           // This also blocks setting a password for an email that is enforced to use SSO via password reset flow
-          const userDomain = email.split("@")[1].toLowerCase();
-          const multiTenantSsoProvider =
-            await getSsoAuthProviderIdForDomain(userDomain);
+          // Skipped for emailless logins, which have no domain to match.
+          const userDomain = email?.split("@")[1]?.toLowerCase() ?? null;
+          const multiTenantSsoProvider = userDomain
+            ? await getSsoAuthProviderIdForDomain(userDomain)
+            : null;
           if (
             multiTenantSsoProvider &&
             account?.provider !== multiTenantSsoProvider
@@ -1023,7 +1075,7 @@ export async function getAuthOptions(signupAttribution?: {
           }
 
           // EE: Check that provider is only used for the associated domain
-          if (account?.provider) {
+          if (account?.provider && userDomain) {
             const { isMultiTenantSsoProvider, domain: ssoDomain } =
               await findMultiTenantSsoConfig({
                 providerId: account.provider,
@@ -1084,7 +1136,7 @@ export async function getAuthOptions(signupAttribution?: {
 
             const user = await prisma.user.findUnique({
               where: {
-                email: email,
+                email: email ?? undefined,
               },
             });
             if (user) {

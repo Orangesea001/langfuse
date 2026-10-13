@@ -94,7 +94,7 @@ export type PageProps = {
         }
       | boolean;
     wordpress: boolean;
-    custom:
+    mtSso:
       | {
           name: string;
         }
@@ -127,7 +127,7 @@ export const FALLBACK_AUTH_PROVIDERS: PageProps["authProviders"] = {
   keycloak: false,
   workos: false,
   wordpress: false,
-  custom: false,
+  mtSso: false,
   sso: false,
 };
 
@@ -440,14 +440,14 @@ export function SSOButtons({
                 }
               />
             )}
-            {authProviders.custom && (
+            {authProviders.mtSso && (
               <AuthProviderButton
                 icon={<TbBrandOauth className="mr-3" size={18} />}
-                label={authProviders.custom.name}
-                onClick={() => handleSignIn("custom")}
-                loading={providerSigningIn === "custom"}
+                label={authProviders.mtSso.name}
+                onClick={() => handleSignIn("mt-sso")}
+                loading={providerSigningIn === "mt-sso"}
                 showLastUsedBadge={
-                  hasMultipleAuthMethods && lastUsedMethod === "custom"
+                  hasMultipleAuthMethods && lastUsedMethod === "mt-sso"
                 }
               />
             )}
@@ -548,6 +548,12 @@ export default function SignInPage({
       "langfuse_last_used_auth_method",
       null,
     );
+
+  // Note: zero-click SSO no longer needs a client-side auto signIn(). The
+  // global middleware now 302s unauthenticated visitors directly to the
+  // Meituan SSO login page (aip-style, no state/CSRF/intermediate page),
+  // and users only reach this page via the manual SSO button fallback or
+  // on auth errors.
 
   const capture = usePostHogClientCapture();
   const { isLangfuseCloud } = useLangfuseCloudRegion();

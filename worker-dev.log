@@ -1,0 +1,243 @@
+$ dotenv -e ../.env -- tsx watch --clear-screen=false --include '../packages/shared/dist/*'  src/index.ts
+2026-10-08T06:18:11.170Z info 	[LocalCache:model_match] Initialized local cache {"enabled":false,"ttlMs":10000,"max":20000}
+2026-10-08T06:18:12.415280Z  INFO langfuse_native::telemetry: native telemetry initialised address="localhost:8125"
+2026-10-08T06:18:12.417Z info 	[Connection] Log level is set to INFO
+2026-10-08T06:18:12.732Z info 	Resolved ClickHouse compatibility from version
+2026-10-08T06:18:12.733Z info 	Applying ClickHouse compatibility settings
+2026-10-08T06:18:12.874Z info 	Finished upserting default model prices in 141ms
+2026-10-08T06:18:12.874Z info 	Finished upserting Langfuse dashboards and widgets in 128ms
+2026-10-08T06:18:16.678Z info 	[LocalCache:otel_org_created_at] Initialized local cache {"enabled":true,"ttlMs":3600000,"max":10000}
+2026-10-08T06:18:16.761Z info 	No min project create date set, ClickhouseReadSkipCache will not pre-populate
+2026-10-08T06:18:16.762Z info 	trace-upsert executor started: true
+2026-10-08T06:18:16.763Z info 	create-eval-queue executor started: true
+2026-10-08T06:18:16.763Z info 	trace-delete executor started: true
+2026-10-08T06:18:16.763Z info 	score-delete executor started: true
+2026-10-08T06:18:16.763Z info 	dataset-delete-queue executor started: true
+2026-10-08T06:18:16.763Z info 	project-delete executor started: true
+2026-10-08T06:18:16.763Z info 	dataset-run-item-upsert-queue executor started: true
+2026-10-08T06:18:16.764Z info 	evaluation-execution-queue executor started: true
+2026-10-08T06:18:16.764Z info 	llm-as-a-judge-execution-queue executor started: true
+2026-10-08T06:18:16.764Z info 	code-eval-execution-queue executor started: true
+2026-10-08T06:18:16.764Z info 	secondary-evaluation-execution-queue executor started: true
+2026-10-08T06:18:16.765Z info 	batch-export-queue executor started: true
+2026-10-08T06:18:16.765Z info 	batch-action-queue executor started: true
+2026-10-08T06:18:16.765Z info 	otel-ingestion-queue executor started: true
+2026-10-08T06:18:16.765Z info 	secondary-otel-ingestion-queue executor started: true
+2026-10-08T06:18:16.765Z info 	ingestion-queue executor started: true
+2026-10-08T06:18:16.766Z info 	secondary-ingestion-queue executor started: true
+2026-10-08T06:18:16.766Z info 	monitor-queue executor started: true
+2026-10-08T06:18:16.766Z info 	experiment-create-queue executor started: true
+2026-10-08T06:18:16.766Z info 	posthog-integration-queue executor started: true
+2026-10-08T06:18:16.766Z info 	posthog-integration-processing-queue executor started: true
+2026-10-08T06:18:16.767Z info 	v4-legacy-api-usage-queue executor started: true
+2026-10-08T06:18:16.767Z info 	mixpanel-integration-queue executor started: true
+2026-10-08T06:18:16.767Z info 	mixpanel-integration-processing-queue executor started: true
+2026-10-08T06:18:16.768Z info 	blobstorage-integration-queue executor started: true
+2026-10-08T06:18:16.768Z info 	blobstorage-integration-processing-queue executor started: true
+2026-10-08T06:18:16.768Z info 	data-retention-queue executor started: true
+2026-10-08T06:18:16.768Z info 	data-retention-processing-queue executor started: true
+2026-10-08T06:18:16.769Z info 	webhook-queue executor started: true
+2026-10-08T06:18:16.769Z info 	entity-change-queue executor started: true
+2026-10-08T06:18:16.769Z info 	event-propagation-queue executor started: true
+2026-10-08T06:18:16.769Z info 	notification-queue executor started: true
+2026-10-08T06:18:16.770Z info 	Starting TraceDeleteBatchActionRunner
+2026-10-08T06:18:16.775Z info 	Starting MonitorRunner(1/1)
+2026-10-08T06:18:16.785Z info 	Listening: http://0.0.0.0:3030
+2026-10-08T06:18:16.866Z info 	[Background Migration] No background migrations to run
+2026-10-08T06:18:16.945Z info 	MonitorRunner(1/1): published 0 events
+2026-10-08T06:18:16.955Z info 	Executing PostHog Integration Job
+2026-10-08T06:18:16.956Z info 	Executing Mixpanel Integration Job
+2026-10-08T06:18:16.963Z info 	[MIXPANEL] No Mixpanel integrations ready for sync
+2026-10-08T06:18:16.966Z info 	[POSTHOG] No PostHog integrations ready for sync
+2026-10-08T06:18:46.897Z warn 	Queue job repeat:event-propagation-job:1791424500000 in event-propagation-queue stalled (lock expired, re-enqueued) detectedOnHost=MBP-H36WCVVTJ3-1959.local
+2026-10-08T06:18:46.915Z info 	Executing Event Propagation Job
+2026-10-08T06:18:46.919Z info 	[DUAL WRITE] Last processed partition: 2026-09-23 02:33:00
+2026-10-08T06:18:46.925Z info 	[Connection] Log level is set to INFO
+2026-10-08T06:18:46.951Z warn 	Queue job repeat:v4-legacy-api-usage-job:1791424800000 in v4-legacy-api-usage-queue stalled (lock expired, re-enqueued) detectedOnHost=MBP-H36WCVVTJ3-1959.local
+2026-10-08T06:18:46.952Z warn 	Queue job repeat:blobstorage-integration-job:1791424800000 in blobstorage-integration-queue stalled (lock expired, re-enqueued) detectedOnHost=MBP-H36WCVVTJ3-1959.local
+2026-10-08T06:18:46.964Z info 	Executing V4 Legacy API Usage Job
+2026-10-08T06:18:46.969Z info 	Executing Blob Storage Integration Job
+2026-10-08T06:18:47.024Z info 	v4 legacy API usage: lock acquired
+2026-10-08T06:18:47.077Z info 	No blob storage integrations ready for sync
+2026-10-08T06:18:47.078Z info 	MonitorRunner(1/1): published 0 events
+2026-10-08T06:18:47.080Z info 	clickhouse:query a0a135c6-b80c-4224-84f8-1e259a2319d1 
+        SELECT DISTINCT partition
+        FROM system.parts
+        WHERE table = 'observations_batch_staging'
+          AND database = currentDatabase()
+          AND active = 1
+          AND toDateTime(partition) < now() - INTERVAL 10 MINUTE
+          AND partition > {lastProcessedPartition: String}
+        ORDER BY partition ASC
+      
+2026-10-08T06:18:47.083Z info 	[DUAL WRITE] No partitions available for processing (last processed: 2026-09-23 02:33:00)
+2026-10-08T06:18:47.083Z info 	[EXPERIMENT BACKFILL] Checking if backfill should run
+2026-10-08T06:18:47.089Z info 	v4 legacy API usage: loaded existing hour buckets
+2026-10-08T06:18:47.092Z info 	Running v4 legacy API usage job
+2026-10-08T06:18:47.092Z info 	v4 legacy API usage: scanning query_log
+2026-10-08T06:18:47.093Z info 	[Connection] Log level is set to INFO
+2026-10-08T06:18:47.098Z info 	[EXPERIMENT BACKFILL] Acquired backfill lock with TTL 300s
+2026-10-08T06:18:47.098Z info 	[EXPERIMENT BACKFILL] Processing chunk from 2026-10-08T01:53:38.800Z to 2026-10-08T06:18:17.098Z
+2026-10-08T06:18:47.098Z info 	[EXPERIMENT BACKFILL] Starting backfill process with lastRun 2026-10-08T01:53:38.800Z and upperBound 2026-10-08T06:18:17.098Z
+2026-10-08T06:18:47.098Z info 	[Connection] Log level is set to INFO
+2026-10-08T06:18:47.146Z info 	clickhouse:query e6ff1e46-b4a9-4290-ad2c-4a16bb618b2a 
+    WITH candidate_dris AS (
+      SELECT project_id, trace_id
+      FROM dataset_run_items_rmt
+      WHERE created_at > {lastRun: DateTime64(3)}
+        AND created_at <= {upperBound: DateTime64(3)}
+      GROUP BY project_id, trace_id
+    )
+
+    SELECT
+      dri.id,
+      dri.project_id,
+      dri.trace_id,
+      dri.observation_id,
+      dri.dataset_run_id,
+      dri.dataset_run_name,
+      dri.dataset_run_description,
+      dri.dataset_run_metadata,
+      dri.dataset_id,
+      dri.dataset_item_version,
+      dri.dataset_item_id,
+      dri.dataset_item_expected_output,
+      dri.dataset_item_metadata,
+      dri.created_at
+    FROM dataset_run_items_rmt AS dri
+    LEFT ANTI JOIN events_core AS ec
+      ON dri.project_id = ec.project_id
+      AND dri.trace_id = ec.trace_id
+    WHERE dri.created_at > {lastRun: DateTime64(3)}
+      AND dri.created_at <= {upperBound: DateTime64(3)}
+      AND (dri.project_id, dri.trace_id) IN (SELECT project_id, trace_id FROM candidate_dris)
+    ORDER BY dri.created_at ASC
+    LIMIT 1 BY dri.project_id, dri.trace_id, coalesce(dri.observation_id, '')
+  
+2026-10-08T06:18:47.147Z info 	[EXPERIMENT BACKFILL] Found 0 dataset run items between 2026-10-08T01:53:38.800Z and 2026-10-08T06:18:17.098Z
+2026-10-08T06:18:47.147Z info 	[EXPERIMENT BACKFILL] No dataset run items to process, advancing cursor
+2026-10-08T06:18:47.149Z info 	[EXPERIMENT BACKFILL] Updated last run timestamp to 2026-10-08T06:18:17.098Z
+2026-10-08T06:18:47.149Z info 	[EXPERIMENT BACKFILL] Backfill completed successfully
+2026-10-08T06:18:47.203Z info 	clickhouse:query 9421f508-1bc5-49cf-ae54-eac0a4abcef5 
+WITH selected AS (
+  SELECT
+    JSONExtractString(log_comment, 'projectId') AS project_id,
+    JSONExtractString(log_comment, 'sdkName') AS sdk_name,
+    JSONExtractString(log_comment, 'sdkVersion') AS sdk_version,
+    JSONExtractString(log_comment, 'userAgent') AS user_agent,
+    event_time,
+    event_time_microseconds,
+    splitByChar('?', JSONExtractString(log_comment, 'route'))[1] AS route_path
+  FROM system.query_log
+  WHERE
+    event_time >= {fromTimestamp: DateTime64(3)}
+    AND event_time <= {toTimestamp: DateTime64(3)}
+    AND event_date >= toDate({fromTimestamp: DateTime64(3)})
+    AND event_date <= toDate({toTimestamp: DateTime64(3)})
+    AND type = 'QueryFinish'
+    AND JSONExtractString(log_comment, 'tag_schema_version') = '1'
+    AND JSONExtractString(log_comment, 'surface') = 'publicapi'
+    AND JSONExtractString(log_comment, 'projectId') != ''
+),
+classified AS (
+  SELECT
+    project_id,
+    sdk_name,
+    sdk_version,
+    user_agent,
+    event_time,
+    event_time_microseconds,
+    multiIf(
+      route_path IN (
+        'GET /api/public/spans',
+        'GET /api/public/generations',
+        'GET /api/public/traces',
+        'GET /api/public/sessions',
+        'GET /api/public/observations',
+        'GET /api/public/scores',
+        'GET /api/public/v2/scores',
+        'GET /api/public/metrics',
+        'GET /api/public/metrics/daily',
+        'GET /api/public/dataset-run-items',
+        'POST /api/public/dataset-run-items'
+      ), route_path,
+      match(route_path, '^GET /api/public/traces/[^/?#]+$'), 'GET /api/public/traces/{id}',
+      match(route_path, '^GET /api/public/sessions/[^/?#]+$'), 'GET /api/public/sessions/{id}',
+      match(route_path, '^GET /api/public/observations/[^/?#]+$'), 'GET /api/public/observations/{id}',
+      match(route_path, '^GET /api/public/scores/[^/?#]+$'), 'GET /api/public/scores/{id}',
+      match(route_path, '^GET /api/public/v2/scores/[^/?#]+$'), 'GET /api/public/v2/scores/{id}',
+      match(route_path, '^GET /api/public/datasets/[^/?#]+/runs$'), 'GET /api/public/datasets/{datasetName}/runs',
+      match(route_path, '^GET /api/public/datasets/[^/?#]+/runs/[^/?#]+$'), 'GET /api/public/datasets/{datasetName}/runs/{runName}',
+      NULL
+    ) AS legacy_route,
+    multiIf(
+      route_path IN (
+        'GET /api/public/spans',
+        'GET /api/public/generations',
+        'GET /api/public/traces',
+        'GET /api/public/observations',
+        'GET /api/public/scores',
+        'GET /api/public/v2/scores',
+        'GET /api/public/metrics/daily',
+        'GET /api/public/dataset-run-items'
+      ), 2,
+      route_path IN (
+        'GET /api/public/sessions',
+        'GET /api/public/metrics',
+        'POST /api/public/dataset-run-items'
+      ), 1,
+      match(route_path, '^GET /api/public/traces/[^/?#]+$'), 3,
+      match(route_path, '^GET /api/public/sessions/[^/?#]+$'), 1,
+      match(route_path, '^GET /api/public/observations/[^/?#]+$'), 1,
+      match(route_path, '^GET /api/public/scores/[^/?#]+$'), 1,
+      match(route_path, '^GET /api/public/v2/scores/[^/?#]+$'), 1,
+      match(route_path, '^GET /api/public/datasets/[^/?#]+/runs$'), 1,
+      match(route_path, '^GET /api/public/datasets/[^/?#]+/runs/[^/?#]+$'), 1,
+      NULL
+    ) AS clickhouse_queries_per_api_call
+  FROM selected
+),
+caller_candidates AS (
+  SELECT
+    project_id,
+    legacy_route,
+    topK(20)(tuple(sdk_name, sdk_version, user_agent)) AS caller_keys
+  FROM classified
+  WHERE legacy_route IS NOT NULL
+    AND clickhouse_queries_per_api_call IS NOT NULL
+  GROUP BY project_id, legacy_route
+),
+bounded AS (
+  SELECT
+    classified.*,
+    has(caller_candidates.caller_keys, tuple(sdk_name, sdk_version, user_agent)) AS retain_caller
+  FROM classified
+  -- Preserve every classified query row. caller_candidates is unique per join key,
+  -- so ALL cannot multiply matches.
+  ALL INNER JOIN caller_candidates
+    ON classified.project_id = caller_candidates.project_id
+    AND classified.legacy_route = caller_candidates.legacy_route
+  WHERE classified.legacy_route IS NOT NULL
+    AND classified.clickhouse_queries_per_api_call IS NOT NULL
+)
+SELECT
+  formatDateTime(toStartOfHour(event_time, 'UTC'), '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS hourStart,
+  project_id AS projectId,
+  legacy_route AS route,
+  if(retain_caller, sdk_name, '') AS sdkName,
+  if(retain_caller, sdk_version, '') AS sdkVersion,
+  if(retain_caller, user_agent, '') AS userAgent,
+  if(retain_caller, 0, 1) AS isOther,
+  sum(1.0 / clickhouse_queries_per_api_call) AS count,
+  formatDateTime(max(event_time_microseconds), '%Y-%m-%dT%H:%i:%S.%fZ', 'UTC') AS lastSeen
+FROM bounded
+GROUP BY hourStart, projectId, route, sdkName, sdkVersion, userAgent, isOther
+ORDER BY hourStart ASC, projectId ASC, route ASC, isOther ASC, sdkName ASC, sdkVersion ASC, userAgent ASC
+SETTINGS skip_unavailable_shards = 1
+    
+2026-10-08T06:18:47.204Z info 	v4 legacy API usage: query_log scan completed
+2026-10-08T06:18:47.204Z info 	v4 legacy API usage: merged query_log rows
+2026-10-08T06:18:47.206Z info 	v4 legacy API usage: wrote hour buckets
+2026-10-08T06:18:47.212Z info 	v4 legacy API usage: wrote project rollup
+2026-10-08T06:18:47.212Z info 	Completed v4 legacy API usage job
+2026-10-08T06:18:47.213Z info 	Finished V4 Legacy API Usage Job

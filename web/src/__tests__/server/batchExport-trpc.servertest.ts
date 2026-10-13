@@ -63,7 +63,6 @@ function makeSession(
         excludeClickhouseRead: false,
         templateFlag: false,
         searchBar: false,
-        v4BetaToggleVisible: false,
         observationEvals: false,
         experimentsV4Enabled: false,
       },

@@ -79,9 +79,7 @@ const filters = {
       return ctx.session?.user?.v4BetaEnabled === true ? route : null;
     }
 
-    if (route.featureFlag === "v4BetaToggleVisible") {
-      return ctx.session?.user?.canToggleV4 === true ? route : null;
-    }
+    // v4BetaToggleVisible routes were removed with the legacy V3 toggle.
 
     const hasFlag =
       ctx.enableExperimentalFeatures ||

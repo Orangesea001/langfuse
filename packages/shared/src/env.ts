@@ -373,6 +373,10 @@ const EnvSchema = z.object({
   LANGFUSE_CUSTOM_SSO_NAME_CLAIM: z.string().default("name"),
   LANGFUSE_CUSTOM_SSO_SUB_CLAIM: z.string().default("sub"),
   LANGFUSE_CUSTOM_SSO_IMAGE_CLAIM: z.string().default("picture"),
+  // Client-assertion audience override for client_secret_jwt auth, needed
+  // when the IdP validates the JWT aud against the endpoint URL instead of
+  // the issuer (e.g. Meituan SSO).
+  LANGFUSE_CUSTOM_SSO_CLIENT_ASSERTION_AUD: z.string().optional(),
   LANGFUSE_API_TRACE_OBSERVATIONS_SIZE_LIMIT_BYTES: z.coerce
     .number()
     .default(80e6), // 80MB

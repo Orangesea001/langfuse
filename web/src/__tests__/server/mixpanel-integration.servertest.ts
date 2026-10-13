@@ -71,7 +71,6 @@ const buildSession = (orgId: string, projectId: string): Session => ({
       templateFlag: true,
       excludeClickhouseRead: false,
       observationEvals: false,
-      v4BetaToggleVisible: false,
       experimentsV4Enabled: false,
     },
     admin: true,

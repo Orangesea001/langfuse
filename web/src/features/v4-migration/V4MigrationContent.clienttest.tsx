@@ -167,8 +167,6 @@ const mocks = vi.hoisted(() => ({
     }[],
     legacyIntegrations: ["PostHog", "Mixpanel", "Blob Storage"],
   },
-  canToggleV4: true,
-  isV4: true,
   hasApiKeyCreateAccess: true,
   canUpdateOrgSettings: true,
   aiFeaturesEnabled: true,
@@ -246,19 +244,8 @@ vi.mock("@/src/features/in-app-agent/components/InAppAiAgentProvider", () => ({
   }),
 }));
 
-// The toggle row pulls in session + tRPC state via useReadPath; stub it so the
-// content tests need no SessionProvider or tRPC client.
-vi.mock("@/src/features/events/components/V4SidebarToggle", () => ({
-  V4PreviewToggleRow: () => null,
-}));
-
-// The details content reads canToggleV4 to gate the toggle section's copy.
-vi.mock("@/src/features/events/hooks/useReadPath", () => ({
-  useReadPath: () => ({
-    canToggleV4: mocks.canToggleV4,
-    isV4: mocks.isV4,
-  }),
-}));
+// The details content formerly consumed canToggleV4/isV4 from useReadPath;
+// the v3 read path was removed and the component now always targets v4.
 
 // Content stays rendered so section-body assertions need no expanding; the
 // trigger toggles like Radix (open ↔ closed, seeded from defaultOpen) so the
@@ -309,8 +296,6 @@ describe("V4MigrationDetailsContent", () => {
       result: "not_required",
     };
     mocks.migrationData.experimentInstrumentationUpgradePath = null;
-    mocks.canToggleV4 = true;
-    mocks.isV4 = true;
     mocks.canUpdateOrgSettings = true;
     mocks.aiFeaturesEnabled = true;
     mocks.migrationData.sdk = cleanSdkState();
@@ -1010,8 +995,7 @@ describe("V4MigrationDetailsContent", () => {
     ).toEqual({ range: `last${V4_MIGRATION_LOOKBACK_DAYS}Days` });
   });
 
-  it("renders the public key as plain text when the v4 preview is off", () => {
-    mocks.isV4 = false;
+  it("links the public key to the filtered v4 observations table", () => {
     mocks.migrationData.sdk = {
       status: "legacy",
       sdkUsageSeries: [
@@ -1026,10 +1010,9 @@ describe("V4MigrationDetailsContent", () => {
 
     render(<V4MigrationDetailsContent projectId="project-1" />);
 
-    expect(screen.getByText("pk-lf-123…abcdef")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "View observations" }),
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
   });
 
   it("shows ingestion-API traffic without an SDK header as Upgrade Instrumentation", () => {
@@ -1155,22 +1138,6 @@ describe("V4MigrationDetailsContent", () => {
     render(<V4MigrationDetailsContent projectId="project-1" />);
 
     expect(screen.queryByText("Walkthrough video")).not.toBeInTheDocument();
-  });
-
-  it("shows the preview-toggle section only when the session can toggle v4", () => {
-    const { unmount } = render(
-      <V4MigrationDetailsContent projectId="project-1" />,
-    );
-    expect(
-      screen.getByText(/Compare traces while you upgrade/),
-    ).toBeInTheDocument();
-    unmount();
-
-    mocks.canToggleV4 = false;
-    render(<V4MigrationDetailsContent projectId="project-1" />);
-    expect(
-      screen.queryByText(/Compare traces while you upgrade/),
-    ).not.toBeInTheDocument();
   });
 
   it("starts the assistant only after confirmation", async () => {

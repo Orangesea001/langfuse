@@ -56,7 +56,6 @@ const memberCaller = eventsRouter.createCaller({
           observationEvals: false,
           searchBar: false,
           templateFlag: false,
-          v4BetaToggleVisible: false,
         },
         organizations: [
           {

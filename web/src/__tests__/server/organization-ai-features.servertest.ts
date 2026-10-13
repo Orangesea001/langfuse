@@ -198,7 +198,6 @@ async function createCaller() {
         templateFlag: false,
         excludeClickhouseRead: false,
         observationEvals: false,
-        v4BetaToggleVisible: false,
         experimentsV4Enabled: false,
       },
       admin: false,

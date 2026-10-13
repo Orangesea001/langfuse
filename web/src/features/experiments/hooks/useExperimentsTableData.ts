@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type FilterState, type ScoreAggregate } from "@langfuse/shared";
 import { api } from "@/src/utils/api";
 import { joinTableCoreAndMetrics } from "@/src/components/table/utils/joinTableCoreAndMetrics";
@@ -29,6 +29,28 @@ type ExperimentMetricsData = {
  * runs were, few enough that it reads as a fallback rather than a result set.
  */
 const MOST_RECENT_FALLBACK_LIMIT = 10;
+
+/**
+ * How often the experiments table re-polls while the page is open. Runs are
+ * written progressively by the worker (one item per model call, often tens of
+ * seconds apart), so a snapshot-only table would keep showing stale item
+ * counts until the user manually refreshes.
+ */
+const RUN_POLL_INTERVAL_MS = 5_000;
+
+/**
+ * A run counts as "in progress" while its item/error count is still moving.
+ * The grace period bridges the quiet stretch while the worker is still inside
+ * a model call for the next item (often 30s+ for reasoning models), so the
+ * spinner does not flicker off between two item completions.
+ */
+const RUNNING_GRACE_MS = 90_000;
+
+type RunActivitySnapshot = {
+  itemCount: number;
+  errorCount: number;
+  lastChangedAt: number;
+};
 
 type UseExperimentsTableDataParams = {
   projectId: string;
@@ -92,12 +114,19 @@ export function useExperimentsTableData({
   const experimentsQuery = api.experiments.all.useQuery(getAllPayload, {
     enabled: canQuery,
     refetchOnWindowFocus: true,
+    refetchInterval: RUN_POLL_INTERVAL_MS,
+    // Keep polling while the tab is in the background: the table is often
+    // watched from a second window, and a paused poll would freeze the item
+    // counts while the spinner (pure CSS) keeps animating.
+    refetchIntervalInBackground: true,
   });
 
   // Fetch total count
   const totalCountQuery = api.experiments.countAll.useQuery(getCountPayload, {
     enabled: canQuery,
     refetchOnWindowFocus: true,
+    refetchInterval: RUN_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   });
 
   // An empty time range hides runs that exist just outside it, which reads as
@@ -145,6 +174,8 @@ export function useExperimentsTableData({
     enabled: canQuery && metricsPayload !== null,
     refetchOnWindowFocus: false,
     staleTime: 0,
+    refetchInterval: RUN_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   });
 
   // Memoize joined data to prevent infinite re-renders
@@ -182,11 +213,85 @@ export function useExperimentsTableData({
 
   const dataUpdatedAt = experimentsQuery.dataUpdatedAt;
 
+  // A run is "running" while its counts are still changing. Each poll is
+  // compared against the previous snapshot; the grace window keeps the spinner
+  // steady across the silent stretches between item completions.
+  const runActivityRef = useRef<Map<string, RunActivitySnapshot>>(new Map());
+  const [runningExperimentIds, setRunningExperimentIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    if (!coreRows) return;
+
+    const now = Date.now();
+    const activity = runActivityRef.current;
+    const inView = new Set<string>();
+
+    for (const row of coreRows) {
+      inView.add(row.id);
+      const prev = activity.get(row.id);
+
+      if (!prev) {
+        // First sighting: judge by age. A run created moments ago is almost
+        // certainly still inside its first model call and gets the spinner;
+        // long-finished history does not.
+        const startedAtMs = new Date(row.startTime).getTime();
+        activity.set(row.id, {
+          itemCount: row.itemCount,
+          errorCount: row.errorCount,
+          lastChangedAt: Math.max(startedAtMs, now - RUNNING_GRACE_MS),
+        });
+        continue;
+      }
+
+      if (
+        prev.itemCount !== row.itemCount ||
+        prev.errorCount !== row.errorCount
+      ) {
+        activity.set(row.id, {
+          ...prev,
+          itemCount: row.itemCount,
+          errorCount: row.errorCount,
+          lastChangedAt: now,
+        });
+      }
+    }
+
+    // Forget rows that left the current view (paging or filtering), so the
+    // snapshot map cannot grow without bound.
+    for (const id of activity.keys()) {
+      if (!inView.has(id)) {
+        activity.delete(id);
+      }
+    }
+
+    const next = new Set<string>();
+    for (const row of coreRows) {
+      const snapshot = activity.get(row.id);
+      if (snapshot && now - snapshot.lastChangedAt < RUNNING_GRACE_MS) {
+        next.add(row.id);
+      }
+    }
+
+    setRunningExperimentIds((prevSet) => {
+      if (
+        prevSet.size === next.size &&
+        [...next].every((id) => prevSet.has(id))
+      ) {
+        return prevSet;
+      }
+      return next;
+    });
+  }, [coreRows]);
+
   return {
     experiments: joinedData,
     dataUpdatedAt,
     totalCount,
     metricsLoading: metricsQuery.isLoading,
+    /** Row ids whose item/error count is still moving (run in progress). */
+    runningExperimentIds,
     /** The rows shown are the most recent runs, not the selected time range. */
     isShowingMostRecent,
     /**

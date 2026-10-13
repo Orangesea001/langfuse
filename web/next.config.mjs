@@ -96,7 +96,10 @@ const nextConfig = {
     ignoreBuildErrors: process.env.NEXT_IGNORE_BUILD_ERRORS === "true",
   },
   // Agent/browser tooling often targets 127.0.0.1 instead of localhost in dev.
-  allowedDevOrigins: ["127.0.0.1"],
+  // The dev-domain entry (https://dev.evp.intel.sankuai.com, see nginx conf)
+  // must be allowlisted or Next.js blocks its /_next/hmr WebSocket as
+  // cross-origin, flooding the console with reconnect errors.
+  allowedDevOrigins: ["127.0.0.1", "dev.evp.intel.sankuai.com"],
   staticPageGenerationTimeout: 500, // default is 60. Required for build process for amd
   transpilePackages: ["@langfuse/shared"],
   reactStrictMode: true,
@@ -107,6 +110,10 @@ const nextConfig = {
     "bullmq",
     "@opentelemetry/sdk-node",
     "@opentelemetry/instrumentation-winston",
+    // uuid v14 is ESM-only; packages/shared/dist is CJS and does require("uuid").
+    // Leave it external so Node's require(esm) handles it at runtime instead of
+    // webpack's static check rejecting it ("ESM packages need to be imported").
+    "uuid",
   ],
   poweredByHeader: false,
   basePath: env.NEXT_PUBLIC_BASE_PATH,
@@ -164,6 +171,12 @@ const nextConfig = {
     // a fallback: it emits `/_next/...` on the page origin. Unset (undefined)
     // would inherit assetPrefix and break workers on Cloud.
     turbopackWorkerAssetPrefix: "",
+    // uuid v14 is ESM-only while packages/shared/dist (CJS) calls
+    // require("uuid"). Webpack dev mode fails on this with "ESM packages need
+    // to be imported". "loose" lets CJS require ESM packages (resolved by
+    // Node's require(esm) at runtime). Turbopack does NOT support this option
+    // (it panics), so only enable it for webpack runs (`next dev --webpack`).
+    ...(process.argv.includes("--webpack") ? { esmExternals: "loose" } : {}),
   },
 
   /**

@@ -55,7 +55,7 @@ export const availableFlags = [
   "searchBar",
   "templateFlag",
   "excludeClickhouseRead",
-  "v4BetaToggleVisible",
+  // v4BetaToggleVisible was removed with the legacy V3 sidebar toggle.
   "observationEvals",
   "experimentsV4Enabled",
 ] as const;

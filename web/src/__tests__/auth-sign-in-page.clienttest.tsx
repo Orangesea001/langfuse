@@ -71,7 +71,7 @@ const authProviders: PageProps["authProviders"] = {
   keycloak: false,
   workos: false,
   wordpress: false,
-  custom: false,
+  mtSso: false,
   sso: false,
 };
 

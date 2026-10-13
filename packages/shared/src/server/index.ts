@@ -44,6 +44,7 @@ export * from "./auth/apiKeys";
 export * from "./auth/credentials";
 export * from "./auth/invalidateApiKeys";
 export * from "./auth/customSsoProvider";
+export * from "./auth/mtCasProvider";
 export * from "./auth/gitHubEnterpriseProvider";
 export * from "./auth/jumpcloudProvider";
 export * from "./auth/userProjectRoleAuth";
