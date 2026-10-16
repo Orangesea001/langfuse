@@ -3,10 +3,6 @@ import { ServerPosthog } from "@/src/features/posthog-analytics/ServerPosthog";
 import { Prisma, prisma } from "@langfuse/shared/src/db";
 import { v4 as uuidv4 } from "uuid";
 import {
-  getDatasetRunItemCountsByProjectInCreationInterval,
-  getObservationCountsByProjectInCreationInterval,
-  getScoreCountsByProjectInCreationInterval,
-  getTraceCountsByProjectInCreationInterval,
   logger,
 } from "@langfuse/shared/src/server";
 import { env } from "@/src/env.mjs";
@@ -165,38 +161,13 @@ async function posthogTelemetry({
     });
 
     // Count traces
-    const countTracesClickhouse =
-      await getTraceCountsByProjectInCreationInterval({
-        start: startTimeframe ?? new Date(0),
-        end: endTimeframe,
-      });
-    const countTraces = countTracesClickhouse.reduce(
-      (acc, curr) => acc + curr.count,
-      0,
-    );
+    // Count traces (ClickHouse aggregation disabled for internal deployment)
+    const countTraces = 0;
 
-    // Count scores
-    const countScoresClickhouse =
-      await getScoreCountsByProjectInCreationInterval({
-        start: startTimeframe ?? new Date(0),
-        end: endTimeframe,
-      });
-    const countScores = countScoresClickhouse.reduce(
-      (acc, curr) => acc + curr.count,
-      0,
-    );
-
-    // Count observations
-    const countObservationsClickhouse =
-      await getObservationCountsByProjectInCreationInterval({
-        start: startTimeframe ?? new Date(0),
-        end: endTimeframe,
-      });
-    const countObservations = countObservationsClickhouse.reduce(
-      (acc, curr) => acc + curr.count,
-      0,
-    );
-
+    // Count scores (ClickHouse aggregation disabled for internal deployment)
+    const countScores = 0;
+    // Count observations (ClickHouse aggregation disabled for internal deployment)
+    const countObservations = 0;
     // Count datasets
     const countDatasets = await prisma.dataset.count({
       where: {
@@ -226,17 +197,8 @@ async function posthogTelemetry({
         },
       },
     });
-
-    const countDatasetRunItemsClickhouse =
-      await getDatasetRunItemCountsByProjectInCreationInterval({
-        start: startTimeframe ?? new Date(0),
-        end: endTimeframe,
-      });
-    const countDatasetRunItems = countDatasetRunItemsClickhouse.reduce(
-      (acc, curr) => acc + curr.count,
-      0,
-    );
-
+    // Count dataset run items (ClickHouse aggregation disabled for internal deployment)
+    const countDatasetRunItems = 0;
     // Count Langfuse Assistant runs. Counted unconditionally: zero on an
     // instance that never enabled the Assistant is itself the answer.
     const countAssistantRuns = await prisma.inAppAgentRun.count({

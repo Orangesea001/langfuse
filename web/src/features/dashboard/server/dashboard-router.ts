@@ -16,8 +16,6 @@ import {
   getNumericScoreHistogram,
   extractFromAndToTimestampsFromFilter,
   logger,
-  getObservationCostByTypeByTime,
-  getObservationUsageByTypeByTime,
   DashboardService,
   DashboardDefinitionSchema,
 } from "@langfuse/shared/src/server";
@@ -273,54 +271,6 @@ async function getScoreAggregateV2({
   return merged as DatabaseRow[];
 }
 
-async function getObservationsByTypeV2(params: {
-  projectId: string;
-  filter: FilterState;
-  dimensionField: "costType" | "usageType";
-  metricMeasure: "costByType" | "usageByType";
-}): Promise<DatabaseRow[]> {
-  const { projectId, filter, dimensionField, metricMeasure } = params;
-
-  const [from, to] = extractFromAndToTimestampsFromFilter(filter);
-  if (!from?.value || !to?.value) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Time filter required",
-    });
-  }
-
-  // Filter normalisation for the executeQuery (v2) path:
-  //
-  const nonDatetimeFilters = filter.filter((f) => f.type !== "datetime");
-  // mapLegacyUiTableFilterToView normalizes legacy dashboard filters whether
-  // they arrive as display labels, uiTableIds, or explicit aliases.
-  const viewFilters = mapLegacyUiTableFilterToView(
-    "observations",
-    nonDatetimeFilters,
-  );
-
-  const q: QueryType = {
-    view: "observations",
-    dimensions: [{ field: dimensionField }],
-    metrics: [{ measure: metricMeasure, aggregation: "sum" }],
-    filters: viewFilters,
-    timeDimension: { granularity: "auto" },
-    fromTimestamp: new Date(from.value as Date).toISOString(),
-    toTimestamp: new Date(to.value as Date).toISOString(),
-    orderBy: null,
-  };
-
-  const rows = await executeQuery(projectId, q, "v2", true);
-
-  // Transform flat rows to { intervalStart, key, sum } expected by the component.
-  const sumField = `sum_${metricMeasure}`;
-  return rows.map((row) => ({
-    intervalStart: new Date(row["time_dimension"] as string),
-    key: row[dimensionField] as string,
-    sum: Number(row[sumField] ?? 0),
-  })) as DatabaseRow[];
-}
-
 export const dashboardRouter = createTRPCRouter({
   chart: protectedProjectProcedure
     .input(
@@ -332,8 +282,6 @@ export const dashboardRouter = createTRPCRouter({
           .enum([
             // Current score table is weird and does not fit into new model. Keep around as is until we decide what to do with it.
             "score-aggregate",
-            "observations-usage-by-type-timeseries",
-            "observations-cost-by-type-timeseries",
           ])
           .nullish(),
       }),
@@ -367,35 +315,6 @@ export const dashboardRouter = createTRPCRouter({
             avgValue: row.avg_value,
             countScoreId: Number(row.count),
           })) as DatabaseRow[];
-        case "observations-usage-by-type-timeseries":
-          if (input.version === "v2") {
-            return getObservationsByTypeV2({
-              projectId: input.projectId,
-              filter: input.filter ?? [],
-              dimensionField: "usageType",
-              metricMeasure: "usageByType",
-            });
-          }
-          const rowsObsType = await getObservationUsageByTypeByTime(
-            input.projectId,
-            input.filter ?? [],
-          );
-          return rowsObsType as DatabaseRow[];
-        case "observations-cost-by-type-timeseries":
-          if (input.version === "v2") {
-            return getObservationsByTypeV2({
-              projectId: input.projectId,
-              filter: input.filter ?? [],
-              dimensionField: "costType",
-              metricMeasure: "costByType",
-            });
-          }
-          const rowsObsCostByType = await getObservationCostByTypeByTime(
-            input.projectId,
-            input.filter ?? [],
-          );
-          return rowsObsCostByType as DatabaseRow[];
-        default:
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Query not found",

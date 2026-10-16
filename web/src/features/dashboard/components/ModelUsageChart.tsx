@@ -114,143 +114,10 @@ export const ModelUsageChart = ({
     },
   );
 
-  const queryCostByType = api.dashboard.chart.useQuery(
-    {
-      projectId,
-      from: "traces_observations",
-      select: [
-        { column: "totalTokens", agg: "SUM" },
-        { column: "calculatedTotalCost", agg: "SUM" },
-        { column: "model" },
-      ],
-      filter: [
-        ...globalFilterState,
-        {
-          type: "stringOptions",
-          column: "type",
-          operator: "any of",
-          value: getGenerationLikeTypes(),
-        },
-        {
-          type: "stringOptions",
-          column: "model",
-          operator: "any of",
-          value: selectedModels,
-        } as const,
-      ],
-      groupBy: [
-        {
-          type: "datetime",
-          column: "startTime",
-          temporalUnit:
-            dashboardDateRangeAggregationSettings[agg].dateTrunc ?? "day",
-        },
-        {
-          type: "string",
-          column: "model",
-        },
-      ],
-      orderBy: [
-        { column: "calculatedTotalCost", direction: "DESC", agg: "SUM" },
-      ],
-      queryName: "observations-cost-by-type-timeseries",
-      version: metricsVersion,
-    },
-    {
-      enabled: isModelUsageEnabled,
-      trpc: {
-        context: {
-          skipBatch: true,
-        },
-      },
-    },
-  );
-
-  const queryUsageByType = api.dashboard.chart.useQuery(
-    {
-      projectId,
-      from: "traces_observations",
-      select: [
-        { column: "totalTokens", agg: "SUM" },
-        { column: "calculatedTotalCost", agg: "SUM" },
-        { column: "model" },
-      ],
-      filter: [
-        ...globalFilterState,
-        {
-          type: "stringOptions",
-          column: "type",
-          operator: "any of",
-          value: getGenerationLikeTypes(),
-        },
-        {
-          type: "stringOptions",
-          column: "model",
-          operator: "any of",
-          value: selectedModels,
-        } as const,
-      ],
-      groupBy: [
-        {
-          type: "datetime",
-          column: "startTime",
-          temporalUnit:
-            dashboardDateRangeAggregationSettings[agg].dateTrunc ?? "day",
-        },
-        {
-          type: "string",
-          column: "model",
-        },
-      ],
-      orderBy: [{ column: "totalTokens", direction: "DESC", agg: "SUM" }],
-      queryName: "observations-usage-by-type-timeseries",
-      version: metricsVersion,
-    },
-    {
-      enabled: isModelUsageEnabled,
-      trpc: {
-        context: {
-          skipBatch: true,
-        },
-      },
-    },
-  );
 
   // Each series is memoized on its raw query result (+ model selection) so the
   // reference stays stable across the scheduler's page re-renders — that's what
   // lets the chart's React.memo bail. (LFE-10549)
-  const costByType = useMemo(
-    () =>
-      queryCostByType.data && allModels.length > 0
-        ? fillMissingValuesAndTransform(
-            extractTimeSeriesData(queryCostByType.data, "intervalStart", [
-              {
-                uniqueIdentifierColumns: [{ accessor: "key" }],
-                valueColumn: "sum",
-              },
-            ]),
-            [],
-          )
-        : [],
-    [queryCostByType.data, allModels],
-  );
-
-  const unitsByType = useMemo(
-    () =>
-      queryUsageByType.data && allModels.length > 0
-        ? fillMissingValuesAndTransform(
-            extractTimeSeriesData(queryUsageByType.data, "intervalStart", [
-              {
-                uniqueIdentifierColumns: [{ accessor: "key" }],
-                valueColumn: "sum",
-              },
-            ]),
-            [],
-          )
-        : [],
-    [queryUsageByType.data, allModels],
-  );
-
   const unitsByModel = useMemo(
     () =>
       queryResult.data && allModels.length > 0
@@ -315,14 +182,6 @@ export const ModelUsageChart = ({
       chartUnit: "USD",
     },
     {
-      tabTitle: "Cost by type",
-      data: costByType,
-      totalMetric: costFormatter(totalCost),
-      metricDescription: `Cost`,
-      chartMetricLabel: "USD",
-      chartUnit: "USD",
-    },
-    {
       tabTitle: "Usage by model",
       data: unitsByModel,
       totalMetric: totalTokens
@@ -332,18 +191,8 @@ export const ModelUsageChart = ({
       chartMetricLabel: "Tokens",
       chartUnit: "tokens",
     },
-    {
-      tabTitle: "Usage by type",
-      data: unitsByType,
-      totalMetric: totalTokens
-        ? compactNumberFormatter(totalTokens)
-        : compactNumberFormatter(0),
-      metricDescription: `Units`,
-      chartMetricLabel: "Tokens",
-      chartUnit: "tokens",
-    },
-  ];
 
+  ];
   return (
     <DashboardCard
       className={className}
