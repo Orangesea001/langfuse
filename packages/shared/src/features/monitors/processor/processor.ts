@@ -165,7 +165,7 @@ export class MonitorProcessor {
     } catch (error) {
       // Resource pressure is transient, not a bad query; rethrow so the monitor stays ACTIVE and the scheduler retries.
       if (AnalyticsResourceError.is(error)) {
-        logger.warn("queryMetrics hit a ClickHouse resource limit; retrying", {
+        logger.warn("queryMetrics hit a analytics resource limit; retrying", {
           errorType: error.errorType,
           projectId: event.projectId,
           schedulerBatchId: event.schedulerBatchId.toString(),

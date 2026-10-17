@@ -8,7 +8,7 @@
 // without pulling a server logger into this module.
 //
 // Several overlapping feature sets share this module — extend, don't fork:
-//   - LFE-10402: `rawPassthrough` (stream ClickHouse JSONEachRow bytes straight
+//   - LFE-10402: `rawPassthrough` (stream Analytics JSONEachRow bytes straight
 //     to gzip → upload) and `gzipLevel` (zlib deflate level for compressed
 //     exports).
 //   - LFE-10394: upload tuning (`partSizeBytes` / `maxConcurrentParts` /
@@ -18,15 +18,15 @@
 
 import { z } from "zod";
 
-// Minimum ClickHouse version for safe raw passthrough. The passthrough relies on
-// ClickHouse's mid-stream exception tagging (the `x-analytics-exception-tag`
+// Minimum Analytics version for safe raw passthrough. The passthrough relies on
+// Analytics's mid-stream exception tagging (the `x-analytics-exception-tag`
 // response header + end-of-stream marker) so the client errors the stream when a
-// query fails after a 200 response. That mechanism only exists in ClickHouse
+// query fails after a 200 response. That mechanism only exists in Analytics
 // >= 25.11. On older servers a query that fails mid-stream is NOT detected and
 // the passthrough can silently upload a truncated/garbage object — so operators
-// MUST NOT enable `rawPassthrough` on self-hosted ClickHouse below this version.
-// Langfuse Cloud runs a newer ClickHouse, so this only affects self-hosters.
-export const RAW_PASSTHROUGH_MIN_CLICKHOUSE_VERSION = "25.11";
+// MUST NOT enable `rawPassthrough` on self-hosted Analytics below this version.
+// Langfuse Cloud runs a newer Analytics, so this only affects self-hosters.
+export const RAW_PASSTHROUGH_MIN_ANALYTICS_VERSION = "25.11";
 
 // Bounds applied by the resolver (clamp) and the write schema (reject).
 //
@@ -51,14 +51,14 @@ export const BLOB_EXPORT_TUNING_BOUNDS = {
 export const DEFAULT_BLOB_EXPORT_PART_SIZE_BYTES = 100 * 1024 * 1024; // 100 MiB
 
 export const BlobExportTuningSchema = z.object({
-  // LFE-10402 raw-passthrough export path: stream ClickHouse JSONEachRow row text
+  // LFE-10402 raw-passthrough export path: stream Analytics JSONEachRow row text
   // straight to gzip → upload, skipping the per-row JS parse/enrich/serialize
   // pipeline. Only honored for JSONL exports of the observations / events
   // tables; ignored (with a warning) otherwise. Drops the model price columns.
   //
-  // EXPERIMENTAL + self-hosting caveat: requires ClickHouse
-  // >= RAW_PASSTHROUGH_MIN_CLICKHOUSE_VERSION (see above) for mid-stream failure
-  // detection. Do not enable on older self-hosted ClickHouse.
+  // EXPERIMENTAL + self-hosting caveat: requires Analytics
+  // >= RAW_PASSTHROUGH_MIN_ANALYTICS_VERSION (see above) for mid-stream failure
+  // detection. Do not enable on older self-hosted Analytics.
   rawPassthrough: z.boolean().optional(),
   // LFE-10402 gzip tuning: zlib deflate level for compressed exports. Lower
   // levels trade output size for markedly less worker CPU. Only honored when the
