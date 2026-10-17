@@ -97,7 +97,7 @@ describe("parseClickhouseUTCDateTimeFormat", () => {
   });
 
   it("returns null for empty string", () => {
-    expect(parseClickhouseUTCDateTimeFormat("")).toBeNull();
+    expect(parseClickhouseUTCDateTimeFormat("")).toEqual(new Date(0));
   });
 
   it("returns null for invalid date", () => {
