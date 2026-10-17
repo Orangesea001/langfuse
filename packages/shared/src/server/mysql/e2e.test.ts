@@ -1,10 +1,10 @@
 /**
  * End-to-end tests for MySQL analytics store.
  * Requires a running MySQL instance with LANGFUSE_MYSQL_URL set.
- * Run: LANGFUSE_MYSQL_URL'LANGFUSE_MYSQL_URL=mysql://root:@localhost:3306/langfuse_test p7npm --filter @langfuse/shared exec vitest run src/server/mysql/e2e.test.ts
+ * Run: LANGFUSE_MYSQL_URL=mysql://root:@localhost:3306/langfuse_test pnpm --filter @langfuse/shared exec vitest run src/server/mysql/e2e.test.ts
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import mysql from "mysql2/promise";
+import mysql, { type RowDataPacket } from "mysql2/promise";
 
 const MYSQL_URL =
   process.env.LANGFUSE_MYSQL_URL ||
@@ -51,10 +51,10 @@ describe.skipIf(!process.env.LANGFUSE_MYSQL_URL)("MySQL E2E", () => {
       [id, projectId, "test-trace", now, now],
     );
 
-    const [rows] = await pool.query(
+    const [rows] = (await pool.query(
       `SELECT id, project_id, name FROM ${TEST_TABLE} WHERE id = ?`,
       [id],
-    );
+    )) as [RowDataPacket[], unknown];
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -80,10 +80,10 @@ describe.skipIf(!process.env.LANGFUSE_MYSQL_URL)("MySQL E2E", () => {
       [id, "proj-1", "updated", now, now],
     );
 
-    const [rows] = await pool.query(
+    const [rows] = (await pool.query(
       `SELECT name FROM ${TEST_TABLE} WHERE id = ?`,
       [id],
-    );
+    )) as [RowDataPacket[], unknown];
     expect(rows[0].name).toBe("updated");
   });
 
@@ -97,50 +97,59 @@ describe.skipIf(!process.env.LANGFUSE_MYSQL_URL)("MySQL E2E", () => {
     );
 
     // Test CASE WHEN expression
-    const [rows] = await pool.query(
+    const [rows] = (await pool.query(
       `SELECT CASE WHEN name = 'test' THEN 'YES' ELSE 'NO' END as result FROM ${TEST_TABLE} WHERE id = ?`,
       [id],
-    );
+    )) as [RowDataPacket[], unknown];
     expect(rows[0].result).toBe("YES");
   });
 
   it("handles IFNULL (replaces ifNull)", async () => {
-    const [rows] = await pool.query(`SELECT IFNULL(NULL, 'default') as result`);
+    const [rows] = (await pool.query(
+      `SELECT IFNULL(NULL, 'default') as result`,
+    )) as [RowDataPacket[], unknown];
     expect(rows[0].result).toBe("default");
   });
 
   it("handles NULLIF (replaces nullIf)", async () => {
-    const [rows] = await pool.query(`SELECT NULLIF('same', 'same') as result`);
+    const [rows] = (await pool.query(
+      `SELECT NULLIF('same', 'same') as result`,
+    )) as [RowDataPacket[], unknown];
     expect(rows[0].result).toBeNull();
   });
 
   it("handles TIMESTAMPDIFF (replaces date_diff)", async () => {
-    const [rows] = await pool.query(
+    const [rows] = (await pool.query(
       `SELECT TIMESTAMPDIFF(SECOND, '2024-01-01 00:00:00', '2024-01-01 00:00:30') as diff`,
-    );
+    )) as [RowDataPacket[], unknown];
     expect(Number(rows[0].diff)).toBe(30);
   });
 
   it("handles CHAR_LENGTH (replaces lengthUTF8)", async () => {
-    const [rows] = await pool.query(`SELECT CHAR_LENGTH('hello') as len`);
+    const [rows] = (await pool.query(`SELECT CHAR_LENGTH('hello') as len`)) as [
+      RowDataPacket[],
+      unknown,
+    ];
     expect(Number(rows[0].len)).toBe(5);
   });
 
   it("handles JSON functions (for CH array/map replacement)", async () => {
     // JSON_CONTAINS
-    const [r1] = await pool.query(
+    const [r1] = (await pool.query(
       `SELECT JSON_CONTAINS('["a","b"]', '"a"') as result`,
-    );
-    expect(Number(r1.result)).toBe(1);
+    )) as [RowDataPacket[], unknown];
+    expect(Number(r1[0].result)).toBe(1);
 
     // JSON_LENGTH
-    const [r2] = await pool.query(`SELECT JSON_LENGTH('["a","b","c"]') as len`);
-    expect(Number(r2.len)).toBe(3);
+    const [r2] = (await pool.query(
+      `SELECT JSON_LENGTH('["a","b","c"]') as len`,
+    )) as [RowDataPacket[], unknown];
+    expect(Number(r2[0].len)).toBe(3);
 
     // JSON_EXTRACT
-    const [r3] = await pool.query(
+    const [r3] = (await pool.query(
       `SELECT JSON_EXTRACT('["x","y"]', '$[0]') as val`,
-    );
-    expect(r3.val).toBe('"x"');
+    )) as [RowDataPacket[], unknown];
+    expect(r3[0].val).toBe('"x"');
   });
 });
