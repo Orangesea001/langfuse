@@ -4,7 +4,7 @@ import {
   TupleParam,
   type ClickHouseClientConfigOptions,
   type ClickHouseSettings,
-} from "@clickhouse/client";
+} from "./clickhouse";
 import type {
   EventsObservation,
   MetadataDomain,

@@ -8,6 +8,7 @@ import {
   queryClickhouseExecRaw,
   BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS,
   upsertClickhouse,
+  type ClickHouseClientConfigOptions,
 } from "./clickhouse";
 import { logger } from "../logger";
 import { scoreBooleansAggregation } from "../queries/clickhouse-sql/query-fragments";
@@ -50,7 +51,7 @@ import {
 import { env } from "../../env";
 import { TracingSearchType } from "../../interfaces/search";
 import { observationsTableCols } from "../../observationsTable";
-import { ClickHouseClientConfigOptions } from "@clickhouse/client";
+// ClickHouseClientConfigOptions no longer needed (MySQL backend)
 import type { AnalyticsGenerationEvent } from "../analytics-integrations/types";
 import { ObservationType } from "../../domain";
 import {

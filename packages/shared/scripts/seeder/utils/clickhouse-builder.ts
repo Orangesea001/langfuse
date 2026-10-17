@@ -11,7 +11,8 @@ import {
   createObservationsCh,
   createScoresCh,
 } from "../../../src/server";
-import { InsertResult } from "@clickhouse/client";
+// InsertResult from @clickhouse/client removed (MySQL backend)
+type InsertResult = unknown;
 
 /**
  * Builds or executes ClickHouse SQL INSERT queries for seeding test data.

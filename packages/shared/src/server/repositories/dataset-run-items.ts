@@ -16,13 +16,14 @@ import {
 import {
   parseClickhouseUTCDateTimeFormat,
   queryClickhouse,
+  type ClickHouseClientConfigOptions,
 } from "./clickhouse";
 import { convertDatasetRunItemClickhouseToDomain } from "./dataset-run-items-converters";
 import { DatasetRunItemRecord } from "./definitions";
 import { env } from "../../env";
 import { commandClickhouse } from "./clickhouse";
 import Decimal from "decimal.js";
-import { ClickHouseClientConfigOptions } from "@clickhouse/client";
+// ClickHouseClientConfigOptions no longer needed (MySQL backend)
 import {
   convertDateToClickhouseDateTime,
   type PreferredClickhouseService,

@@ -29,6 +29,7 @@ import {
   upsertClickhouse,
   parseClickhouseUTCDateTimeFormat,
   clickhouseCompliantRandomCharacters,
+  type ClickHouseClientConfigOptions,
 } from "./clickhouse";
 import {
   FilterList,
@@ -64,7 +65,7 @@ import { env } from "../../env";
 import { _handleGetScoreById, _handleGetScoresByIds } from "./scores-utils";
 import { parseMetadataCHRecordToDomain } from "../utils/metadata_conversion";
 import type { AnalyticsScoreEvent } from "../analytics-integrations/types";
-import { ClickHouseClientConfigOptions } from "@clickhouse/client";
+// ClickHouseClientConfigOptions no longer needed (MySQL backend)
 import { recordDistribution } from "../instrumentation";
 import { logger } from "../logger";
 import { prisma } from "../../db";

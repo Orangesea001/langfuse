@@ -7,6 +7,7 @@ import {
   queryClickhouseExecRaw,
   BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS,
   upsertClickhouse,
+  type ClickHouseClientConfigOptions,
 } from "./clickhouse";
 import {
   createFilterFromFilterState,
@@ -46,7 +47,7 @@ import {
   TRACE_TO_OBSERVATIONS_INTERVAL,
 } from "./constants";
 import { env } from "../../env";
-import { ClickHouseClientConfigOptions } from "@clickhouse/client";
+// ClickHouseClientConfigOptions no longer needed (MySQL backend)
 import { recordDistribution } from "../instrumentation";
 import type { AnalyticsTraceEvent } from "../analytics-integrations/types";
 import { DEFAULT_RENDERING_PROPS, RenderingProps } from "../utils/rendering";

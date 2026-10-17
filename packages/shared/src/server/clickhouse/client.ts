@@ -14,7 +14,6 @@ export type ClickhouseClientType = ReturnType<typeof getMySqlPool>;
 export type PreferredClickhouseService = "ReadWrite" | "ReadOnly" | "EventsReadOnly";
 
 /** Stub: ClickHouse settings are not applicable to MySQL */
-export type ClickHouseSettings = Record<string, unknown>;
 
 /** Stub: exception tag header not applicable */
 export const EXCEPTION_TAG_HEADER_NAME = "x-clickhouse-exception" as string;

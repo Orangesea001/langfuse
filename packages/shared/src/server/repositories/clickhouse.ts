@@ -16,7 +16,10 @@ import { randomUUID } from "crypto";
 // ─── Re-exported types for compatibility ───
 
 /** Stub: ClickHouse settings are not applicable to MySQL */
-type ClickHouseSettings = Record<string, unknown>;
+/** Stub: ClickHouse client config options (not needed for MySQL) */
+export type ClickHouseClientConfigOptions = Record<string, unknown>;
+
+export type ClickHouseSettings = Record<string, unknown>;
 
 /** Stub: TupleParam is not needed for MySQL (arrays handled as JSON) */
 export const TupleParam = Array;

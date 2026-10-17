@@ -1,4 +1,8 @@
 /* eslint-disable no-nested-ternary */
+import {
+  type ClickHouseClientConfigOptions,
+} from "../repositories/clickhouse";
+
 import { OrderByState } from "../../interfaces/orderBy";
 import { scoreBooleansAggregation } from "../queries/clickhouse-sql/query-fragments";
 import { tracesTableUiColumnDefinitions } from "../tableMappings";
@@ -28,7 +32,7 @@ import {
 } from "../repositories";
 import { TracingSearchType } from "../../interfaces/search";
 import { ObservationLevelType, TraceDomain } from "../../domain";
-import { ClickHouseClientConfigOptions } from "@clickhouse/client";
+// ClickHouseClientConfigOptions no longer needed (MySQL backend)
 import { shouldSkipObservationsFinal } from "../queries/clickhouse-sql/query-options";
 import { convertDateToClickhouseDateTime } from "../clickhouse/client";
 import type { TraceDeleteBatchActionCursor } from "../../features/batchAction/types";
