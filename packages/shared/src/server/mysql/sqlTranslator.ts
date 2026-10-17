@@ -6,6 +6,7 @@
  * 2. FINAL keyword removal (ReplacingMergeTree dedup not needed in MySQL)
  * 3. ClickHouse-specific functions → MySQL equivalents
  * 4. ClickHouse-specific syntax → MySQL equivalents
+ * 5. SETTINGS clause removal
  */
 
 /** Result of translating a CH query to MySQL */
@@ -31,7 +32,10 @@ export function translateQuery(
   // 1. Remove FINAL keyword (MySQL uses transactional reads)
   sql = sql.replace(/\bFINAL\b/g, "");
 
-  // 2. Replace {param:Type} named parameters with ? positional parameters
+  // 2. Remove SETTINGS clause (e.g., "SETTINGS use_query_cache = false")
+  sql = sql.replace(/\bSETTINGS\s+[^;]*?(?=\s*;?\s*$|\s*\))/gi, "");
+
+  // 3. Replace {param:Type} named parameters with ? positional parameters
   // Matches patterns like {projectId:String}, {limit:UInt32}, {fromTime:DateTime64(3)}, etc.
   if (chParams) {
     sql = sql.replace(/\{(\w+):\s*[^}]+\}/g, (_match, paramName: string) => {
@@ -39,21 +43,18 @@ export function translateQuery(
         params.push(chParams[paramName]);
         return "?";
       }
-      // Parameter referenced in SQL but not in params map — leave as is
-      // (this shouldn't happen in practice)
       return _match;
     });
   }
 
-  // 3. Translate ClickHouse functions to MySQL equivalents
+  // 4. Translate ClickHouse functions to MySQL equivalents
+  // Order matters: more specific patterns first
+
+  // toDateTime64(x, N) → x (strip function, keep arg)
+  sql = sql.replace(/\btoDateTime64\(([^,]+),\s*\d+\)/g, "$1");
+
   // toDateTime(x) → x (MySQL implicitly converts strings to datetime)
   sql = sql.replace(/\btoDateTime\(([^)]+)\)/g, "$1");
-
-  // toDateTime64(x, N) → x
-  sql = sql.replace(/\btoDateTime64\([^)]+\)/g, (match) => {
-    const inner = match.replace(/\btoDateTime64\(([^,]+),\s*\d+\)/, "$1");
-    return inner;
-  });
 
   // toDate(x) → DATE(x)
   sql = sql.replace(/\btoDate\(([^)]+)\)/g, "DATE($1)");
@@ -73,21 +74,42 @@ export function translateQuery(
   // toInt64(x) → CAST(x AS SIGNED)
   sql = sql.replace(/\btoInt64\(([^)]+)\)/g, "CAST($1 AS SIGNED)");
 
-  // has(Array, elem) → JSON_CONTAINS(Array, JSON_QUOTE(elem))
-  // Note: MySQL doesn't have native array type, uses JSON
+  // toUInt64(x) → CAST(x AS UNSIGNED)
+  sql = sql.replace(/\btoUInt64\(([^)]+)\)/g, "CAST($1 AS UNSIGNED)");
+
+  // toUUID(x) → x (MySQL doesn't have UUID type, treat as string)
+  sql = sql.replace(/\btoUUID\(([^)]+)\)/g, "$1");
+
+  // has(Array, elem) → JSON_CONTAINS(Array, CAST(elem AS JSON))
+  // For the pattern has(column, {param:String}), the param is already a ?
   sql = sql.replace(
     /\bhas\(([^,]+),\s*([^)]+)\)/g,
     "JSON_CONTAINS($1, CAST($2 AS JSON))",
   );
 
-  // arrayElement(arr, idx) → JSON_EXTRACT(arr, CONCAT('$[', idx-1, ']'))
-  // This is a rough translation; specific uses may need manual adjustment
+  // arrayJoin(x) → JSON_TABLE approach (stub - specific uses need manual adjustment)
+  // For tags stored as JSON arrays: arrayJoin(tags) → tags (simplified)
+  // This is a rough translation; complex ARRAY JOIN patterns need manual SQL rewrite
 
-  // 4. Remove ClickHouse-specific table engine clauses (shouldn't appear in queries,
-  //    but just in case)
+  // tupleElement(x, n) → JSON_UNQUOTE(JSON_EXTRACT(x, CONCAT('$[', n-1, ']')))
+  // Simplified: for tupleElement used in score filters, just extract field
+  sql = sql.replace(
+    /\btupleElement\(([^,]+),\s*(\d+)\)/g,
+    "JSON_UNQUOTE(JSON_EXTRACT($1, '$[$2]'))",
+  );
 
-  // 5. Replace ClickHouse Map type access patterns
-  // map['key'] or; real CH SQL uses mapKeys/mapValues which are already removed
+  // 5. Remove "LIMIT n BY col" syntax (CH-specific, not in MySQL)
+  // Pattern: "LIMIT 1 BY id, project_id" → "LIMIT 1"  (approximation)
+  sql = sql.replace(/\bLIMIT\s+(\d+)\s+BY\s+[^;]+/gi, "LIMIT $1");
+
+  // 6. Remove "ANY LEFT JOIN" → "LEFT JOIN" 
+  sql = sql.replace(/\bANY\s+LEFT\s+JOIN\b/gi, "LEFT JOIN");
+  sql = sql.replace(/\bALL\s+LEFT\s+JOIN\b/gi, "LEFT JOIN");
+  sql = sql.replace(/\bANY\s+INNER\s+JOIN\b/gi, "INNER JOIN");
+  sql = sql.replace(/\bALL\s+INNER\s+JOIN\b/gi, "INNER JOIN");
+
+  // 7. Clean up multiple spaces
+  sql = sql.replace(/\s{2,}/g, " ").trim();
 
   return { sql, params };
 }
