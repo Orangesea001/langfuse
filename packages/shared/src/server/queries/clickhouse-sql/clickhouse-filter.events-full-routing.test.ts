@@ -222,11 +222,11 @@ describe("NullFilter metadata filters on events tables", () => {
       });
 
       expect(isNullFilter.apply()).toEqual({
-        query: `empty(e.${namesColumn})`,
+        query: `(LENGTH(e.${namesColumn}) = 0)`,
         params: {},
       });
       expect(isNotNullFilter.apply()).toEqual({
-        query: `notEmpty(e.${namesColumn})`,
+        query: `(LENGTH(e.${namesColumn}) > 0)`,
         params: {},
       });
     },

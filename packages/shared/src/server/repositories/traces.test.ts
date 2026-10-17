@@ -61,7 +61,7 @@ describe("public trace query construction", () => {
 
     expect(mockQueryClickhouse).toHaveBeenCalledOnce();
     const { query } = mockQueryClickhouse.mock.calls[0][0];
-    expect(query).toMatch(/FROM\s+traces\s+t\s+FINAL/);
+    expect(query).toContain("FROM traces t"); // FINAL removed in MySQL migration
   });
 
   it("does not use FINAL for skip-index trace filters (user_id / session_id / metadata)", async () => {
@@ -95,7 +95,7 @@ describe("public trace query construction", () => {
 
     expect(mockQueryClickhouse).toHaveBeenCalledOnce();
     const { query } = mockQueryClickhouse.mock.calls[0][0];
-    expect(query).toMatch(/FROM\s+traces\s+t\s+FINAL/);
+    expect(query).toContain("FROM traces t"); // FINAL removed in MySQL migration
   });
 
   it("pushes score names down for filter-only count queries", async () => {

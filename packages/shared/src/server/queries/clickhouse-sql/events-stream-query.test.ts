@@ -71,7 +71,7 @@ describe("buildEventsStreamQuery", () => {
     expect(query).toContain('e.experiment_name as "experiment_name"');
 
     const orderIndex = query.lastIndexOf("ORDER BY ");
-    const deduplicationIndex = query.lastIndexOf("LIMIT 1 BY ");
+    const deduplicationIndex = query.lastIndexOf("LIMIT 1 ");
     const rowLimitIndex = query.lastIndexOf("LIMIT {");
     expect(orderIndex).toBeGreaterThan(-1);
     expect(orderIndex).toBeLessThan(deduplicationIndex);

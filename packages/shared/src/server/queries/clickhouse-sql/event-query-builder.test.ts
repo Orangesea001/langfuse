@@ -127,7 +127,7 @@ describe("EventsQueryBuilder.selectIOWithSizeCap", () => {
     // input_length/output_length columns cannot be assumed present on every
     // deployment's events_full, and the full column is read here anyway.
     expect(query).toContain(
-      "if(lengthUTF8(e.input) <= 300000, e.input, leftUTF8(e.input, 4000)) as input",
+      "if(lengthUTF8(e.input) <= 300000, e.input, LEFT(e.input, 4000)) as input",
     );
     expect(query).toContain(
       "if(lengthUTF8(e.output) <= 300000, e.output, leftUTF8(e.output, 4000)) as output",
@@ -145,7 +145,7 @@ describe("EventsQueryBuilder.selectIOWithSizeCap", () => {
     const { query } = build();
 
     expect(query).toContain(
-      "arrayMap(v -> if(lengthUTF8(v) <= 300000, v, leftUTF8(v, 4000)), arrayReverse(e.metadata_values))",
+      "arrayMap(v -> if(lengthUTF8(v) <= 300000, v, LEFT(v, 4000)), arrayReverse(e.metadata_values))",
     );
     // The flag only fires for a key's winning value (a shadowed duplicate
     // must not raise it), and the shipped weight counts every capped value.
