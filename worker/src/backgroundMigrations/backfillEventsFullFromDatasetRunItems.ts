@@ -1,10 +1,9 @@
 import { IBackgroundMigration } from "./IBackgroundMigration";
 import {
-  buildClickHouseLogComment,
-  clickhouseClient,
+  queryClickhouse,
+  upsertClickhouse,
   convertDateToClickhouseDateTime,
   logger,
-  queryClickhouse,
   sleep,
   TupleParam,
 } from "@langfuse/shared/src/server";
@@ -412,21 +411,13 @@ export default class BackfillEventsFullFromDatasetRunItems implements IBackgroun
   private async insertEnrichedSpans(spans: EnrichedSpan[]): Promise<void> {
     if (spans.length === 0) return;
 
-    await clickhouseClient().insert({
+    // Insert enriched spans via MySQL upsert
+    const records = convertEnrichedSpansToEventRecords(spans, {
+      plainEventTsFromSource: true,
+    });
+    await upsertClickhouse({
       table: "events_full",
-      format: "JSONEachRow",
-      // plainEventTsFromSource: plain (leftover) spans keep their source
-      // event_ts so an enriched copy of the same span from another batch always
-      // wins; enriched spans still use now().
-      values: convertEnrichedSpansToEventRecords(spans, {
-        plainEventTsFromSource: true,
-      }),
-      clickhouse_settings: {
-        log_comment: buildClickHouseLogComment({
-          surface: "worker",
-          route: "background-migration.backfillEventsFullFromDatasetRunItems",
-        }),
-      },
+      records: records as Record<string, unknown>[],
     });
   }
 
@@ -574,16 +565,10 @@ export default class BackfillEventsFullFromDatasetRunItems implements IBackgroun
       return predecessor;
     }
 
-    const tables = await clickhouseClient().query({
+    const tableRows = await queryClickhouse<Record<string, string>>({
       query: "SHOW TABLES",
-      clickhouse_settings: {
-        log_comment: buildClickHouseLogComment({
-          surface: "worker",
-          route: "background-migration.backfillEventsFullFromDatasetRunItems",
-        }),
-      },
     });
-    const tableNames = (await tables.json()).data as { name: string }[];
+    const tableNames = tableRows.map((row: any) => ({ name: Object.values(row)[0] as string }));
 
     const requiredTables = [
       "dataset_run_items_rmt",

@@ -13,7 +13,6 @@ import {
   type JsonNested,
 } from "@langfuse/shared";
 import {
-  ClickhouseClientType,
   convertDateToClickhouseDateTime,
   toClickhouseDateTime,
   parseClickhouseUTCDateTimeFormat,
@@ -64,6 +63,7 @@ import {
 
 import { tokenCountAsync } from "../../features/tokenisation/async-usage";
 import { ClickhouseWriter, TableName } from "../ClickhouseWriter";
+import { queryClickhouse } from "@langfuse/shared/src/server/repositories/clickhouse";
 import {
   convertJsonSchemaToRecord,
   convertPostgresJsonToMetadataRecord,
@@ -217,7 +217,6 @@ export class IngestionService {
     private redis: Redis | Cluster,
     private prisma: PrismaClient,
     private clickHouseWriter: ClickhouseWriter,
-    private clickhouseClient: ClickhouseClientType,
   ) {
     this.promptService = new PromptService(prisma, redis);
   }
@@ -1805,45 +1804,19 @@ export class IngestionService {
         span.setAttribute("db.system", "clickhouse");
         span.setAttribute("db.operation.name", "SELECT");
         span.setAttribute("projectId", projectId);
-        const queryResult = await this.clickhouseClient.query({
+        const result = await queryClickhouse({
           query: `
             SELECT *
             FROM ${table}
-            WHERE project_id = {projectId: String}
-            AND id = {entityId: String}
+            WHERE project_id = {projectId:String}
+            AND id = {entityId:String}
             ${additionalFilters.whereCondition}
             ORDER BY event_ts DESC
-            LIMIT 1 BY id, project_id SETTINGS use_query_cache = false;
+            LIMIT 1
           `,
-          format: "JSONEachRow",
-          query_params: { projectId, entityId, ...additionalFilters.params },
-          clickhouse_settings: {
-            log_comment: buildClickHouseLogComment({
-              projectId,
-            }),
-          },
+          params: { projectId, entityId, ...additionalFilters.params },
+          tags: { projectId },
         });
-
-        span.setAttribute("ch.queryId", queryResult.query_id);
-        const summaryHeader =
-          queryResult.response_headers["x-clickhouse-summary"];
-        if (summaryHeader) {
-          try {
-            const summary = Array.isArray(summaryHeader)
-              ? JSON.parse(summaryHeader[0])
-              : JSON.parse(summaryHeader);
-            for (const key in summary) {
-              span.setAttribute(`ch.${key}`, summary[key]);
-            }
-          } catch (error) {
-            logger.debug(
-              `Failed to parse clickhouse summary header ${summaryHeader}`,
-              error,
-            );
-          }
-        }
-
-        const result = await queryResult.json();
 
         if (result.length === 0) return null;
 

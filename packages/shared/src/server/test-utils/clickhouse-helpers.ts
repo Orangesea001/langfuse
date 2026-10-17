@@ -1,4 +1,4 @@
-import { clickhouseClient } from "../clickhouse/client";
+import { upsertClickhouse } from "../repositories/clickhouse";
 import {
   TraceRecordInsertType,
   ObservationRecordInsertType,
@@ -8,45 +8,40 @@ import {
 } from "../repositories/definitions";
 
 export const createTracesCh = async (trace: TraceRecordInsertType[]) => {
-  return await clickhouseClient().insert({
+  return await upsertClickhouse({
     table: "traces",
-    format: "JSONEachRow",
-    values: trace,
+    records: trace as Record<string, unknown>[],
   });
 };
 
 export const createObservationsCh = async (
   observations: ObservationRecordInsertType[],
 ) => {
-  return await clickhouseClient().insert({
+  return await upsertClickhouse({
     table: "observations",
-    format: "JSONEachRow",
-    values: observations,
+    records: observations as Record<string, unknown>[],
   });
 };
 
 export const createEventsCh = async (events: EventRecordInsertType[]) => {
-  return await clickhouseClient().insert({
+  return await upsertClickhouse({
     table: "events_full",
-    format: "JSONEachRow",
-    values: events,
+    records: events as Record<string, unknown>[],
   });
 };
 
 export const createScoresCh = async (scores: ScoreRecordInsertType[]) => {
-  return await clickhouseClient().insert({
+  return await upsertClickhouse({
     table: "scores",
-    format: "JSONEachRow",
-    values: scores,
+    records: scores as Record<string, unknown>[],
   });
 };
 
 export const createDatasetRunItemsCh = async (
   datasetRunItems: DatasetRunItemRecordInsertType[],
 ) => {
-  return await clickhouseClient().insert({
+  return await upsertClickhouse({
     table: "dataset_run_items_rmt",
-    format: "JSONEachRow",
-    values: datasetRunItems,
+    records: datasetRunItems as Record<string, unknown>[],
   });
 };

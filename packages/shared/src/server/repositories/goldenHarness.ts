@@ -120,7 +120,7 @@ export function buildClickhouseMock(
     commandClickhouse: async (opts) => {
       capture("commandClickhouse", opts);
     },
-  } as typeof ClickhouseModule;
+  } as unknown as typeof ClickhouseModule;
 }
 
 /** The normalized form of one captured query — the unit a golden snapshot holds. */

@@ -1,106 +1,90 @@
+/**
+ * Query tags for analytics store queries.
+ * Preserved for compatibility with callers that build query tag objects.
+ */
 import { context, propagation } from "@opentelemetry/api";
 
 export const CLICKHOUSE_QUERY_TAG_SCHEMA_VERSION = "1" as const;
 const UNKNOWN_CLICKHOUSE_QUERY_TAG_VALUE = "unknown" as const;
 
-export const clickHouseQuerySurfaces = [
+export type ClickHouseQuerySurface =
+  | "public-api"
+  | "publicapi"
+  | "trpc"
+  | "worker"
+  | "dashboard"
+  | "export"
+  | "internal"
+  | "eval"
+  | "mcp"
+  | "monitor"
+  | "search";
+
+const CLICKHOUSE_QUERY_SURFACES: readonly ClickHouseQuerySurface[] = [
+  "public-api",
+  "publicapi",
   "trpc",
   "worker",
-  "publicapi",
+  "dashboard",
+  "export",
+  "internal",
+  "eval",
   "mcp",
-  "ssr",
-] as const;
-
-export type ClickHouseQuerySurface = (typeof clickHouseQuerySurfaces)[number];
-
-export type ClickHouseQueryTags = {
-  experimentId?: string;
-  surface?: ClickHouseQuerySurface | (string & {});
-  route?: string;
-  projectId?: string;
-  sdkName?: "python" | "javascript";
-  sdkVersion?: string;
-  userAgent?: string;
-};
-
-export type NormalizedClickHouseQueryTags = {
-  experimentId?: string;
-  tag_schema_version: typeof CLICKHOUSE_QUERY_TAG_SCHEMA_VERSION;
-  surface: ClickHouseQuerySurface | typeof UNKNOWN_CLICKHOUSE_QUERY_TAG_VALUE;
-  route?: string;
-  projectId?: string;
-  sdkName?: "python" | "javascript";
-  sdkVersion?: string;
-  userAgent?: string;
-};
-
-export const CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS = {
-  surface: "langfuse.clickhouse.surface",
-  route: "langfuse.clickhouse.route",
-  projectId: "langfuse.project.id",
-  sdkName: "langfuse.clickhouse.sdk_name",
-  sdkVersion: "langfuse.clickhouse.sdk_version",
-  userAgent: "langfuse.clickhouse.user_agent",
-} as const;
-
-const surfaceSet = new Set<string>(clickHouseQuerySurfaces);
+  "monitor",
+  "search",
+];
 
 const isClickHouseQuerySurface = (
-  value: unknown,
-): value is ClickHouseQuerySurface =>
-  typeof value === "string" && surfaceSet.has(value);
+  surface: string,
+): surface is ClickHouseQuerySurface =>
+  (CLICKHOUSE_QUERY_SURFACES as readonly string[]).includes(surface);
 
-export function normalizeClickHouseQueryTags(
+export type NormalizedClickHouseQueryTags = {
+  tag_schema_version: string;
+  surface: string;
+  route?: string;
+  projectId?: string;
+  experimentId?: string;
+  sdkName?: string;
+  sdkVersion?: string;
+  userAgent?: string;
+};
+
+export type ClickHouseQueryTags = {
+  surface?: string;
+  route?: string;
+  projectId?: string;
+  experimentId?: string;
+  sdkName?: string;
+  sdkVersion?: string;
+  userAgent?: string;
+};
+
+export const normalizeClickHouseQueryTags = (
   tags?: ClickHouseQueryTags,
-): NormalizedClickHouseQueryTags {
-  const baggage = propagation.getBaggage(context.active());
-  const providedTags = tags as ClickHouseQueryTags | undefined;
-  const surface =
-    providedTags?.surface ??
-    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.surface)?.value;
-  const route =
-    providedTags?.route ??
-    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.route)?.value;
-  const projectId =
-    providedTags?.projectId ??
-    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.projectId)?.value;
-  const sdkName =
-    providedTags?.sdkName ??
-    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkName)?.value;
-  const sdkVersion =
-    providedTags?.sdkVersion ??
-    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkVersion)?.value;
-  const userAgent =
-    providedTags?.userAgent ??
-    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.userAgent)?.value;
-  const normalizedRoute = typeof route === "string" ? route.trim() : "";
-  const normalizedSdkName =
-    sdkName === "python" || sdkName === "javascript" ? sdkName : undefined;
-  const normalizedSdkVersion =
-    typeof sdkVersion === "string" ? sdkVersion.trim() : "";
-  const normalizedUserAgent =
-    typeof userAgent === "string" ? userAgent.trim() : "";
-  const isPublicApi = surface === "publicapi";
+): NormalizedClickHouseQueryTags => {
+  const surface = tags?.surface;
+  const normalizedRoute = tags?.route;
+  const projectId = tags?.projectId;
+
+  const isPublicApi = surface === "public-api" || surface === "publicapi";
+  const normalizedSdkName = isPublicApi ? tags?.sdkName : undefined;
+  const normalizedSdkVersion = isPublicApi ? tags?.sdkVersion : undefined;
+  const normalizedUserAgent = isPublicApi ? tags?.userAgent : undefined;
 
   return {
     tag_schema_version: CLICKHOUSE_QUERY_TAG_SCHEMA_VERSION,
-    surface: isClickHouseQuerySurface(surface)
-      ? surface
+    surface: isClickHouseQuerySurface(surface ?? "")
+      ? surface!
       : UNKNOWN_CLICKHOUSE_QUERY_TAG_VALUE,
     ...(normalizedRoute ? { route: normalizedRoute } : {}),
     ...(projectId ? { projectId } : {}),
-    ...(providedTags?.experimentId
-      ? { experimentId: providedTags.experimentId }
-      : {}),
+    ...(tags?.experimentId ? { experimentId: tags.experimentId } : {}),
     ...(isPublicApi && normalizedSdkName ? { sdkName: normalizedSdkName } : {}),
-    ...(isPublicApi && normalizedSdkVersion
-      ? { sdkVersion: normalizedSdkVersion }
-      : {}),
-    ...(isPublicApi && normalizedUserAgent
-      ? { userAgent: normalizedUserAgent }
-      : {}),
+    ...(isPublicApi && normalizedSdkVersion ? { sdkVersion: normalizedSdkVersion } : {}),
+    ...(isPublicApi && normalizedUserAgent ? { userAgent: normalizedUserAgent } : {}),
   };
-}
+};
 
 export function buildClickHouseLogComment(tags?: ClickHouseQueryTags): string {
   return JSON.stringify(normalizeClickHouseQueryTags(tags));

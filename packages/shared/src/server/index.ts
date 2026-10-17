@@ -71,15 +71,20 @@ export * from "./utils/billingCycleHelpers";
 export * from "./utils/compareVersions";
 export * from "./otel/utils";
 export * from "./clickhouse/client";
+export { EXCEPTION_TAG_HEADER_NAME } from "./clickhouse/client";
 export {
   getClickHouseCompatibilitySettings,
   initializeClickhouseCompatibility,
+
+  getClickHouseJsonBadUnicodeEscapeMode,
 } from "./clickhouse/compatibility";
 export * from "./clickhouse/schemaUtils";
 export * from "./clickhouse/schema";
 export * from "./clickhouse/clickhouseIdentifiers";
 export * from "./clickhouse/queryTracking";
 export * from "./clickhouse/queryTags";
+export * from "./clickhouse/queryOutcome";
+export * from "./clickhouse/json";
 export * from "./repositories/definitions";
 export * from "../utils/IORepresentation/chatML/types";
 export * from "../server/ingestion/types";

@@ -120,14 +120,14 @@ const EnvSchema = z.object({
   // MySQL connection for analytics store (replacing ClickHouse)
   LANGFUSE_MYSQL_URL: z.string().default(""),
   LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
-  CLICKHOUSE_URL: z.url(),
+  CLICKHOUSE_URL: z.string().default(""),
   CLICKHOUSE_READ_ONLY_URL: z.url().optional(),
   CLICKHOUSE_EVENTS_READ_ONLY_URL: z.url().optional(),
   CLICKHOUSE_CLUSTER_ENABLED: z.enum(["true", "false"]).default("true"),
   CLICKHOUSE_CLUSTER_NAME: z.string().default("default"),
   CLICKHOUSE_DB: z.string().default("default"),
-  CLICKHOUSE_USER: z.string(),
-  CLICKHOUSE_PASSWORD: z.string(),
+  CLICKHOUSE_USER: z.string().default(""),
+  CLICKHOUSE_PASSWORD: z.string().default(""),
   CLICKHOUSE_KEEP_ALIVE_IDLE_SOCKET_TTL: z.coerce.number().int().default(9000),
   CLICKHOUSE_MAX_OPEN_CONNECTIONS: z.coerce.number().int().default(25),
   LANGFUSE_JSON_BAD_UNICODE_ESCAPE: z

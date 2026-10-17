@@ -126,6 +126,22 @@
     "./in-app-agent/server/openaiCompatibility": {
       "import": "./dist/src/in-app-agent/server/openaiCompatibility.js",
       "require": "./dist/src/in-app-agent/server/openaiCompatibility.js"
+    },
+    "./src/server/mysql/client": {
+      "import": "./dist/src/server/mysql/client.js",
+      "require": "./dist/src/server/mysql/client.js"
+    },
+    "./src/server/mysql/sqlTranslator": {
+      "import": "./dist/src/server/mysql/sqlTranslator.js",
+      "require": "./dist/src/server/mysql/sqlTranslator.js"
+    },
+    "./src/server/mysql/queryExecutor": {
+      "import": "./dist/src/server/mysql/queryExecutor.js",
+      "require": "./dist/src/server/mysql/queryExecutor.js"
+    },
+    "./src/server/repositories/clickhouse": {
+      "import": "./dist/src/server/repositories/clickhouse.js",
+      "require": "./dist/src/server/repositories/clickhouse.js"
     }
   },
   "scripts": {

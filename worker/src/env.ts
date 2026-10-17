@@ -193,12 +193,15 @@ const EnvSchema = z.object({
 
   LANGFUSE_USE_AZURE_BLOB: z.enum(["true", "false"]).default("false"),
 
-  CLICKHOUSE_URL: z.url(),
-  CLICKHOUSE_USER: z.string(),
+  CLICKHOUSE_URL: z.string().default(""),
+  CLICKHOUSE_USER: z.string().default(""),
   CLICKHOUSE_CLUSTER_NAME: z.string().default("default"),
   CLICKHOUSE_DB: z.string().default("default"),
-  CLICKHOUSE_PASSWORD: z.string(),
+  CLICKHOUSE_PASSWORD: z.string().default(""),
   CLICKHOUSE_CLUSTER_ENABLED: z.enum(["true", "false"]).default("true"),
+
+  LANGFUSE_MYSQL_URL: z.string().default(""),
+  LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
   LANGFUSE_EVAL_CREATOR_LIMITER_DURATION: z.coerce
     .number()
     .positive()

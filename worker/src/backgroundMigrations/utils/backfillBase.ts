@@ -3,7 +3,6 @@ import { randomUUID } from "crypto";
 import { parseArgs } from "node:util";
 import {
   buildClickHouseLogComment,
-  clickhouseClient,
   commandClickhouse,
   getQueryError,
   logger,
@@ -559,16 +558,10 @@ export abstract class ChunkedClickhouseBackfillMigration<
   }
 
   private async findFirstMissingTable(): Promise<string | null> {
-    const tables = await clickhouseClient().query({
+    const tableRows = await queryClickhouse<{ name: string }>({
       query: "SHOW TABLES",
-      clickhouse_settings: {
-        log_comment: buildClickHouseLogComment({
-          surface: "worker",
-          route: `background-migration.${this.constructor.name}`,
-        }),
-      },
     });
-    const tableNames = (await tables.json()).data as { name: string }[];
+    const tableNames = tableRows.map((row: any) => ({ name: Object.values(row)[0] as string }));
     return (
       this.requiredTables.find(
         (required) => !tableNames.some((r) => r.name === required),

@@ -621,7 +621,6 @@ export const otelIngestionQueueProcessorBuilder = (
         redis,
         prisma,
         ClickhouseWriter.getInstance(),
-        clickhouseClient(),
       );
 
       // Decide whether observations should be processed via new flow (directly to events table)

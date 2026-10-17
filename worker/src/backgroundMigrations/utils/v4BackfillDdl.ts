@@ -5,16 +5,13 @@ import {
 } from "../../utils/clickhouseIdentifiers";
 
 /**
- * Scratch table created by M2, read by M3/M4, dropped by M5. Single source of
- * truth so the DDL, the `requiredTables` guards and the `system.parts` /
- * `system.replicas` predicates cannot drift apart.
+ * Scratch table for V4 backfill operations.
  */
 export const PID_TID_SORTING_TABLE = "observations_pid_tid_sorting";
 
 /**
- * The ClickHouse topology the V4 chain emits DDL against. Passed explicitly so
- * the query builders below stay pure and assertable in tests, mirroring
- * `buildApplyDeletedMaskQuery`'s `ClickHouseDdlConfig`.
+ * DDL target configuration — simplified for MySQL.
+ * MySQL does not have clusters or ON CLUSTER clauses.
  */
 export interface ClickhouseDdlTarget {
   database: string;
@@ -24,22 +21,19 @@ export interface ClickhouseDdlTarget {
 
 function clickhouseDdlTarget(): ClickhouseDdlTarget {
   return {
-    database: env.CLICKHOUSE_DB,
-    clusterEnabled: env.CLICKHOUSE_CLUSTER_ENABLED === "true",
-    clusterName: env.CLICKHOUSE_CLUSTER_NAME,
+    database: env.CLICKHOUSE_DB || "langfuse",
+    clusterEnabled: false,
+    clusterName: "default",
   };
 }
 
 /**
- * Returns `ON CLUSTER <name>` when running against a clustered ClickHouse
- * deployment, an empty string otherwise. Shared by every chain step that
- * issues DDL or SYSTEM commands so they fan out to all nodes consistently.
+ * MySQL does not have ON CLUSTER — always returns empty string.
  */
 export function onClusterClause(
-  target: ClickhouseDdlTarget = clickhouseDdlTarget(),
+  _target: ClickhouseDdlTarget = clickhouseDdlTarget(),
 ): string {
-  if (!target.clusterEnabled) return "";
-  return `ON CLUSTER ${quoteClickhouseIdentifier(target.clusterName, "cluster")}`;
+  return "";
 }
 
 /** The scratch table, qualified with the configured database. */
@@ -54,61 +48,43 @@ function joinSql(...parts: string[]): string {
 }
 
 // ============================================================================
-// Merge control (M2)
+// Merge control (M2) — MySQL stubs
 // ============================================================================
 
 /**
- * ClickHouse Cloud (SharedMergeTree) does not support `SYSTEM STOP MERGES`.
- * This per-table setting is the documented equivalent; it is
- * assignment-scoped and persists until explicitly reset.
+ * MySQL does not have merge control. Returns a no-op comment.
  */
 export function buildDisableSharedMergeTreeMergesQuery(
-  target: ClickhouseDdlTarget = clickhouseDdlTarget(),
+  _target: ClickhouseDdlTarget = clickhouseDdlTarget(),
 ): string {
-  return joinSql(
-    "ALTER TABLE",
-    pidTidSortingTable(target),
-    "MODIFY SETTING shared_merge_tree_disable_merges_and_mutations_assignment = 1",
-  );
-}
-
-export function buildStopMergesQuery(
-  target: ClickhouseDdlTarget = clickhouseDdlTarget(),
-): string {
-  return joinSql(
-    "SYSTEM STOP MERGES",
-    onClusterClause(target),
-    pidTidSortingTable(target),
-  );
+  return "-- MySQL: no merge control needed";
 }
 
 /**
- * Persists the freeze in table metadata on top of the in-memory action lock so
- * it survives restarts and holds on every replica: stop enqueuing new merges
- * (`max_replicated_merges_in_queue=0`) and stop any replica from executing a
- * merge locally (`always_fetch_merged_part=1`).
- * See https://github.com/ClickHouse/ClickHouse/issues/22830.
+ * MySQL does not have SYSTEM STOP MERGES. Returns a no-op comment.
  */
-export function buildFreezeReplicatedMergesQuery(
-  target: ClickhouseDdlTarget = clickhouseDdlTarget(),
+export function buildStopMergesQuery(
+  _target: ClickhouseDdlTarget = clickhouseDdlTarget(),
 ): string {
-  return joinSql(
-    "ALTER TABLE",
-    pidTidSortingTable(target),
-    onClusterClause(target),
-    "MODIFY SETTING max_replicated_merges_in_queue = 0, always_fetch_merged_part = 1",
-  );
+  return "-- MySQL: no merge control needed";
 }
 
-export function buildSyncReplicaQuery(
-  target: ClickhouseDdlTarget = clickhouseDdlTarget(),
+/**
+ * MySQL does not have replicated merge control. Returns a no-op comment.
+ */
+export function buildFreezeReplicatedMergesQuery(
+  _target: ClickhouseDdlTarget = clickhouseDdlTarget(),
 ): string {
-  return joinSql(
-    "SYSTEM SYNC REPLICA",
-    onClusterClause(target),
-    pidTidSortingTable(target),
-    "STRICT",
-  );
+  return "-- MySQL: no merge control needed";
+}
+
+/**
+ * MySQL does not have SYNC REPLICA. Returns a no-op comment.
+ */
+export function buildSyncReplicaQuery(
+  _target: ClickhouseDdlTarget = clickhouseDdlTarget(),
+): string {
+  return "-- MySQL: no replica sync needed";
 }
 
 // ============================================================================
@@ -116,9 +92,7 @@ export function buildSyncReplicaQuery(
 // ============================================================================
 
 /**
- * `IF EXISTS` keeps the migration idempotent — re-running the row (or running
- * it on a deployment that never created the scratch table) is a no-op rather
- * than an error.
+ * DROP TABLE IF EXISTS — MySQL compatible.
  */
 export function buildDropScratchTableQuery(
   table: string,
@@ -127,7 +101,5 @@ export function buildDropScratchTableQuery(
   return joinSql(
     "DROP TABLE IF EXISTS",
     qualifiedClickhouseTableName(target.database, table),
-    onClusterClause(target),
-    "SYNC",
   );
 }

@@ -326,12 +326,15 @@ export const env = createEnv({
     // clickhouse
     LANGFUSE_MYSQL_URL: z.string().default(""),
     LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
-    CLICKHOUSE_URL: z.url(),
+    CLICKHOUSE_URL: z.string().default(""),
     CLICKHOUSE_CLUSTER_NAME: z.string().default("default"),
     CLICKHOUSE_DB: z.string().default("default"),
-    CLICKHOUSE_USER: z.string(),
-    CLICKHOUSE_PASSWORD: z.string(),
+    CLICKHOUSE_USER: z.string().default(""),
+    CLICKHOUSE_PASSWORD: z.string().default(""),
     CLICKHOUSE_CLUSTER_ENABLED: z.enum(["true", "false"]).default("true"),
+
+    LANGFUSE_MYSQL_URL: z.string().default(""),
+    LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
 
     // EE ui customization
     LANGFUSE_UI_API_HOST: z.string().optional(),
@@ -1061,6 +1064,8 @@ export const env = createEnv({
     CLICKHOUSE_USER: process.env.CLICKHOUSE_USER,
     CLICKHOUSE_PASSWORD: process.env.CLICKHOUSE_PASSWORD,
     CLICKHOUSE_CLUSTER_ENABLED: process.env.CLICKHOUSE_CLUSTER_ENABLED,
+    LANGFUSE_MYSQL_URL: process.env.LANGFUSE_MYSQL_URL,
+    LANGFUSE_MYSQL_CONNECTION_LIMIT: process.env.LANGFUSE_MYSQL_CONNECTION_LIMIT,
     // EE ui customization
     LANGFUSE_UI_API_HOST: process.env.LANGFUSE_UI_API_HOST,
     LANGFUSE_UI_DOCUMENTATION_HREF: process.env.LANGFUSE_UI_DOCUMENTATION_HREF,

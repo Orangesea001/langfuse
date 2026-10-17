@@ -18,7 +18,6 @@ function getInternalTraceIngestionService(): IngestionService {
       redis as any,
       prisma,
       ClickhouseWriter.getInstance(),
-      clickhouseClient(),
     );
   }
 
