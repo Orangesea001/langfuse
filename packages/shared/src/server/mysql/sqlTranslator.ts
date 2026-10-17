@@ -59,7 +59,7 @@ export function translateQuery(
  * Preserved for compatibility with existing callers.
  */
 export function parseClickhouseUTCDateTimeFormat(dateTimeStr: string): Date {
-  if (!dateTimeStr) return null;
+  if (!dateTimeStr) return new Date(0);
   const date = new Date(dateTimeStr + "Z");
   return isNaN(date.getTime()) ? new Date(dateTimeStr) : date;
 }

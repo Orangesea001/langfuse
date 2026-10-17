@@ -2540,9 +2540,9 @@ const buildAnalyticsScoreTraceAttributesFromEventsCte = (
         e.project_id as project_id,
         e.trace_id as id,
         coalesce(${eventsTableTraceNameAggregationSql}, '') as name,
-        nullIf(argMaxIf(e.session_id, e.event_ts, e.session_id <> ''), '') as session_id,
-        nullIf(argMaxIf(e.user_id, e.event_ts, e.user_id <> ''), '') as user_id,
-        nullIf(argMax(e.release, e.event_ts), '') as release,
+        NULLIF(argMaxIf(e.session_id, e.event_ts, e.session_id <> ''), '') as session_id,
+        NULLIF(argMaxIf(e.user_id, e.event_ts, e.user_id <> ''), '') as user_id,
+        NULLIF(argMax(e.release, e.event_ts), '') as release,
         arraySort(groupUniqArrayArrayIf(e.tags, (LENGTH(e.tags) > 0))) as tags,
         argMax(e.metadata_values[indexOf(e.metadata_names, '$posthog_session_id')], e.event_ts) as posthog_session_id,
         argMax(e.metadata_values[indexOf(e.metadata_names, '$mixpanel_session_id')], e.event_ts) as mixpanel_session_id

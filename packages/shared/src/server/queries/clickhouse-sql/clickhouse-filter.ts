@@ -538,7 +538,7 @@ export class StringObjectFilter implements Filter {
       // empty-value comparison) incorrectly match rows that never had the
       // key. Require the key to exist first, mirroring the events-table fix
       // in PR #13369.
-      const hasKey = `mapContains(${column}, {${varKeyName}: String})`;
+      const hasKey = `JSON_CONTAINS_PATH(${column}, 'one', CONCAT('$.', {${varKeyName}: String}))`;
 
       switch (this.operator) {
         case "=":
@@ -656,7 +656,7 @@ export class NullFilter implements Filter {
       return {
         query:
           this.operator === "is null"
-            ? `empty(${metadataNames})`
+            ? `(LENGTH(${metadataNames}) = 0)`
             : `(LENGTH(${metadataNames}) > 0)`,
         params: {},
       };
@@ -709,7 +709,7 @@ export class NumberObjectFilter implements Filter {
     const varValueName = `numberObjectValueFilter${clickhouseCompliantRandomCharacters()}`;
     const column = `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field}`;
     return {
-      query: `empty(arrayFilter(x -> (((x.1) = {${varKeyName}: String}) AND ((x.2) ${this.operator} {${varValueName}: Decimal64(12)})), ${column})) = 0`,
+      query: `(LENGTH(arrayFilter(x -> (((x.1) = 0) = {${varKeyName}: String}) AND ((x.2) ${this.operator} {${varValueName}: Decimal64(12)})), ${column})) = 0`,
       params: { [varKeyName]: this.key, [varValueName]: this.value },
     };
   }

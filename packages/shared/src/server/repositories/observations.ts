@@ -696,8 +696,8 @@ const getObservationsTableInternal = async <T>(
         o.prompt_name as "prompt_name",
         o.prompt_version as "prompt_version",
         internal_model_id as "internal_model_id",
-        if(isNull(end_time), NULL, date_diff('millisecond', start_time, end_time)) as latency,
-        if(isNull(completion_start_time), NULL,  date_diff('millisecond', start_time, completion_start_time)) as "time_to_first_token",
+        if(isNull(end_time), NULL, TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000) as latency,
+        if(isNull(completion_start_time), NULL,  TIMESTAMPDIFF(MICROSECOND, start_time, completion_start_time) / 1000) as "time_to_first_token",
         length(mapKeys(o.tool_definitions)) as "tool_definitions_count",
         length(o.tool_calls) as "tool_calls_count"`;
 
@@ -1729,9 +1729,9 @@ export const getTraceIdsForObservations = async (
 // other field selects the table column of the same name.
 const LEGACY_OBSERVATION_EXPORT_SQL_OVERRIDES: Record<string, string> = {
   latency:
-    "if(isNull(end_time), NULL, date_diff('millisecond', start_time, end_time) / 1000) as latency",
+    "if(isNull(end_time), NULL, TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000 / 1000) as latency",
   time_to_first_token:
-    "if(isNull(completion_start_time), NULL, date_diff('millisecond', start_time, completion_start_time) / 1000) as time_to_first_token",
+    "if(isNull(completion_start_time), NULL, TIMESTAMPDIFF(MICROSECOND, start_time, completion_start_time) / 1000 / 1000) as time_to_first_token",
   model_id: "internal_model_id as model_id",
 };
 
@@ -1889,12 +1889,12 @@ export const getGenerationsForAnalyticsIntegrations = async function* (
       o.start_time as start_time,
       o.id as id,
       o.total_cost as total_cost,
-      if(isNull(completion_start_time), NULL, date_diff('millisecond', start_time, completion_start_time)) as time_to_first_token,
+      if(isNull(completion_start_time), NULL, TIMESTAMPDIFF(MICROSECOND, start_time, completion_start_time) / 1000) as time_to_first_token,
       o.usage_details['input'] as input_tokens,
       o.usage_details['output'] as output_tokens,
       o.usage_details['total'] as total_tokens,
       o.project_id as project_id,
-      if(isNull(end_time), NULL, date_diff('millisecond', start_time, end_time) / 1000) as latency,
+      if(isNull(end_time), NULL, TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000 / 1000) as latency,
       o.provided_model_name as model,
       o.level as level,
       o.version as version,

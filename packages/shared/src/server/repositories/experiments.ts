@@ -90,7 +90,7 @@ export const getDatasetExperimentMetricsFromEvents = async (props: {
     fieldSet: "count",
   })
     .selectRaw(
-      "nullIf(any(e.experiment_dataset_id), '') AS experiment_dataset_id",
+      "NULLIF(any(e.experiment_dataset_id), '') AS experiment_dataset_id",
       "min(e.start_time) AS start_time",
     )
     .whereRaw("e.experiment_dataset_id IN ({datasetIds: Array(String)})", {
@@ -1349,7 +1349,7 @@ export const getExperimentItemsFromEvents = async (
       "e.level as level",
       "e.start_time as start_time",
       "sum(e.total_cost) OVER (PARTITION BY e.experiment_item_id, e.experiment_id, e.trace_id) as total_cost",
-      "if(isNull(e.end_time), NULL, date_diff('millisecond', e.start_time, e.end_time)) as latency_ms",
+      "if(isNull(e.end_time), NULL, TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) / 1000) as latency_ms",
       "e.span_id as observation_id",
       "e.trace_id as trace_id",
     )
@@ -1556,7 +1556,7 @@ export const getExperimentNamesFromEvents = async (props: {
     groupByColumn: "e.experiment_id",
     selectExpression: `any(e.experiment_name) as experimentName,
     e.experiment_id as experimentId,
-    nullIf(any(e.experiment_dataset_id), '') as datasetId,
+    NULLIF(any(e.experiment_dataset_id), '') as datasetId,
     min(e.start_time) as startTime`,
   })
     .whereRaw("e.experiment_name IS NOT NULL AND length(e.experiment_name) > 0")

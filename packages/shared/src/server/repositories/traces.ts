@@ -132,7 +132,7 @@ export const checkTraceExistsAndGetTimestamp = async ({
         SUM(IF(level = 'DEFAULT', 1, 0)) as default_count,
         SUM(IF(level = 'DEBUG', 1, 0)) as debug_count,
         -- Remove those columns as this should only be used within the evalService and doesn't use them
-        -- date_diff('millisecond', least(min(start_time), min(end_time)), greatest(max(start_time), max(end_time))) as latency_milliseconds,
+        -- TIMESTAMPDIFF(MICROSECOND, least(min(start_time), min(end_time) / 1000), greatest(max(start_time), max(end_time))) as latency_milliseconds,
         -- usage_details as usage_details,
         -- cost_details as cost_details,
         trace_id,
@@ -1286,7 +1286,7 @@ export const getTracesForAnalyticsIntegrations = async function* (
              o.trace_id,
              sum(total_cost) as total_cost,
              count(*) as observation_count,
-             date_diff('millisecond', least(min(start_time), min(end_time)), greatest(max(start_time), max(end_time))) as latency_milliseconds
+             TIMESTAMPDIFF(MICROSECOND, least(min(start_time), min(end_time) / 1000), greatest(max(start_time), max(end_time))) as latency_milliseconds
       FROM observations o 
       WHERE o.project_id = {projectId: String}
       AND o.start_time >= {minTimestamp: DateTime64(3)} - ${TRACE_TO_OBSERVATIONS_INTERVAL}
@@ -1654,7 +1654,7 @@ async function buildTracesBaseQuery(
       SELECT
         trace_id,
         project_id,
-        ${includeMetricsInCTE ? "sum(total_cost) as total_cost, date_diff('millisecond', least(min(start_time), min(end_time)), greatest(max(start_time), max(end_time))) as latency_milliseconds, " : ""}
+        ${includeMetricsInCTE ? "sum(total_cost) as total_cost, TIMESTAMPDIFF(MICROSECOND, least(min(start_time), min(end_time) / 1000), greatest(max(start_time), max(end_time))) as latency_milliseconds, " : ""}
         usage_details as usage_details,
         cost_details as cost_details,
         multiIf(arrayExists(x -> x = 'ERROR', JSON_ARRAYAGG(level)), 'ERROR', arrayExists(x -> x = 'WARNING', JSON_ARRAYAGG(level)), 'WARNING', arrayExists(x -> x = 'DEFAULT', JSON_ARRAYAGG(level)), 'DEFAULT', 'DEBUG') AS aggregated_level,

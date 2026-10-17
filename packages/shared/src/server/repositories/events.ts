@@ -3222,8 +3222,8 @@ export const hasAnyUserFromEventsTable = async (
 // standard path keeps ms here and converts conditionally in JS, so it stays
 // byte-for-byte unchanged.
 const EVENTS_EXPORT_METRICS_SECONDS_SQL = [
-  "if(isNull(e.end_time), NULL, date_diff('millisecond', e.start_time, e.end_time) / 1000) as latency",
-  "if(isNull(e.completion_start_time), NULL, date_diff('millisecond', e.start_time, e.completion_start_time) / 1000) as \"time_to_first_token\"",
+  "if(isNull(e.end_time), NULL, TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) / 1000 / 1000) as latency",
+  'if(isNull(e.completion_start_time), NULL, TIMESTAMPDIFF(MICROSECOND, e.start_time, e.completion_start_time) / 1000 / 1000) as "time_to_first_token"',
 ];
 
 // Shared SQL+params builder for the events blob-export. `convertLatencyToSecondsInSql`

@@ -548,7 +548,7 @@ const EVENTS_AGGREGATION_FIELDS = {
   updated_at: "max(updated_at) AS updated_at",
   total_cost: "sum(total_cost) AS total_cost",
   latency_milliseconds:
-    "date_diff('millisecond', min(start_time), greatest(max(start_time), max(end_time))) AS latency_milliseconds",
+    "TIMESTAMPDIFF(MICROSECOND, min(start_time), greatest(max(start_time) / 1000, max(end_time))) AS latency_milliseconds",
   observation_ids:
     "groupUniqArrayIf(span_id, span_id <> '') AS observation_ids",
   observation_count:
@@ -1206,10 +1206,10 @@ export class EventsQueryBuilder extends BaseEventsQueryBuilder<
         // select anyway, and not every deployment's events_full is guaranteed
         // to carry the materialized columns.
         fieldExpressions.push(
-          `if(lengthUTF8(e.input) <= ${inlineChars}, e.input, LEFT(e.input, ${previewChars})) as input`,
-          `if(lengthUTF8(e.output) <= ${inlineChars}, e.output, LEFT(e.output, ${previewChars})) as output`,
-          `lengthUTF8(e.input) as input_length`,
-          `lengthUTF8(e.output) as output_length`,
+          `if(CHAR_LENGTH(e.input) <= ${inlineChars}, e.input, LEFT(e.input, ${previewChars})) as input`,
+          `if(CHAR_LENGTH(e.output) <= ${inlineChars}, e.output, LEFT(e.output, ${previewChars})) as output`,
+          `CHAR_LENGTH(e.input) as input_length`,
+          `CHAR_LENGTH(e.output) as output_length`,
         );
       } else {
         fieldExpressions.push("input, output");
@@ -1225,17 +1225,17 @@ export class EventsQueryBuilder extends BaseEventsQueryBuilder<
     ) {
       const { inlineChars, previewChars } = this.ioFields;
       fieldExpressions.push(
-        `mapFromArrays(arrayReverse(e.metadata_names), arrayMap(v -> if(lengthUTF8(v) <= ${inlineChars}, v, LEFT(v, ${previewChars})), arrayReverse(e.metadata_values))) as metadata`,
+        `mapFromArrays(arrayReverse(e.metadata_names), arrayMap(v -> if(CHAR_LENGTH(v) <= ${inlineChars}, v, LEFT(v, ${previewChars})), arrayReverse(e.metadata_values))) as metadata`,
         // The flag checks only each key's WINNING value. A duplicate key ships
         // both entries in the Map's JSON, and the client's JSON.parse keeps the
         // last textual duplicate — with the arrayReverse above that resolves to
         // the FIRST occurrence in the original arrays. A capped value that is
         // shadowed by a small winner must not raise the flag (verified against
         // ClickHouse + JSON.parse semantics).
-        `arrayExists((v, i) -> lengthUTF8(v) > ${inlineChars} AND arrayFirstIndex(n -> n = e.metadata_names[i], e.metadata_names) = i, e.metadata_values, arrayEnumerate(e.metadata_values)) as metadata_truncated`,
+        `arrayExists((v, i) -> CHAR_LENGTH(v) > ${inlineChars} AND arrayFirstIndex(n -> n = e.metadata_names[i], e.metadata_names) = i, e.metadata_values, arrayEnumerate(e.metadata_values)) as metadata_truncated`,
         // Shipped metadata weight: every (capped) value counts, duplicates
         // included, because duplicates are physically in the response.
-        `arraySum(arrayMap(v -> if(lengthUTF8(v) <= ${inlineChars}, lengthUTF8(v), ${previewChars}), e.metadata_values)) as metadata_length`,
+        `arraySum(arrayMap(v -> if(CHAR_LENGTH(v) <= ${inlineChars}, CHAR_LENGTH(v), ${previewChars}), e.metadata_values)) as metadata_length`,
       );
     }
 
@@ -1497,7 +1497,7 @@ const EVENTS_SESSION_AGGREGATION_FIELDS = {
   total_observations:
     "uniqIf(span_id, parent_span_id != '') AS total_observations",
   duration:
-    "date_diff('second', min(start_time), max(if(isNull(end_time), start_time, end_time))) AS duration",
+    "TIMESTAMPDIFF(SECOND, min(start_time), max(if(isNull(end_time), start_time, end_time))) AS duration",
   session_usage_details: "usage_details AS session_usage_details",
   session_cost_details: "cost_details AS session_cost_details",
   session_input_cost:
@@ -1965,7 +1965,7 @@ const EXPERIMENTS_AGGREGATION_FIELDS = {
   experimentDescription:
     "any(e.experiment_description) AS experiment_description",
   experimentDatasetId:
-    "nullIf(any(e.experiment_dataset_id), '') AS experiment_dataset_id",
+    "NULLIF(any(e.experiment_dataset_id), '') AS experiment_dataset_id",
   startTime: "min(e.start_time) AS start_time",
   itemCount: "uniq(e.experiment_item_id) AS item_count",
   // Distinct items that carry any ERROR event, so the number matches the
@@ -1979,7 +1979,7 @@ const EXPERIMENTS_AGGREGATION_FIELDS = {
   // Metrics fields
   totalCost: "SUM(e.total_cost) AS total_cost",
   latencyAvg:
-    "avgIf(date_diff('millisecond', e.start_time, e.end_time), e.span_id = e.experiment_item_root_span_id AND e.end_time IS NOT NULL) AS latency_avg",
+    "avgIf(TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) / 1000, e.span_id = e.experiment_item_root_span_id AND e.end_time IS NOT NULL) AS latency_avg",
 } as const;
 
 /**

@@ -304,7 +304,7 @@ const eventFilterOptionColumnSqlLiteral = (column: EventFilterOptionColumn) =>
   `'${column}'`;
 
 const stringValueExpression = (expression: string) =>
-  `CAST(ifNull(${expression}, '' AS CHAR))`;
+  `CAST(IFNULL(${expression}, '' AS CHAR))`;
 
 // Shared by the sumMap keys and the parallel "ones" counts array so both derive
 // their length from one filter and cannot drift apart.
