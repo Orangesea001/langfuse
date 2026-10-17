@@ -10,7 +10,7 @@ vi.mock("./analytics", () => ({
   queryAnalyticsStreamRawText: vi.fn(),
   queryAnalyticsExecRaw: vi.fn(),
   parseAnalyticsUTCDateTimeFormat: vi.fn(),
-  BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS: {},
+  BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS: {},
   // Return unique names per call so filter parameter variables don't collide
   analyticsCompliantRandomCharacters: vi.fn(() => `x${++charCounter}`),
 }));

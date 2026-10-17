@@ -13,7 +13,7 @@ vi.mock("./analytics", () => ({
   upsertAnalytics: vi.fn(),
   parseAnalyticsUTCDateTimeFormat: vi.fn(),
   analyticsCompliantRandomCharacters: vi.fn(() => "x"),
-  BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS: {},
+  BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS: {},
 }));
 
 vi.mock("../queries/analytics-sql/query-options", () => ({
