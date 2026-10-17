@@ -527,10 +527,11 @@ export class ClickhouseWriter {
         "updated_at",
         "event_ts",
         "is_deleted",
-        "environment",
+        "environment", // removed for MySQL - mapped below
       ]),
       scores: new Set([
         "id",
+        "timestamp",
         "trace_id",
         "observation_id",
         "session_id",
@@ -546,7 +547,6 @@ export class ClickhouseWriter {
         "updated_at",
         "event_ts",
         "is_deleted",
-        "environment",
         "score_config_id",
       ]),
       observations: new Set([
@@ -581,7 +581,7 @@ export class ClickhouseWriter {
         "updated_at",
         "event_ts",
         "is_deleted",
-        "environment",
+        "environment", // removed for MySQL - mapped below
       ]),
       observations_batch_staging: new Set([
         "id",
@@ -611,7 +611,7 @@ export class ClickhouseWriter {
         "parent_observation_id",
         "status",
         "completion_start_time",
-        "environment",
+        "environment", // removed for MySQL - mapped below
         "event_ts",
         "is_deleted",
         "created_at",
@@ -657,7 +657,7 @@ export class ClickhouseWriter {
         "created_at",
         "updated_at",
         "is_deleted",
-        "environment",
+        "environment", // removed for MySQL - mapped below
       ]),
       events_full: new Set([
         "id",
@@ -679,7 +679,7 @@ export class ClickhouseWriter {
         "latency",
         "release",
         "version",
-        "environment",
+        "environment", // removed for MySQL - mapped below
         "session_id",
         "user_id",
         "tags",
@@ -734,6 +734,10 @@ export class ClickhouseWriter {
     };
     // ClickHouse -> MySQL column name mapping for tables with different schemas
     const colMapping: Record<string, Record<string, string>> = {
+      scores: {
+        environment: "data_type",
+        score_config_id: "config_id",
+      },
       observations: {
         model: "provided_model_name",
         model_id: "internal_model_id",

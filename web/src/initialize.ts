@@ -6,11 +6,11 @@ import { hasEntitlementBasedOnPlan } from "@/src/features/entitlements/server/ha
 import { getOrganizationPlanServerSide } from "@/src/features/entitlements/server/getPlan";
 import { CloudConfigSchema } from "@langfuse/shared";
 import {
-  initializeClickhouseCompatibility,
+  initializeAnalyticsCompatibility,
   logger,
 } from "@langfuse/shared/src/server";
 
-await initializeClickhouseCompatibility();
+await initializeAnalyticsCompatibility();
 
 // Warn if LANGFUSE_INIT_* variables are set but LANGFUSE_INIT_ORG_ID is missing
 if (!env.LANGFUSE_INIT_ORG_ID) {

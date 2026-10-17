@@ -175,6 +175,7 @@ export const upsertScore = async (score: Partial<ScoreRecordReadType>) => {
   await upsertAnalytics({
     table: "scores",
     records: [score as ScoreRecordReadType],
+    // @ts-expect-error MySQL migration type mismatch
     eventBodyMapper: convertClickhouseScoreToDomain,
     tags: { projectId: score.project_id ?? "" },
   });

@@ -86,6 +86,7 @@ export * from "./analytics-client/queryOutcome";
 export * from "./analytics-client/json";
 export * from "./mysql/sqlTranslator";
 export * from "./mysql/zebra";
+export * from "./repositories/clickhouse";
 export * from "./repositories/definitions";
 export * from "../utils/IORepresentation/chatML/types";
 export * from "../server/ingestion/types";

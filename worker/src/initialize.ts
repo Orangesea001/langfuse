@@ -2,7 +2,7 @@ import { upsertDefaultModelPrices } from "./scripts/upsertDefaultModelPrices";
 import { upsertLangfuseDashboards } from "./scripts/upsertLangfuseDashboards";
 import { hello, initTelemetry } from "@langfuse/native";
 import {
-  initializeClickhouseCompatibility,
+  initializeAnalyticsCompatibility,
   logger,
   recordIncrement,
 } from "@langfuse/shared/src/server";
@@ -10,7 +10,7 @@ import {
 export const initializeWorker = async (): Promise<void> => {
   initializeNativeAddon();
 
-  await initializeClickhouseCompatibility();
+  await initializeAnalyticsCompatibility();
 
   await Promise.all([upsertDefaultModelPrices(), upsertLangfuseDashboards()]);
 };

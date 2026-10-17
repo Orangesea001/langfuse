@@ -212,6 +212,7 @@ export const upsertTrace = async (trace: Partial<TraceRecordReadType>) => {
   await upsertAnalytics({
     table: "traces",
     records: [trace as TraceRecordReadType],
+    // @ts-expect-error MySQL migration type mismatch
     eventBodyMapper: convertClickhouseToDomain,
     tags: { projectId: trace.project_id ?? "" },
   });

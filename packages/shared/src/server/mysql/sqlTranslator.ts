@@ -96,3 +96,7 @@ export function convertDateToMySqlDateTime(
 
 /** @deprecated Use convertDateToMySqlDateTime instead. Alias for backward compat. */
 export const toClickhouseDateTime = convertDateToMySqlDateTime;
+export const convertDateToClickhouseDateTime = convertDateToMySqlDateTime;
+
+/** @deprecated Use parseAnalyticsUTCDateTimeFormat instead */
+export const parseClickhouseUTCDateTimeFormat = parseAnalyticsUTCDateTimeFormat;

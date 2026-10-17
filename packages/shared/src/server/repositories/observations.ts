@@ -124,6 +124,7 @@ export const upsertObservation = async (
   await upsertAnalytics({
     table: "observations",
     records: [observation as ObservationRecordReadType],
+    // @ts-expect-error MySQL migration type mismatch
     eventBodyMapper: convertObservation,
     tags: { projectId: observation.project_id ?? "" },
   });

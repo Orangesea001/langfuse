@@ -65,6 +65,9 @@ export class AnalyticsResourceError extends Error {
   }
 }
 
+/** @deprecated Use AnalyticsResourceError instead */
+export const ClickHouseResourceError = AnalyticsResourceError;
+
 // ─── Query options type (preserved interface) ───
 
 export type ClickhouseQueryOpts = {
@@ -552,3 +555,11 @@ export function isRow(row: unknown): boolean {
 export function isException(_row: unknown): boolean {
   return false; // MySQL doesn't have exception rows
 }
+
+// ─── ClickHouse compatibility aliases ───
+/** @deprecated Use queryAnalytics instead */
+export const queryClickhouse = queryAnalytics;
+/** @deprecated Use queryAnalyticsExecRaw instead */
+export const clickhouseExecRaw = queryAnalyticsExecRaw;
+/** @deprecated Use queryAnalyticsStream instead */
+export const queryClickhouseStream = queryAnalyticsStream;
