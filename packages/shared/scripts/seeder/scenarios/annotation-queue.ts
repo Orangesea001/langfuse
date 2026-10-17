@@ -605,13 +605,13 @@ const run = async (
       "traces",
       `project_id = {projectId: String} AND id IN {traceIds: Array(String)}`,
       { projectId: ctx.projectId, traceIds },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     scores: await countRows(
       "scores",
       `project_id = {projectId: String} AND trace_id IN {traceIds: Array(String)}`,
       { projectId: ctx.projectId, traceIds },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
   };
   const pgItems = await prisma.annotationQueueItem.count({

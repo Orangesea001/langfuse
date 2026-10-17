@@ -357,7 +357,7 @@ export class IngestionService {
         : null,
     ]);
 
-    const now = toClickhouseDateTime();
+    const now = toClickhouseDateTime(Date.now());
 
     // Flatten raw metadata first (before stringification destroys nested structure)
     const flattened = flattenJsonToPathArrays(metadata);
@@ -555,7 +555,9 @@ export class IngestionService {
 
             if (!runData || !itemData) return [];
 
-            const timestamp = toClickhouseDateTime(event.body.createdAt);
+            const timestamp = toClickhouseDateTime(
+              event.body.createdAt ?? Date.now(),
+            );
 
             const datasetItemVersion = itemData.validFrom
               ? toClickhouseDateTime(itemData.validFrom)
@@ -695,8 +697,8 @@ export class IngestionService {
               ingestion_api_key: attribution.ingestionApiKey,
               ingestion_sdk_name: attribution.ingestionSdkName,
               ingestion_sdk_version: attribution.ingestionSdkVersion,
-              created_at: toClickhouseDateTime(),
-              updated_at: toClickhouseDateTime(),
+              created_at: toClickhouseDateTime(Date.now()),
+              updated_at: toClickhouseDateTime(Date.now()),
               event_ts: toClickhouseDateTime(scoreEvent.timestamp),
               is_deleted: 0,
             };
@@ -1088,13 +1090,13 @@ export class IngestionService {
         timestamp: finalObservationRecord.start_time,
         project_id: projectId,
         environment: finalObservationRecord.environment,
-        created_at: toClickhouseDateTime(),
-        updated_at: toClickhouseDateTime(),
+        created_at: toClickhouseDateTime(Date.now()),
+        updated_at: toClickhouseDateTime(Date.now()),
         metadata: {},
         tags: [],
         bookmarked: false,
         public: false,
-        event_ts: toClickhouseDateTime(),
+        event_ts: toClickhouseDateTime(Date.now()),
         is_deleted: 0,
       };
 
@@ -1233,7 +1235,7 @@ export class IngestionService {
       result = overwriteObject(result, record, immutableEntityKeys);
     }
 
-    result.event_ts = toClickhouseDateTime();
+    result.event_ts = toClickhouseDateTime(Date.now());
 
     return result;
   }
@@ -1873,8 +1875,8 @@ export class IngestionService {
         // input: this.stringify(trace.body.input),
         // output: this.stringify(trace.body.output), // convert even json to string
         session_id: trace.body.sessionId,
-        created_at: toClickhouseDateTime(),
-        updated_at: toClickhouseDateTime(),
+        created_at: toClickhouseDateTime(Date.now()),
+        updated_at: toClickhouseDateTime(Date.now()),
         event_ts: toClickhouseDateTime(trace.timestamp),
         is_deleted: 0,
       };
@@ -2036,8 +2038,8 @@ export class IngestionService {
         prompt_id: prompt?.id,
         prompt_name: prompt?.name,
         prompt_version: prompt?.version,
-        created_at: toClickhouseDateTime(),
-        updated_at: toClickhouseDateTime(),
+        created_at: toClickhouseDateTime(Date.now()),
+        updated_at: toClickhouseDateTime(Date.now()),
         event_ts: toClickhouseDateTime(obs.timestamp),
         is_deleted: 0,
       };

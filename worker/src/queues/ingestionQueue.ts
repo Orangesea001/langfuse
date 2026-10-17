@@ -310,9 +310,9 @@ export const ingestionQueueProcessorBuilder = (
           event_id: job.data.payload.data.fileKey,
           bucket_name: env.LANGFUSE_S3_EVENT_UPLOAD_BUCKET,
           bucket_path: `${bucketPrefix}${fileName}`,
-          created_at: toClickhouseDateTime(),
-          updated_at: toClickhouseDateTime(),
-          event_ts: toClickhouseDateTime(),
+          created_at: toClickhouseDateTime(Date.now()),
+          updated_at: toClickhouseDateTime(Date.now()),
+          event_ts: toClickhouseDateTime(Date.now()),
           is_deleted: 0,
         });
       }

@@ -130,7 +130,7 @@ export default async function handler(
       headers: req.headers,
       projectId,
       apiKeyId: authCheck.scope.apiKeyId,
-      clickhouse: {
+      analytics: {
         surface: "publicapi",
         route: clickHouseRouteForRequest(req),
       },

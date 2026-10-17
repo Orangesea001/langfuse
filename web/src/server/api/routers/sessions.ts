@@ -541,8 +541,8 @@ export const sessionRouter = createTRPCRouter({
         {
           uiTableName: "Created At",
           uiTableId: "createdAt",
-          clickhouseTableName: "traces",
-          clickhouseSelect: "timestamp",
+          analyticsTableName: "traces",
+          analyticsSelect: "timestamp",
         },
       ];
       const filter: FilterState = [

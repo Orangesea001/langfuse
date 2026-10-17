@@ -155,7 +155,11 @@ export const ScoresTable = ({
   }
 
   const joinRequestData = () => {
-    if (!metrics.data || !zeroValueScores.data || !oneValueScores.data)
+    if (
+      !metrics.data ||
+      !(zeroValueScores.data ?? []) ||
+      !(oneValueScores.data ?? [])
+    )
       return [];
 
     return metrics.data.map((metric) => {
@@ -163,10 +167,10 @@ export const ScoresTable = ({
       const scoreSource = metric.scoreSource as ScoreSourceType;
       const scoreDataType = metric.scoreDataType as ScoreDataTypeType;
 
-      const zeroValueScore = zeroValueScores.data.find(
+      const zeroValueScore = (zeroValueScores.data ?? []).find(
         scoreNameSourceDataTypeMatch(scoreName, scoreSource, scoreDataType),
       );
-      const oneValueScore = oneValueScores.data.find(
+      const oneValueScore = (oneValueScores.data ?? []).find(
         scoreNameSourceDataTypeMatch(scoreName, scoreSource, scoreDataType),
       );
 

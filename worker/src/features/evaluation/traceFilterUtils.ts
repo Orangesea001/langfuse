@@ -25,7 +25,7 @@ type InMemoryTraceFilterColumn = (typeof _inMemoryTraceFilterColumns)[number];
 function getColumnDefinition(column: string) {
   const columnDef = tracesTableUiColumnDefinitions.find(
     (col) =>
-      matchesUiColumnMapping(col, column) || col.clickhouseSelect === column,
+      matchesUiColumnMapping(col, column) || col.analyticsSelect === column,
   );
   if (!columnDef) {
     throw new Error(`Unhandled column for trace filter: ${column}`);

@@ -123,7 +123,7 @@ describe("/api/public/v2/metrics API Endpoint", () => {
     it("preserves DateTime64 filter instants outside the ClickHouse session timezone", async () => {
       const instant = new Date("2026-08-14T23:30:00.123+02:00");
       const applied = new DateTimeFilter({
-        clickhouseTable: "events",
+        analyticsTable: "events",
         field: "start_time",
         operator: ">=",
         value: instant,
@@ -137,7 +137,7 @@ describe("/api/public/v2/metrics API Endpoint", () => {
       const result = await queryClickhouse<{ timestampMs: string }>({
         query: `SELECT toUnixTimestamp64Milli(${placeholder}) AS timestampMs`,
         params: applied.params,
-        clickhouseSettings: { session_timezone: "Europe/Berlin" },
+        analyticsSettings: { session_timezone: "Europe/Berlin" },
       });
 
       expect(Number(result[0]?.timestampMs)).toBe(instant.getTime());

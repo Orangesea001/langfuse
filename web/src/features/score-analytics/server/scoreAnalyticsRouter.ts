@@ -357,7 +357,7 @@ export const createScoreAnalyticsRouter = ({
             nBins,
           },
           tags: { projectId },
-          clickhouseSettings: {
+          analyticsSettings: {
             // Enable short-circuit evaluation to prevent correlation errors
             // This ensures if() conditions are evaluated before function calls
             short_circuit_function_evaluation: "enable",

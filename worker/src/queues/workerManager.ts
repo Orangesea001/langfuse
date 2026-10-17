@@ -89,7 +89,7 @@ export class WorkerManager {
 
       const clickHouseCtx = contextWithLangfuseProps({
         projectId: WorkerManager.extractProjectId(job),
-        clickhouse: {
+        analytics: {
           surface: "worker",
           route: baseMetric,
         },

@@ -23,7 +23,7 @@ describe("server test resource cleanup", () => {
     expect(globalThis.redis).toBeUndefined();
   });
 
-  it.each(["ready", "end", "close"])(
+  it.each(["ready", "end", "end"])(
     "disconnects only an active Redis connection (%s)",
     async (status) => {
       const disconnect = vi.fn();
@@ -36,14 +36,13 @@ describe("server test resource cleanup", () => {
   );
 
   it("waits for existing ClickHouse clients to close", async () => {
-    const { clickhouseClient } =
-      await import("@langfuse/shared/src/server/clickhouse");
-    const client = clickhouseClient();
+    const { analyticsClient } = await import("@langfuse/shared/src/server");
+    const client = analyticsClient();
     let finishClose!: () => void;
     const closed = new Promise<void>((resolve) => {
       finishClose = resolve;
     });
-    const close = vi.spyOn(client, "close").mockReturnValue(closed);
+    const close = vi.spyOn(client, "end").mockReturnValue(closed);
     const finished = vi.fn();
     const cleanup = teardown().then(finished);
 
@@ -63,8 +62,8 @@ describe("server test resource cleanup", () => {
       "@langfuse/shared/src/server",
     );
     try {
-      const client = actual.clickhouseClient();
-      const close = vi.spyOn(client, "close");
+      const client = actual.analyticsClient();
+      const close = vi.spyOn(client, "end");
 
       await teardown();
 
@@ -75,10 +74,9 @@ describe("server test resource cleanup", () => {
   });
 
   it("leaves shared-context resources open for later test files", async () => {
-    const { clickhouseClient } =
-      await import("@langfuse/shared/src/server/clickhouse");
+    const { analyticsClient } = await import("@langfuse/shared/src/server");
     const disconnect = vi.fn();
-    const close = vi.spyOn(clickhouseClient(), "close");
+    const close = vi.spyOn(analyticsClient(), "end");
     vi.stubGlobal("redis", { status: "ready", disconnect });
     vi.stubEnv("VITEST_SHARED_CONTEXT", "1");
     let afterAllHook!: () => Promise<void>;

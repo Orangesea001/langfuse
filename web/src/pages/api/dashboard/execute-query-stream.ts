@@ -5,7 +5,7 @@ import {
   isProgressRow,
   isRow,
   isException,
-  ClickHouseResourceError,
+  AnalyticsResourceError,
   queryClickhouseWithProgress,
   logger,
 } from "@langfuse/shared/src/server";
@@ -154,12 +154,10 @@ export default async function handler(
     });
     const chOpts = toClickhouseQueryOpts(prepared);
 
-    for await (const event of queryClickhouseWithProgress<
-      Record<string, unknown>
-    >({
+    for await (const event of queryClickhouseWithProgress<any>({
       ...chOpts,
-      clickhouseSettings: {
-        ...chOpts.clickhouseSettings,
+      analyticsSettings: {
+        ...chOpts.analyticsSettings,
         cancel_http_readonly_queries_on_client_close: 1,
       },
     })) {
@@ -169,13 +167,13 @@ export default async function handler(
         res.write(
           formatSSEEvent({ type: "progress", progress: event.progress }),
         );
-      } else if (isRow<Record<string, unknown>>(event)) {
+      } else if (isRow(event as Record<string, unknown>)) {
         res.write(formatSSEEvent({ type: "row", row: event.row }));
       } else if (isException(event)) {
         const isResource =
-          ClickHouseResourceError.wrapIfResourceError(
+          AnalyticsResourceError.wrapIfResourceError(
             new Error(event.exception),
-          ) instanceof ClickHouseResourceError;
+          ) instanceof AnalyticsResourceError;
         logger.error(
           `[execute-query-stream] ClickHouse exception: ${event.exception}`,
           { projectId },
@@ -198,7 +196,7 @@ export default async function handler(
         projectId,
       });
       const message =
-        error instanceof ClickHouseResourceError
+        error instanceof AnalyticsResourceError
           ? RESOURCE_LIMIT_ERROR_MESSAGE
           : error instanceof Error
             ? error.message

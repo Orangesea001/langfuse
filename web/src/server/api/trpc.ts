@@ -229,7 +229,7 @@ const withOtelInstrumentation = t.middleware(async (opts) => {
     headers: opts.ctx.headers,
     userId: opts.ctx.session?.user?.id,
     projectId: (actualInput as Record<string, string>)?.projectId,
-    clickhouse: {
+    analytics: {
       surface: "trpc",
       route: opts.path,
     },

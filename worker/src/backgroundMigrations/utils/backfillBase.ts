@@ -1,3 +1,4 @@
+import { env } from "../../env";
 /* eslint-disable no-nested-ternary */
 import { randomUUID } from "crypto";
 import { parseArgs } from "node:util";
@@ -168,6 +169,14 @@ export async function loadPartitionsFromClickhouse(
   restrictTo?: string[],
   logPrefix = "[Backfill]",
 ): Promise<BaseChunkTodo[]> {
+  // MySQL mode: No partition system. Return empty to skip partition-based backfill.
+  if (env.LANGFUSE_MYSQL_URL) {
+    logger.info(
+      `${logPrefix} Skipping partition discovery in MySQL mode (no partition system)`,
+    );
+    return [];
+  }
+
   logger.info(`${logPrefix} Discovering ${table} partitions from system.parts`);
 
   const rows = await queryClickhouse<{ partition_id: string }>({
@@ -288,7 +297,7 @@ async function fireQuery({
       surface: "worker",
       route: "background-migration.fireQuery",
     },
-    clickhouseSettings: {
+    analyticsSettings: {
       // The fire-and-poll pattern intentionally outlives the HTTP request, but
       // the shared client derives a server-side max_execution_time (~35s) from
       // its default request timeout, which kills long chunk queries after the
@@ -324,10 +333,10 @@ async function fireQuery({
 
   try {
     const status = await pollQueryStatus(queryId);
-    if (status === "not_found") {
+    if (status.status === "not_found") {
       await sleep(retryWaitMs);
       const retryStatus = await pollQueryStatus(queryId);
-      if (retryStatus === "not_found") {
+      if (retryStatus.status === "not_found") {
         throw new Error(`Query ${queryId} failed to start on server`);
       }
     }
@@ -375,18 +384,18 @@ async function recoverInProgressTodos<T extends BaseChunkTodo>(
     try {
       const status = await pollQueryStatus(todo.queryId!);
 
-      if (status === "completed") {
+      if (status.status === "completed") {
         todo.status = "completed";
         todo.completedAt = new Date().toISOString();
         logger.info(`${logPrefix} Recovered chunk ${todo.id} as completed`);
-      } else if (status === "failed") {
+      } else if (status.status === "failed") {
         todo.status = "pending";
         todo.retryCount = (todo.retryCount || 0) + 1;
         const error = await getQueryError(todo.queryId!);
         logger.warn(
           `${logPrefix} Recovered chunk ${todo.id} as failed, will retry: ${error}`,
         );
-      } else if (status === "running") {
+      } else if (status.status === "running") {
         logger.info(
           `${logPrefix} Recovered chunk ${todo.id} as still running (query ${todo.queryId}), will continue tracking`,
         );
@@ -704,12 +713,12 @@ export abstract class ChunkedClickhouseBackfillMigration<
         continue;
       }
 
-      if (status === "running") continue;
+      if (status.status === "running") continue;
 
       active.delete(queryId);
       state.activeQueries = state.activeQueries.filter((q) => q !== queryId);
 
-      if (status === "completed") {
+      if (status.status === "completed") {
         const verificationError = await this.verifyCompletedChunk(todo);
         if (verificationError) {
           todo.status = "failed";
@@ -727,7 +736,7 @@ export abstract class ChunkedClickhouseBackfillMigration<
         }
       } else {
         const error =
-          status === "failed"
+          status.status === "failed"
             ? await getQueryError(queryId)
             : "Query not found in query_log";
         this.applyChunkFailure(todo, error, config);

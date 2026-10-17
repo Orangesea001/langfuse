@@ -111,9 +111,9 @@ const getScoresWithTraceMetadataFromEvents = async (props: {
   orderBy: OrderByState;
   limit: number;
   offset: number;
-  clickhouseConfigs: Parameters<
+  analyticsConfigs: Parameters<
     typeof getScoresUiTableFromEvents
-  >[0]["clickhouseConfigs"];
+  >[0]["analyticsConfigs"];
 }) => {
   const scores = await getScoresUiTableFromEvents({
     ...props,
@@ -129,7 +129,7 @@ const getScoresWithTraceMetadataFromEvents = async (props: {
           .filter((traceId): traceId is string => Boolean(traceId)),
       ),
     ],
-    clickhouseConfigs: props.clickhouseConfigs,
+    analyticsConfigs: props.analyticsConfigs,
   });
 
   return scores.map((score) => {
@@ -179,7 +179,7 @@ export const getDatabaseReadStreamPaginated = async ({
     type: "datetime" as const,
   };
 
-  const clickhouseConfigs = {
+  const analyticsConfigs = {
     request_timeout: 180_000,
     clickhouse_settings: {
       // Increase HTTP timeouts to prevent Code 209 errors during slow blob storage uploads
@@ -208,7 +208,7 @@ export const getDatabaseReadStreamPaginated = async ({
                 orderBy,
                 limit: pageSize,
                 offset,
-                clickhouseConfigs,
+                analyticsConfigs,
               })
             : await getScoresUiTable({
                 projectId,
@@ -216,7 +216,7 @@ export const getDatabaseReadStreamPaginated = async ({
                 orderBy,
                 limit: pageSize,
                 offset,
-                clickhouseConfigs,
+                analyticsConfigs,
                 preferredClickhouseService,
               });
 
@@ -279,7 +279,7 @@ export const getDatabaseReadStreamPaginated = async ({
           );
           // v4-enabled users (snapshotted as useEventsTable at dispatch) read
           // sessions from the ClickHouse events table. Both readers apply the
-          // same filter (incl. the createdAt cutoff) and clickhouseConfigs, and
+          // same filter (incl. the createdAt cutoff) and analyticsConfigs, and
           // expose the same field names, so the row mapping below is shared.
           const sessions = useEventsTable
             ? await getSessionsWithMetricsFromEvents({
@@ -288,7 +288,7 @@ export const getDatabaseReadStreamPaginated = async ({
                 orderBy: orderBy,
                 limit: pageSize,
                 page: Math.floor(offset / pageSize),
-                clickhouseConfigs,
+                analyticsConfigs,
               })
             : await getSessionsWithMetrics({
                 projectId: projectId,
@@ -296,7 +296,7 @@ export const getDatabaseReadStreamPaginated = async ({
                 orderBy: orderBy,
                 limit: pageSize,
                 page: Math.floor(offset / pageSize),
-                clickhouseConfigs,
+                analyticsConfigs,
                 preferredClickhouseService,
               });
 
@@ -364,7 +364,7 @@ export const getDatabaseReadStreamPaginated = async ({
               ? [...filter, createdAtCutoffFilterCh]
               : [createdAtCutoffFilterCh],
             isTimestampFilter: isGenerationTimestampFilter,
-            clickhouseConfigs,
+            analyticsConfigs,
           });
 
           emptyScoreColumns = distinctScoreNames.reduce(
@@ -383,12 +383,12 @@ export const getDatabaseReadStreamPaginated = async ({
             searchType: searchType ?? ["id" as const],
             orderBy,
             selectIOAndMetadata: true,
-            clickhouseConfigs,
+            analyticsConfigs,
           });
           const scores = await getScoresForObservations({
             projectId,
             observationIds: generations.map((gen) => gen.id),
-            clickhouseConfigs,
+            analyticsConfigs,
           });
 
           const chunk = generations.map((generation) => {
@@ -439,7 +439,7 @@ export const getDatabaseReadStreamPaginated = async ({
               ? [...filter, createdAtCutoffFilter]
               : [createdAtCutoffFilter],
             isTimestampFilter: isTraceTimestampFilter,
-            clickhouseConfigs,
+            analyticsConfigs,
           });
           emptyScoreColumns = distinctScoreNames.reduce(
             (acc, name) => ({ ...acc, [name]: null }),
@@ -456,7 +456,7 @@ export const getDatabaseReadStreamPaginated = async ({
             orderBy,
             limit: pageSize,
             page: Math.floor(offset / pageSize),
-            clickhouseConfigs,
+            analyticsConfigs,
           });
 
           const [metrics, fullTraces] = await Promise.all([
@@ -471,7 +471,7 @@ export const getDatabaseReadStreamPaginated = async ({
                   value: traces.map((t) => t.id),
                 },
               ],
-              clickhouseConfigs,
+              analyticsConfigs,
             }),
             getTracesByIds(
               traces.map((t) => t.id),
@@ -480,14 +480,14 @@ export const getDatabaseReadStreamPaginated = async ({
                 (min, t) => (!min || t.timestamp < min ? t.timestamp : min),
                 undefined as Date | undefined,
               ),
-              clickhouseConfigs,
+              analyticsConfigs,
             ),
           ]);
 
           const scores = await getScoresForTraces({
             projectId,
             traceIds: traces.map((t) => t.id),
-            clickhouseConfigs,
+            analyticsConfigs,
           });
 
           const chunk = traces.map((t) => {
@@ -565,7 +565,7 @@ export const getDatabaseReadStreamPaginated = async ({
               order: "DESC",
             },
             offset,
-            clickhouseConfigs,
+            analyticsConfigs,
             preferredClickhouseService,
           });
 
@@ -747,7 +747,7 @@ export const getTraceIdentifierStream = async (props: {
     type: "datetime",
   };
 
-  const clickhouseConfigs = {
+  const analyticsConfigs = {
     request_timeout: 180_000,
     clickhouse_settings: {
       // Increase HTTP timeouts to prevent Code 209 errors during slow blob storage uploads
@@ -769,7 +769,7 @@ export const getTraceIdentifierStream = async (props: {
         orderBy,
         limit: pageSize,
         page: Math.floor(offset / pageSize),
-        clickhouseConfigs,
+        analyticsConfigs,
       });
       return identifiers;
     },

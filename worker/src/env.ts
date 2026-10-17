@@ -193,7 +193,9 @@ const EnvSchema = z.object({
 
   LANGFUSE_USE_AZURE_BLOB: z.enum(["true", "false"]).default("false"),
 
-  CLICKHOUSE_URL: z.string().default(""),
+  CLICKHOUSE_URL: z.string().default(""), // Compat: alias for ANALYTICS_URL
+  CLICKHOUSE_READ_ONLY_URL: z.string().default(""), // Compat: alias for ANALYTICS_READ_ONLY_URL
+  CLICKHOUSE_EVENTS_READ_ONLY_URL: z.string().default(""), // Compat: alias for ANALYTICS_EVENTS_READ_ONLY_URL
   CLICKHOUSE_USER: z.string().default(""),
   CLICKHOUSE_CLUSTER_NAME: z.string().default("default"),
   CLICKHOUSE_DB: z.string().default("default"),

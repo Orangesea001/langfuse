@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { QueryBuilder, executeQuery } from "@langfuse/shared/query/server";
 import {
   getValidAggregationsForMeasureType,

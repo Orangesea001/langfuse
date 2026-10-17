@@ -54,7 +54,7 @@ describe("buildObservationsFilter", () => {
       filter.some(
         (f: any) =>
           f.field === "project_id" &&
-          f.clickhouseTable === "observations" &&
+          f.analyticsTable === "observations" &&
           f.value === "project-1",
       ),
     ).toBe(true);
@@ -67,7 +67,7 @@ describe("buildObservationsFilter", () => {
     expect(
       filter.some(
         (f: any) =>
-          f.field === "trace_id" && f.clickhouseTable === "observations",
+          f.field === "trace_id" && f.analyticsTable === "observations",
       ),
     ).toBe(true);
   });
@@ -78,7 +78,7 @@ describe("buildObservationsFilter", () => {
     const { filter } = mockGenerateObservations.mock.calls[0][0];
     expect(
       filter.some(
-        (f: any) => f.field === "level" && f.clickhouseTable === "observations",
+        (f: any) => f.field === "level" && f.analyticsTable === "observations",
       ),
     ).toBe(true);
   });
@@ -90,13 +90,13 @@ describe("buildObservationsFilter", () => {
     mockDeriveFilters.mockReturnValueOnce(
       new FilterList([
         new StringFilter({
-          clickhouseTable: "scores",
+          analyticsTable: "scores",
           field: "name",
           operator: "=",
           value: "accuracy",
         }),
         new StringFilter({
-          clickhouseTable: "observations",
+          analyticsTable: "observations",
           field: "trace_id",
           operator: "=",
           value: "trace-abc",
@@ -107,8 +107,8 @@ describe("buildObservationsFilter", () => {
     await generateObservationsForPublicApi(BASE);
 
     const { filter } = mockGenerateObservations.mock.calls[0][0];
-    expect(filter.some((f: any) => f.clickhouseTable === "scores")).toBe(false);
-    expect(filter.some((f: any) => f.clickhouseTable === "observations")).toBe(
+    expect(filter.some((f: any) => f.analyticsTable === "scores")).toBe(false);
+    expect(filter.some((f: any) => f.analyticsTable === "observations")).toBe(
       true,
     );
   });
@@ -132,7 +132,7 @@ describe("buildObservationsFilter", () => {
     mockDeriveFilters.mockReturnValueOnce(
       new FilterList([
         new StringFilter({
-          clickhouseTable: "scores",
+          analyticsTable: "scores",
           field: "value",
           operator: "=",
           value: "0.9",
@@ -147,10 +147,10 @@ describe("buildObservationsFilter", () => {
       filter.some(
         (f: any) =>
           f.field === "project_id" &&
-          f.clickhouseTable === "observations" &&
+          f.analyticsTable === "observations" &&
           f.value === "project-1",
       ),
     ).toBe(true);
-    expect(filter.some((f: any) => f.clickhouseTable === "scores")).toBe(false);
+    expect(filter.some((f: any) => f.analyticsTable === "scores")).toBe(false);
   });
 });

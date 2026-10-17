@@ -12,7 +12,7 @@ import {
   FilterList,
   createFilterFromFilterState,
   tracesTableUiColumnDefinitions,
-  clickhouseSearchCondition,
+  analyticsSearchCondition,
   parseClickhouseUTCDateTimeFormat,
   scoreBooleansAggregation,
   StringFilter,
@@ -45,7 +45,7 @@ export const getTraceStream = async (props: {
     rowLimit = env.BATCH_EXPORT_ROW_LIMIT,
   } = props;
 
-  const clickhouseConfigs = {
+  const analyticsConfigs = {
     request_timeout: 180_000,
     clickhouse_settings: {
       join_algorithm: "partial_merge" as const,
@@ -63,7 +63,7 @@ export const getTraceStream = async (props: {
       matchesUiColumnMapping(col, f.column),
     );
     // Keep the filter if it's not an observation-level filter
-    return columnDef?.clickhouseTableName !== "observations";
+    return columnDef?.analyticsTableName !== "observations";
   });
 
   // Get distinct score names for empty columns
@@ -72,7 +72,7 @@ export const getTraceStream = async (props: {
     cutoffCreatedAt,
     filter: traceOnlyFilters,
     isTimestampFilter: isTraceTimestampFilter,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService: "ReadOnly",
   });
 
@@ -104,7 +104,7 @@ export const getTraceStream = async (props: {
 
   const scoresFilter = new FilterList([
     new StringFilter({
-      clickhouseTable: "scores",
+      analyticsTable: "scores",
       field: "project_id",
       operator: "=",
       value: projectId,
@@ -113,7 +113,7 @@ export const getTraceStream = async (props: {
 
   const appliedScoresFilter = scoresFilter.apply();
 
-  const search = clickhouseSearchCondition({
+  const search = analyticsSearchCondition({
     query: searchQuery,
     searchType,
     tablePrefix: "t",
@@ -224,7 +224,7 @@ export const getTraceStream = async (props: {
       ...appliedScoresFilter.params,
       ...search.params,
     },
-    clickhouseConfigs,
+    analyticsConfigs,
     tags: { projectId },
     preferredClickhouseService: "ReadOnly",
   });

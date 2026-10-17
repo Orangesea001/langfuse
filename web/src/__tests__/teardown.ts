@@ -6,7 +6,7 @@ export default async function teardown() {
     redis.disconnect();
   }
 
-  const { ClickHouseClientManager } =
-    await import("@langfuse/shared/src/server/clickhouse");
-  await ClickHouseClientManager.getInstance().closeAllConnections();
+  const { AnalyticsClientManager } =
+    await import("@langfuse/shared/src/server");
+  await AnalyticsClientManager.getInstance().closeAllConnections();
 }

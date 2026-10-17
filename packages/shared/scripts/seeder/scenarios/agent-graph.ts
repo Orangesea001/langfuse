@@ -283,21 +283,21 @@ const run = async (
       "traces",
       `project_id = {projectId: String} AND id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     observations: await countRows(
       "observations",
       `project_id = {projectId: String} AND trace_id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     // The distinct node names ARE the point of this scenario — verify them, not
     // just the row count.
     langgraphNodes: await countRows(
       "observations",
-      `project_id = {projectId: String} AND trace_id = {traceId: String} AND metadata[{nodeTag: String}] != ''`,
+      `project_id = {projectId: String} AND trace_id = {traceId: String} AND JSON_EXTRACT(metadata, '$.langgraph_node') IS NOT NULL AND JSON_EXTRACT(metadata, '$.langgraph_node') != ''`,
       { projectId: ctx.projectId, traceId, nodeTag: LANGGRAPH_NODE_TAG },
-      `uniqExact(metadata[{nodeTag: String}])`,
+      `COUNT(DISTINCT JSON_EXTRACT(metadata, '$.langgraph_node'))`,
     ),
   };
   if (withV4) {
@@ -305,7 +305,7 @@ const run = async (
       "events_full",
       `project_id = {projectId: String} AND trace_id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(span_id)",
+      "COUNT(DISTINCT span_id)",
     );
   }
 

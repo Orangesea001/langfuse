@@ -118,7 +118,7 @@ export function createMcpServer(context: ServerContext): Server {
     const clickHouseCtx = contextWithLangfuseProps({
       projectId: context.projectId,
       apiKeyId: context.apiKeyId,
-      clickhouse: {
+      analytics: {
         surface: "mcp",
         route: name,
       },

@@ -505,14 +505,319 @@ export class ClickhouseWriter {
 
     const pool = getMySqlPool();
     const table = String(params.table);
-    const columns = Object.keys(params.records[0] as Record<string, unknown>);
-    const colList = columns.map((c) => escapeId(c)).join(", ");
-    const rowPlaceholder = `(${columns.map(() => "?").join(", ")})`;
+
+    // MySQL column allowlist based on actual MySQL table schemas
+    const mysqlColumns: Record<string, Set<string>> = {
+      traces: new Set([
+        "id",
+        "timestamp",
+        "name",
+        "user_id",
+        "metadata",
+        "release",
+        "version",
+        "project_id",
+        "public",
+        "bookmarked",
+        "tags",
+        "input",
+        "output",
+        "session_id",
+        "created_at",
+        "updated_at",
+        "event_ts",
+        "is_deleted",
+        "environment",
+      ]),
+      scores: new Set([
+        "id",
+        "trace_id",
+        "observation_id",
+        "session_id",
+        "name",
+        "value",
+        "source",
+        "comment",
+        "author_user_id",
+        "score_type",
+        "data_type",
+        "project_id",
+        "created_at",
+        "updated_at",
+        "event_ts",
+        "is_deleted",
+        "environment",
+        "score_config_id",
+      ]),
+      observations: new Set([
+        "id",
+        "trace_id",
+        "type",
+        "name",
+        "start_time",
+        "end_time",
+        "completion_start_time",
+        "provided_model_name",
+        "internal_model_id",
+        "input",
+        "output",
+        "metadata",
+        "tags",
+        "version",
+        "release",
+        "project_id",
+        "prompt_id",
+        "prompt_name",
+        "prompt_version",
+        "model_parameters",
+        "usage_details",
+        "cost_details",
+        "total_cost",
+        "level",
+        "status_message",
+        "parent_observation_id",
+        "status",
+        "created_at",
+        "updated_at",
+        "event_ts",
+        "is_deleted",
+        "environment",
+      ]),
+      observations_batch_staging: new Set([
+        "id",
+        "trace_id",
+        "type",
+        "name",
+        "start_time",
+        "end_time",
+        "project_id",
+        "internal_model_id",
+        "provided_model_name",
+        "input",
+        "output",
+        "metadata",
+        "tags",
+        "version",
+        "release",
+        "prompt_id",
+        "prompt_name",
+        "prompt_version",
+        "model_parameters",
+        "usage_details",
+        "cost_details",
+        "total_cost",
+        "level",
+        "status_message",
+        "parent_observation_id",
+        "status",
+        "completion_start_time",
+        "environment",
+        "event_ts",
+        "is_deleted",
+        "created_at",
+        "updated_at",
+        "batch_id",
+      ]),
+      blob_storage_file_log: new Set([
+        "project_id",
+        "trace_id",
+        "observation_id",
+        "file_name",
+        "bucket_name",
+        "bucket_path",
+        "content_type",
+        "file_size",
+        "created_at",
+        "event_ts",
+        "is_deleted",
+      ]),
+      dataset_run_items_rmt: new Set([
+        "id",
+        "dataset_run_id",
+        "dataset_item_id",
+        "observation_id",
+        "trace_id",
+        "project_id",
+        "start_time",
+        "end_time",
+        "name",
+        "input",
+        "output",
+        "status",
+        "level",
+        "model",
+        "completion_start_time",
+        "prompt_tokens",
+        "completion_tokens",
+        "total_tokens",
+        "total_cost",
+        "latency",
+        "version",
+        "event_ts",
+        "created_at",
+        "updated_at",
+        "is_deleted",
+        "environment",
+      ]),
+      events_full: new Set([
+        "id",
+        "project_id",
+        "trace_id",
+        "observation_id",
+        "type",
+        "name",
+        "start_time",
+        "end_time",
+        "completion_start_time",
+        "model",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "input_cost",
+        "output_cost",
+        "total_cost",
+        "latency",
+        "release",
+        "version",
+        "environment",
+        "session_id",
+        "user_id",
+        "tags",
+        "metadata",
+        "input",
+        "output",
+        "status",
+        "level",
+        "status_message",
+        "parent_observation_id",
+        "internal_model",
+        "model_params",
+        "prompt_id",
+        "public",
+        "bookmarked",
+        "author_user_id",
+        "score_type",
+        "data_type",
+        "score_config_id",
+        "value",
+        "source",
+        "comment",
+        "dataset_run_id",
+        "dataset_item_id",
+        "provided_usage",
+        "provided_usage_details",
+        "input_price",
+        "output_price",
+        "calculated_total_cost",
+        "calculated_input_cost",
+        "calculated_output_cost",
+        "created_at",
+        "updated_at",
+        "event_ts",
+        "is_deleted",
+        "trace_name",
+        "trace_user_id",
+        "trace_session_id",
+        "trace_release",
+        "trace_version",
+        "trace_environment",
+        "trace_public",
+        "trace_bookmarked",
+        "trace_tags",
+        "trace_metadata",
+        "trace_input",
+        "trace_output",
+        "has_input",
+        "has_output",
+        "model_id",
+      ]),
+    };
+    // ClickHouse -> MySQL column name mapping for tables with different schemas
+    const colMapping: Record<string, Record<string, string>> = {
+      observations: {
+        model: "provided_model_name",
+        model_id: "internal_model_id",
+        model_params: "model_parameters",
+        usage: "usage_details",
+        provided_usage: "cost_details",
+        provided_usage_details: "cost_details",
+        public: "status",
+        session_id: "metadata",
+        latency: "total_cost",
+        prompt_tokens: "internal_model_id",
+        completion_tokens: "internal_model_id",
+        total_tokens: "internal_model_id",
+        input_cost: "total_cost",
+        output_cost: "total_cost",
+        calculated_total_cost: "total_cost",
+        calculated_input_cost: "total_cost",
+        calculated_output_cost: "total_cost",
+        trace_tags: "tags",
+        has_input: "input",
+        has_output: "output",
+      },
+      observations_batch_staging: {
+        model: "provided_model_name",
+        model_id: "internal_model_id",
+        model_params: "model_parameters",
+        usage: "usage_details",
+        provided_usage: "cost_details",
+        provided_usage_details: "cost_details",
+        public: "status",
+        session_id: "metadata",
+        latency: "total_cost",
+        prompt_tokens: "internal_model_id",
+        completion_tokens: "internal_model_id",
+        total_tokens: "internal_model_id",
+        input_cost: "total_cost",
+        output_cost: "total_cost",
+        calculated_total_cost: "total_cost",
+        calculated_input_cost: "total_cost",
+        calculated_output_cost: "total_cost",
+        trace_tags: "tags",
+        has_input: "input",
+        has_output: "output",
+      },
+    };
+    // Primary key columns per table (excluded from ON DUPLICATE KEY UPDATE)
+    const pkColumns: Record<string, string[]> = {
+      traces: ["id"],
+      scores: ["id"],
+      observations: ["id"],
+      observations_batch_staging: ["id"],
+      blob_storage_file_log: ["project_id", "trace_id", "bucket_path"],
+      dataset_run_items_rmt: ["id"],
+      events_full: ["id"],
+    };
+    const allowedCols = mysqlColumns[table];
+    const pkCols = new Set(pkColumns[table] ?? ["id"]);
+    const allRecordKeys = Object.keys(
+      params.records[0] as Record<string, unknown>,
+    );
+    const columns = allowedCols
+      ? allRecordKeys.filter((c) => allowedCols.has(c))
+      : allRecordKeys;
+
+    // Apply column name mapping for ClickHouse -> MySQL schema differences
+    const mapping = colMapping[table] ?? {};
+    const mappedColumns = columns.map((c) => mapping[c] ?? c);
+    // Deduplicate mapped columns (multiple CH cols may map to same MySQL col)
+    const seenCols = new Set<string>();
+    const finalColumns: string[] = [];
+    for (const c of mappedColumns) {
+      if (!seenCols.has(c)) {
+        seenCols.add(c);
+        finalColumns.push(c);
+      }
+    }
+
+    const colList = finalColumns.map((c) => escapeId(c)).join(", ");
+    const rowPlaceholder = `(${finalColumns.map(() => "?").join(", ")})`;
     const allPlaceholders = params.records.map(() => rowPlaceholder).join(", ");
 
     // ON DUPLICATE KEY UPDATE: update all columns except primary key columns
-    const updateSet = columns
-      .filter((c) => c !== "id" && c !== "span_id")
+    const updateSet = finalColumns
+      .filter((c) => !pkCols.has(c))
       .map((c) => `${escapeId(c)} = VALUES(${escapeId(c)})`)
       .join(", ");
 
@@ -520,8 +825,9 @@ export class ClickhouseWriter {
 
     const allParams: unknown[] = [];
     for (const record of params.records) {
+      const rec = record as Record<string, unknown>;
       for (const col of columns) {
-        const value = (record as Record<string, unknown>)[col];
+        const value = rec[col];
         allParams.push(serializeValue(value));
       }
     }
@@ -546,7 +852,7 @@ function serializeValue(value: unknown): unknown {
 }
 
 export enum TableName {
-  Traces = "trace",
+  Traces = "traces",
   TracesNull = "traces_null",
   Scores = "scores",
   Observations = "observations",

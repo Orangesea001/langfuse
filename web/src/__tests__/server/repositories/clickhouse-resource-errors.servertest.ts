@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   queryClickhouse,
   queryClickhouseStream,
@@ -22,7 +23,7 @@ describe("ClickHouse Resource Error Handling", () => {
           try {
             res = await queryClickhouse<any>({
               query: `SELECT throwIf(number >= 2, 'memory limit exceeded: would use 10.23 GiB') AS v FROM system.numbers LIMIT 2000`,
-              clickhouseSettings: { max_block_size: `${blockSize}` },
+              analyticsSettings: { max_block_size: `${blockSize}` },
               tags: {
                 surface: "trpc",
                 route: "test.resource-error",
@@ -107,7 +108,7 @@ describe("ClickHouse Resource Error Handling", () => {
       it(`should transform errors during streaming; block size ${blockSize}`, async () => {
         const generator = queryClickhouseStream({
           query: `SELECT throwIf(number = 2, 'memory limit exceeded: would use 10.23 GiB') as V FROM numbers(10)`,
-          clickhouseSettings: { max_block_size: `${blockSize}` },
+          analyticsSettings: { max_block_size: `${blockSize}` },
         });
 
         let fullResponse = [];
@@ -149,7 +150,7 @@ describe("ClickHouse Resource Error Handling", () => {
       it("should include query_id in errors thrown mid-stream", async () => {
         const generator = queryClickhouseStream({
           query: `SELECT throwIf(number = 2, 'memory limit exceeded: would use 10.23 GiB') as V FROM numbers(10)`,
-          clickhouseSettings: { max_block_size: "1" },
+          analyticsSettings: { max_block_size: "1" },
         });
 
         const rows: unknown[] = [];

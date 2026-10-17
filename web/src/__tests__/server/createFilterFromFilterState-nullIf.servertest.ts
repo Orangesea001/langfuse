@@ -18,8 +18,8 @@ describe("createFilterFromFilterState with emptyEqualsNull", () => {
   // Column mapping with emptyEqualsNull (used by v2 query engine for nullIf dimensions)
   const withEmptyEqualsNull = {
     ...baseMapping,
-    clickhouseTableName: "events_core",
-    clickhouseSelect: "events_observations.parent_span_id",
+    analyticsTableName: "events_core",
+    analyticsSelect: "events_observations.parent_span_id",
     queryPrefix: "",
     emptyEqualsNull: true,
   };
@@ -27,8 +27,8 @@ describe("createFilterFromFilterState with emptyEqualsNull", () => {
   // Column mapping without emptyEqualsNull — standard NullFilter behavior
   const withoutFlag = {
     ...baseMapping,
-    clickhouseTableName: "observations",
-    clickhouseSelect: "observations.parent_observation_id",
+    analyticsTableName: "observations",
+    analyticsSelect: "observations.parent_observation_id",
     queryPrefix: "",
   };
 

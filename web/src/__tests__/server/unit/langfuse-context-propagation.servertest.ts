@@ -62,7 +62,7 @@ describe("Langfuse context propagation", () => {
     opentelemetry.context.with(opentelemetry.ROOT_CONTEXT, () => {
       const ctx = contextWithLangfuseProps({
         projectId: "project-1",
-        clickhouse: {
+        analytics: {
           surface: "publicapi",
           route: "GET /api/public/traces",
         },

@@ -86,9 +86,9 @@ const withOrg = (cloudConfig: CloudConfigSchema | null) => {
 };
 
 const chbConfig = (
-  overrides: Partial<NonNullable<CloudConfigSchema["clickhouse"]>> = {},
+  overrides: Partial<NonNullable<CloudConfigSchema["analytics"]>> = {},
 ): CloudConfigSchema => ({
-  clickhouse: {
+  analytics: {
     organizationId: CH_ORG_ID,
     attachedPlanId: ATTACHED_PLAN_ID,
     planCode: "LANGFUSE_PRO",
@@ -114,7 +114,7 @@ describe("chbBillingService", () => {
 
   describe("getSubscriptionInfo", () => {
     it("falls back to the cached billing cycle when the org has no attached plan", async () => {
-      withOrg({ clickhouse: { organizationId: CH_ORG_ID } });
+      withOrg({ analytics: { organizationId: CH_ORG_ID } });
 
       const info = await service().getSubscriptionInfo(ORG_ID);
 
@@ -311,7 +311,7 @@ describe("chbBillingService", () => {
     });
 
     it("reuses the CH organization from an earlier attempt without rewriting it", async () => {
-      withOrg({ clickhouse: { organizationId: CH_ORG_ID } });
+      withOrg({ analytics: { organizationId: CH_ORG_ID } });
       clientMock.createCheckoutSession.mockResolvedValue(session);
 
       await service().createCheckoutSession(
@@ -332,7 +332,7 @@ describe("chbBillingService", () => {
     });
 
     it("refuses when a retry comes back with a different CH organization", async () => {
-      withOrg({ clickhouse: { organizationId: CH_ORG_ID } });
+      withOrg({ analytics: { organizationId: CH_ORG_ID } });
       clientMock.createCheckoutSession.mockResolvedValue({
         checkoutUrl: session.checkoutUrl,
         organizationId: "11111111-2222-4333-8444-555555555555",
@@ -534,7 +534,7 @@ describe("chbBillingService", () => {
     it.each([
       ["a manual plan override", { plan: "Team" } as CloudConfigSchema],
       ["no CHB state at all", {} as CloudConfigSchema],
-      ["no attached plan", { clickhouse: { organizationId: CH_ORG_ID } }],
+      ["no attached plan", { analytics: { organizationId: CH_ORG_ID } }],
     ])("refuses an org with %s", async (_label, cloudConfig) => {
       withOrg(cloudConfig);
 

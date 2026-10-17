@@ -398,15 +398,15 @@ const run = async (
       "traces",
       `project_id = {projectId: String} AND id = {traceId: String}`,
       args,
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     observations: await countRows(
       "observations",
       byTrace,
       args,
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
-    scores: await countRows("scores", byTrace, args, "uniqExact(id)"),
+    scores: await countRows("scores", byTrace, args, "COUNT(DISTINCT id)"),
   };
   if (withV4) {
     // events_full has no `id` column — count rows.

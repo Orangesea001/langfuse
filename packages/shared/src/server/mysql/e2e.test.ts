@@ -150,6 +150,6 @@ describe.skipIf(!process.env.LANGFUSE_MYSQL_URL)("MySQL E2E", () => {
     const [r3] = (await pool.query(
       `SELECT JSON_EXTRACT('["x","y"]', '$[0]') as val`,
     )) as [RowDataPacket[], unknown];
-    expect(r3[0].val).toBe('"x"');
+    expect(r3[0].val).toBe("x"); // mysql2 auto-parses JSON scalars
   });
 });

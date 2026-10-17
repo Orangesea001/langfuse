@@ -460,7 +460,7 @@ export const [listObservationsTool, handleListObservations] = defineTool({
             ),
           },
           {
-            clickhouseSettings: {
+            analyticsSettings: {
               max_execution_time: MCP_OBSERVATIONS_MAX_EXECUTION_TIME_SECONDS,
             },
           },

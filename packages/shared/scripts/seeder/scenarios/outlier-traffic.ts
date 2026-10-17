@@ -366,13 +366,13 @@ const run = async (
       "traces",
       `project_id = {projectId: String} AND id LIKE {prefix: String}`,
       { projectId: ctx.projectId, prefix },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     observations: await countRows(
       "observations",
       `project_id = {projectId: String} AND id LIKE {prefix: String}`,
       { projectId: ctx.projectId, prefix },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     ...(withV4
       ? {
@@ -380,7 +380,7 @@ const run = async (
             "events_core",
             `project_id = {projectId: String} AND trace_id LIKE {prefix: String} AND is_deleted = 0`,
             { projectId: ctx.projectId, prefix },
-            "uniqExact(span_id)",
+            "COUNT(DISTINCT span_id)",
           ),
         }
       : {}),

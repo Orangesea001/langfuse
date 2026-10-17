@@ -188,7 +188,7 @@ export class DeletedMaskCleaner extends PeriodicExclusiveRunner {
     try {
       await commandClickhouse({
         query,
-        clickhouseSettings: {
+        analyticsSettings: {
           mutations_sync: "0",
         },
         abortSignal: abortController.signal,

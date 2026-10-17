@@ -159,3 +159,6 @@ export const analyticsSearchCondition = ({
       : {},
   };
 };
+
+/** @deprecated Use analyticsSearchCondition instead */
+export const clickhouseSearchCondition = analyticsSearchCondition;

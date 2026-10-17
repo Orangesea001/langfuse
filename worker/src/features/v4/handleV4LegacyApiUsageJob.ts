@@ -103,11 +103,11 @@ type MergedHourUsageRow = {
  * that terminates public API reads must be scanned.
  */
 const getQueryLogServices = (): PreferredClickhouseService[] => {
-  const seenUrls = new Set([new URL(env.CLICKHOUSE_URL).toString()]);
+  const seenUrls = new Set([new URL(env.ANALYTICS_URL).toString()]);
   const services: PreferredClickhouseService[] = ["ReadWrite"];
   const candidates: [PreferredClickhouseService, string | undefined][] = [
-    ["ReadOnly", env.CLICKHOUSE_READ_ONLY_URL],
-    ["EventsReadOnly", env.CLICKHOUSE_EVENTS_READ_ONLY_URL],
+    ["ReadOnly", env.ANALYTICS_READ_ONLY_URL ?? ""],
+    ["EventsReadOnly", env.ANALYTICS_EVENTS_READ_ONLY_URL ?? ""],
   ];
   for (const [service, url] of candidates) {
     if (!url) continue;
@@ -261,10 +261,10 @@ SETTINGS skip_unavailable_shards = 1
       preferredClickhouseService,
       // Shared client derives max_execution_time = request_timeout/1000 + 5s
       // and enables HTTP progress headers when request_timeout > 30s default.
-      clickhouseConfigs: {
+      analyticsConfigs: {
         request_timeout: V4_LEGACY_API_USAGE_QUERY_TIMEOUT_MS,
       },
-      clickhouseSettings: { skip_unavailable_shards: 1 },
+      analyticsSettings: { skip_unavailable_shards: 1 },
     });
     logger.info("v4 legacy API usage: query_log scan completed", {
       service: preferredClickhouseService,

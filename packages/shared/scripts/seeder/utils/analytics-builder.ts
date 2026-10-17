@@ -5,8 +5,6 @@ import {
   ScoreRecordInsertType,
   DatasetRunItemRecordInsertType,
   createDatasetRunItemsCh,
-} from "../../../src/server";
-import {
   createTracesCh,
   createObservationsCh,
   createScoresCh,
@@ -87,7 +85,11 @@ export class AnalyticsQueryBuilder {
    * Creates INSERT using Analytics numbers() function.
    * Use for: Large datasets (>1000 traces), realistic timestamps, bulk generation.
    */
-  buildBulkTracesInsert(
+  /**
+   * Bulk-insert traces using JavaScript data generation (MySQL-compatible).
+   * Replaces ClickHouse INSERT...SELECT FROM numbers() approach.
+   */
+  async executeBulkTracesInsert(
     projectId: string,
     count: number,
     environment = "default",
@@ -98,77 +100,84 @@ export class AnalyticsQueryBuilder {
       anchorSeconds?: number;
       seed?: number;
     } = { numberOfDays: 1 },
-  ): string {
-    // Escape file content if provided
-    const escapedHeavyMarkdown = fileContent
-      ? this.escapeString(fileContent.heavyMarkdown)
-      : "Sample heavy markdown content";
-    const escapedNestedJson = fileContent
-      ? this.escapeString(JSON.stringify(fileContent.nestedJson))
-      : '{"sample": "nested json"}';
-    const escapedChatMl = fileContent
-      ? this.escapeString(JSON.stringify(fileContent.chatMlJson))
-      : '{"messages": []}';
-    const idPrefix = opts.idPrefix
-      ? `${this.escapeString(opts.idPrefix)}-`
-      : "";
-    const escapedProjectId = this.escapeString(projectId);
-    const escapedEnvironment = this.escapeString(environment);
-    const idSuffix = this.escapeString(projectId.slice(-8));
+  ): Promise<void> {
+    const idPrefix = opts.idPrefix ? `${opts.idPrefix}-` : "";
+    const idSuffix = projectId.slice(-8);
     const spreadSeconds = opts.numberOfDays * 86400;
     const anchorSeconds =
       opts.anchorSeconds ?? Math.floor(Date.now() / 86_400_000) * 86_400;
-    const seedSalt = (opts.seed ?? 0) >>> 0;
+    const names = [
+      "chat-completion",
+      "summarize-document",
+      "extract-entities",
+      "embed-documents",
+      "classify-intent",
+      "generate-title",
+      "translate-text",
+      "moderate-content",
+      "rerank-results",
+      "answer-question",
+    ];
 
-    // Timestamps derive from `number` and anchor to midnight UTC (computed
-    // in TS, independent of the Analytics server timezone) so same-day
-    // re-runs produce identical ORDER BY tuples (toDate(timestamp) is a
-    // sorting key) and ReplacingMergeTree dedups instead of duplicating.
-    // NOTE: the INSERT relies on positional column order — keep the SELECT
-    // list in sync with the table schema when migrations add columns.
-    return `
-      INSERT INTO traces
-      SELECT
-        concat('${idPrefix}trace-bulk-', toString(number), '-${idSuffix}') AS id,
-        toDateTime(${anchorSeconds} - intDiv(number * ${spreadSeconds}, ${Math.max(count, 1)})) AS timestamp,
-        arrayElement(['chat-completion','summarize-document','extract-entities','embed-documents','classify-intent','generate-title','translate-text','moderate-content','rerank-results','answer-question'], 1 + (number % 10)) AS name,
-        if(h1 % 10 < 3, concat('${idPrefix}user_', toString(h1 % 1000)), NULL) AS user_id,
-        ${this.buildNestedMetadataMapSql(["'generated'", "'bulk'"])} AS metadata,
-        NULL AS release,
-        NULL AS version,
-        '${escapedProjectId}' AS project_id,
-        '${escapedEnvironment}' AS environment,
-        if(h2 % 10 = 0, true, false) AS public,
-        if(h2 % 20 = 1, true, false) AS bookmarked,
-        array() AS tags,
-        if(h3 % 10 < 3, '${escapedHeavyMarkdown}',
-          '${escapedChatMl}'
-        ) AS input,
-        if(h3 % 10 >= 8, '${escapedNestedJson}',
-          '${escapedChatMl}'
-        ) AS output,
-        if(h1 % 100 < 30, concat('${idPrefix}session_', toString(h2 % 100)), NULL) AS session_id,
-        now() AS created_at,
-        now() AS updated_at,
-        now() AS event_ts,
-        0 AS is_deleted
-      FROM
-      (
-        SELECT
-          number,
-          xxHash32(toUInt64(number * 4 + ${seedSalt})) AS h1,
-          xxHash32(toUInt64(number * 4 + 1 + ${seedSalt})) AS h2,
-          xxHash32(toUInt64(number * 4 + 2 + ${seedSalt})) AS h3
-        FROM numbers(${count})
+    const traces: TraceRecordInsertType[] = [];
+    for (let i = 0; i < count; i++) {
+      const ts = new Date(
+        (anchorSeconds - Math.floor((i * spreadSeconds) / Math.max(count, 1))) *
+          1000,
       );
-    `;
+      const tsStr = ts.toISOString().replace("T", " ").replace("Z", "");
+      const name = names[i % names.length];
+      const userId =
+        Math.random() < 0.3 ? `user_${Math.floor(Math.random() * 1000)}` : null;
+      const sessionId =
+        Math.random() < 0.3
+          ? `session_${Math.floor(Math.random() * 100)}`
+          : null;
+      const input = fileContent
+        ? Math.random() < 0.3
+          ? fileContent.heavyMarkdown
+          : JSON.stringify(fileContent.chatMlJson)
+        : null;
+      const output = fileContent
+        ? Math.random() < 0.2
+          ? JSON.stringify(fileContent.nestedJson)
+          : JSON.stringify(fileContent.chatMlJson)
+        : null;
+
+      traces.push({
+        id: `${idPrefix}trace-bulk-${i}-${idSuffix}`,
+        name,
+        user_id: userId,
+        metadata: { generated: "true", source: "bulk" },
+        release: null,
+        version: null,
+        project_id: projectId,
+        environment,
+        public: Math.random() < 0.1,
+        bookmarked: Math.random() < 0.05,
+        tags: [],
+        input,
+        output,
+        session_id: sessionId,
+        timestamp: tsStr,
+        created_at: tsStr,
+        updated_at: tsStr,
+        event_ts: new Date().toISOString().replace("T", " ").replace("Z", ""),
+        is_deleted: 0,
+      });
+    }
+
+    // Insert in batches of 1000
+    const batchSize = 1000;
+    for (let i = 0; i < traces.length; i += batchSize) {
+      await createTracesCh(traces.slice(i, i + batchSize));
+    }
   }
 
   /**
-   * Creates observations with automatic prompt linking (10% rate).
-   * Use for: Large datasets, hierarchical observations, cost/latency variation.
+   * Bulk-insert observations using JavaScript data generation (MySQL-compatible).
    */
-  buildBulkObservationsInsert(
+  async executeBulkObservationsInsert(
     projectId: string,
     tracesCount: number,
     observationsPerTrace = 5,
@@ -179,144 +188,110 @@ export class AnalyticsQueryBuilder {
       idPrefix?: string;
       anchorSeconds?: number;
       seed?: number;
-      /** real Postgres prompt rows to link ~10% of generations to; omitted
-       * -> prompt columns stay NULL (fabricated ids break the PromptBadge) */
-      prompts?: { id: string; name: string; version: number }[];
+      observationsPerTrace?: number;
     } = { numberOfDays: 1 },
-  ): string {
+  ): Promise<void> {
+    const idPrefix = opts.idPrefix ? `${opts.idPrefix}-` : "";
+    const idSuffix = projectId.slice(-8);
     const totalObservations = tracesCount * observationsPerTrace;
-    const idPrefix = opts.idPrefix
-      ? `${this.escapeString(opts.idPrefix)}-`
-      : "";
-    const escapedProjectId = this.escapeString(projectId);
-    const escapedEnvironment = this.escapeString(environment);
-    const idSuffix = this.escapeString(projectId.slice(-8));
-    const spreadSeconds = opts.numberOfDays * 86400;
-    const anchorSeconds =
-      opts.anchorSeconds ?? Math.floor(Date.now() / 86_400_000) * 86_400;
-    const seedSalt = (opts.seed ?? 0) >>> 0;
-    const prompts = opts.prompts ?? [];
+    const models = [
+      "gpt-4o-mini",
+      "gpt-4-turbo",
+      "claude-3-haiku",
+      "gpt-4",
+      "claude-3-sonnet",
+    ];
+    const types = ["GENERATION", "SPAN", "EVENT"] as const;
 
-    // Escape file content if provided
-    const escapedHeavyMarkdown = fileContent
-      ? this.escapeString(fileContent.heavyMarkdown)
-      : "Sample heavy markdown content";
-    const escapedNestedJson = fileContent
-      ? this.escapeString(JSON.stringify(fileContent.nestedJson))
-      : '{"sample": "nested json"}';
-    const escapedChatMl = fileContent
-      ? this.escapeString(JSON.stringify(fileContent.chatMlJson))
-      : '{"messages": []}';
-
-    // start_time anchors to the OWN TRACE's timestamp formula (same divisor
-    // as buildBulkTracesInsert) plus a forward per-depth offset, so parents
-    // precede children and observations cluster at their trace's date.
-    return `
-      INSERT INTO observations
-      SELECT
-        concat('${idPrefix}obs-bulk-', toString(number), '-${idSuffix}') AS id,
-        concat('${idPrefix}trace-bulk-', toString(number % ${tracesCount}), '-${idSuffix}') AS trace_id,
-        '${escapedProjectId}' AS project_id,
-        '${escapedEnvironment}' AS environment,
-        multiIf(h1 % 100 < 47, 'GENERATION', h1 % 100 < 94, 'SPAN', 'EVENT') AS type,
-        if(number < ${tracesCount}, NULL, concat('${idPrefix}obs-bulk-', toString(number - ${tracesCount}), '-${idSuffix}')) AS parent_observation_id,
-        toDateTime(${anchorSeconds} - intDiv((number % ${Math.max(tracesCount, 1)}) * ${spreadSeconds}, ${Math.max(tracesCount, 1)}) + intDiv(number, ${Math.max(tracesCount, 1)}) * 60) AS start_time,
-        addMilliseconds(
-          toDateTime(${anchorSeconds} - intDiv((number % ${Math.max(tracesCount, 1)}) * ${spreadSeconds}, ${Math.max(tracesCount, 1)}) + ${Math.max(observationsPerTrace - 1, 0)} * 60),
-          (${Math.max(observationsPerTrace - 1, 0)} - intDiv(number, ${Math.max(tracesCount, 1)})) * 4000 +
-          case
-            when type = 'GENERATION' then 600 + h2 % 3400
-            when type = 'SPAN' then 1 + h2 % 50
-            else 1 + h2 % 10
-          end) AS end_time,
-        case
-          when type = 'GENERATION' then concat('generation-', toString(number % 10))
-          when type = 'SPAN' then concat('span-', toString(number % 10))
-          else concat('event-', toString(number % 10))
-          end AS name,
-          ${this.buildNestedMetadataMapSql(["'key'", "'value'"])} AS metadata,
-          multiIf(h3 % 1000 < 850, 'DEFAULT', h3 % 1000 < 955, 'DEBUG', h3 % 1000 < 969, 'ERROR', 'WARNING') AS level,
-          multiIf(
-            level = 'ERROR' AND h2 % 2 = 0,
-              '{"error":{"code":"upstream_timeout","message":"The upstream model did not respond in time.","retryable":true},"requestId":"seed-request-42"}',
-            level = 'ERROR',
-              'Upstream model request timed out after 30 seconds.',
-            level = 'WARNING',
-              'The response completed after one automatic retry.',
-            level = 'DEBUG',
-              'Prompt cache lookup completed without a matching entry.',
-            level = 'DEFAULT' AND h2 % 10 = 0,
-              'The response completed with additional status details.',
-            NULL
-          ) AS status_message,
-          NULL AS version,
-        if(type = 'GENERATION',
-          if(h2 % 10 < 4, '${escapedHeavyMarkdown}', '${escapedChatMl}'),
-          NULL) AS input,
-        if(type = 'GENERATION',
-          if(h2 % 10 >= 7, '${escapedNestedJson}', '${escapedChatMl}'),
-          NULL) AS output,
-        -- Spread generations across a realistic model pool (keyed on the stable
-        -- per-row hash h4) so model-usage / cost / latency-by-model dashboards
-        -- show multiple series instead of a single hardcoded model.
-        if(type = 'GENERATION', arrayElement(['gpt-5.4-mini','gpt-5.4-nano','claude-haiku-4-5','gpt-5.4','claude-sonnet-4-5'], 1 + (h4 % 5)), NULL) AS provided_model_name,
-        NULL AS internal_model_id,
-        if(type = 'GENERATION', '{"temperature": 0.7}', '{}') AS model_parameters,
-        if(type = 'GENERATION', map('input', toUInt64(20 + h1 % 181), 'output', toUInt64(10 + h2 % 91), 'total', toUInt64(30 + h1 % 181 + h2 % 91)), map()) AS provided_usage_details,
-        if(type = 'GENERATION', map('input', toUInt64(20 + h1 % 181), 'output', toUInt64(10 + h2 % 91), 'total', toUInt64(30 + h1 % 181 + h2 % 91)), map()) AS usage_details,
-        if(type = 'GENERATION', map('input', toDecimal64((10 + h1 % 990) / 1000000, 8), 'output', toDecimal64((10 + h2 % 1990) / 1000000, 8), 'total', toDecimal64((20 + h1 % 990 + h2 % 1990) / 1000000, 8)), map()) AS provided_cost_details,
-        if(type = 'GENERATION', map('input', toDecimal64((10 + h1 % 990) / 1000000, 8), 'output', toDecimal64((10 + h2 % 1990) / 1000000, 8), 'total', toDecimal64((20 + h1 % 990 + h2 % 1990) / 1000000, 8)), map()) AS cost_details,
-        if(type = 'GENERATION', toDecimal64((20 + h1 % 990 + h2 % 1990) / 1000000, 8), NULL) AS total_cost,
-        if(type = 'GENERATION', addMilliseconds(start_time, toUInt32(100 + h3 % 400)), NULL) AS completion_start_time,
-        ${
-          prompts.length > 0
-            ? `if("type" = 'GENERATION' AND number % 10 = 0,
-        arrayElement(['${prompts.map((p) => this.escapeString(p.id)).join("','")}'], 1 + (h3 % ${prompts.length})),
-        NULL)`
-            : "NULL"
-        } AS prompt_id,
-        ${
-          prompts.length > 0
-            ? `if("type" = 'GENERATION' AND number % 10 = 0,
-        arrayElement(['${prompts.map((p) => this.escapeString(p.name)).join("','")}'], 1 + (h3 % ${prompts.length})),
-        NULL)`
-            : "NULL"
-        } AS prompt_name,
-        ${
-          prompts.length > 0
-            ? `if("type" = 'GENERATION' AND number % 10 = 0,
-        arrayElement([${prompts.map((p) => Math.floor(p.version)).join(",")}], 1 + (h3 % ${prompts.length})),
-        NULL)`
-            : "NULL"
-        } AS prompt_version,
-        start_time AS created_at,
-        start_time AS updated_at,
-        now() AS event_ts,
-        0 AS is_deleted,
-        '' AS usage_pricing_tier_id,
-        '' AS usage_pricing_tier_name,
-        map() AS tool_definitions,
-        [] AS tool_calls,
-        [] AS tool_call_names
-
-      FROM
-      (
-        SELECT
-          number,
-          xxHash32(toUInt64(number * 4 + ${seedSalt})) AS h1,
-          xxHash32(toUInt64(number * 4 + 1 + ${seedSalt})) AS h2,
-          xxHash32(toUInt64(number * 4 + 2 + ${seedSalt})) AS h3,
-          xxHash32(toUInt64(number * 4 + 3 + ${seedSalt})) AS h4
-        FROM numbers(${totalObservations})
+    const observations: ObservationRecordInsertType[] = [];
+    for (let i = 0; i < totalObservations; i++) {
+      const traceIdx = i % tracesCount;
+      const typeIdx = Math.floor(Math.random() * 100);
+      const type =
+        typeIdx < 47 ? "GENERATION" : typeIdx < 94 ? "SPAN" : "EVENT";
+      const parentId =
+        i >= tracesCount
+          ? `${idPrefix}obs-bulk-${i - tracesCount}-${idSuffix}`
+          : null;
+      const ts = new Date(
+        Date.now() -
+          Math.floor((traceIdx * 86400 * opts.numberOfDays) / tracesCount) *
+            1000,
       );
-    `;
+      const tsStr = ts.toISOString().replace("T", " ").replace("Z", "");
+      const endTime = new Date(ts.getTime() + (Math.random() * 3000 + 100));
+      const model =
+        type === "GENERATION"
+          ? models[Math.floor(Math.random() * models.length)]
+          : null;
+      const inputTokens =
+        type === "GENERATION" ? Math.floor(Math.random() * 181) + 20 : 0;
+      const outputTokens =
+        type === "GENERATION" ? Math.floor(Math.random() * 91) + 10 : 0;
+      const totalTokens = inputTokens + outputTokens;
+
+      observations.push({
+        id: `${idPrefix}obs-bulk-${i}-${idSuffix}`,
+        trace_id: `${idPrefix}trace-bulk-${traceIdx}-${idSuffix}`,
+        project_id: projectId,
+        environment,
+        type: type as "GENERATION" | "SPAN" | "EVENT",
+        parent_observation_id: parentId,
+        start_time: tsStr,
+        end_time: endTime.toISOString().replace("T", " ").replace("Z", ""),
+        name: `${type.toLowerCase()}-${i % 10}`,
+        metadata: {},
+        level: "DEFAULT",
+        status_message: null,
+        version: null,
+        input:
+          type === "GENERATION" && fileContent
+            ? JSON.stringify(fileContent.chatMlJson)
+            : null,
+        output:
+          type === "GENERATION" && fileContent
+            ? JSON.stringify(fileContent.nestedJson)
+            : null,
+        provided_model_name: model,
+        internal_model_id: null,
+        model_parameters: type === "GENERATION" ? '{"temperature": 0.7}' : "{}",
+        provided_usage_details:
+          type === "GENERATION"
+            ? { input: inputTokens, output: outputTokens, total: totalTokens }
+            : {},
+        usage_details:
+          type === "GENERATION"
+            ? { input: inputTokens, output: outputTokens, total: totalTokens }
+            : {},
+        provided_cost_details: {},
+        cost_details: {},
+        total_cost: null,
+        completion_start_time: null,
+        prompt_id: null,
+        prompt_name: null,
+        prompt_version: null,
+        created_at: tsStr,
+        updated_at: tsStr,
+        event_ts: new Date().toISOString().replace("T", " ").replace("Z", ""),
+        is_deleted: 0,
+        usage_pricing_tier_id: "",
+        usage_pricing_tier_name: "",
+        tool_definitions: {},
+        tool_calls: [],
+        tool_call_names: [],
+      });
+    }
+
+    const batchSize = 1000;
+    for (let i = 0; i < observations.length; i += batchSize) {
+      await createObservationsCh(observations.slice(i, i + batchSize));
+    }
   }
 
   /**
-   * Creates scores with mixed data types (NUMERIC/BOOLEAN/CATEGORICAL).
-   * Use for: Large datasets, varied score distributions, synthetic metrics.
+   * Bulk-insert scores using JavaScript data generation (MySQL-compatible).
    */
-  buildBulkScoresInsert(
+  async executeBulkScoresInsert(
     projectId: string,
     tracesCount: number,
     scoresPerTrace = 2,
@@ -324,84 +299,88 @@ export class AnalyticsQueryBuilder {
     opts: {
       numberOfDays: number;
       idPrefix?: string;
-      observationsPerTrace?: number;
       anchorSeconds?: number;
       seed?: number;
+      observationsPerTrace?: number;
     } = { numberOfDays: 1 },
-  ): string {
+  ): Promise<void> {
+    const idPrefix = opts.idPrefix ? `${opts.idPrefix}-` : "";
+    const idSuffix = projectId.slice(-8);
     const totalScores = tracesCount * scoresPerTrace;
-    const observationsPerTrace = opts.observationsPerTrace ?? 5;
-    const idPrefix = opts.idPrefix
-      ? `${this.escapeString(opts.idPrefix)}-`
-      : "";
-    const escapedProjectId = this.escapeString(projectId);
-    const escapedEnvironment = this.escapeString(environment);
-    const idSuffix = this.escapeString(projectId.slice(-8));
-    const spreadSeconds = opts.numberOfDays * 86400;
-    const anchorSeconds =
-      opts.anchorSeconds ?? Math.floor(Date.now() / 86_400_000) * 86_400;
-    const seedSalt = (opts.seed ?? 0) >>> 0;
+    const scoreNames = [
+      "metric_1",
+      "metric_2",
+      "metric_3",
+      "metric_4",
+      "metric_5",
+    ];
+    const dataTypes = ["NUMERIC", "BOOLEAN", "CATEGORICAL"] as const;
+    const sources = ["API"] as const;
+    const sdkNames = ["python", "javascript", "unknown"];
 
-    return `
-      INSERT INTO scores
-      SELECT
-        concat('${idPrefix}score-bulk-', toString(number), '-${idSuffix}') AS id,
-        toDateTime(${anchorSeconds} - intDiv((number % ${Math.max(tracesCount, 1)}) * ${spreadSeconds}, ${Math.max(tracesCount, 1)}) + intDiv(number, ${Math.max(tracesCount, 1)}) * 90) AS timestamp,
-        '${escapedProjectId}' AS project_id,
-        '${escapedEnvironment}' AS environment,
-        concat('${idPrefix}trace-bulk-', toString(number % ${tracesCount}), '-${idSuffix}') AS trace_id,
-        if(traceH1 % 100 < 30, concat('${idPrefix}session_', toString(traceH2 % 100)), NULL) AS session_id,
-        NULL AS dataset_run_id,
-        ${
-          observationsPerTrace > 0
-            ? `if(h1 % 10 = 0, concat('${idPrefix}obs-bulk-', toString((number % ${tracesCount}) + ${tracesCount} * (h2 % ${observationsPerTrace})), '-${idSuffix}'), NULL)`
-            : "NULL"
-        } AS observation_id,
-        concat('metric_', toString(nameKey + 1)) AS name,
-        case 
-          when (nameKey % 3) = 0 then toDecimal64((h3 % 10000) / 100, 8)
-          when (nameKey % 3) = 1 then if(h3 % 2 = 0, 1, 0)
-          else NULL
-        end AS value,
-        'API' AS source,
-        'Generated synthetic score' AS comment,
-        map() AS metadata,
-        '' AS evaluator_id,
-        '' AS evaluation_rule_id,
-        NULL AS author_user_id,
-        NULL AS config_id,
-        case 
-          when (nameKey % 3) = 0 then 'NUMERIC'
-          when (nameKey % 3) = 1 then 'BOOLEAN'
-          else 'CATEGORICAL'
-        end AS data_type,
-        case 
-          when (nameKey % 3) = 1 then if(value = 1, 'True', 'False')
-          when (nameKey % 3) = 2 then concat('category_', toString((h1 % 5) + 1))
-          else NULL
-        end AS string_value,
-        NULL AS queue_id,
-        timestamp AS created_at,
-        timestamp AS updated_at,
-        now() AS event_ts,
-        0 AS is_deleted,
-        NULL AS execution_trace_id,
-        '' AS long_string_value,
-        arrayElement(['pk-lf-seed-${idSuffix}-python','pk-lf-seed-${idSuffix}-javascript','pk-lf-seed-${idSuffix}-raw-api'], 1 + (h1 % 3)) AS ingestion_api_key,
-        arrayElement(['python','javascript','unknown'], 1 + (h1 % 3)) AS ingestion_sdk_name,
-        arrayElement(['4.2.1','5.1.3','unknown'], 1 + (h1 % 3)) AS ingestion_sdk_version
-      FROM
-      (
-        SELECT
-          number,
-          xxHash32(toUInt64(number * 4 + ${seedSalt})) AS h1,
-          xxHash32(toUInt64(number * 4 + 1 + ${seedSalt})) AS h2,
-          xxHash32(toUInt64(number * 4 + 2 + ${seedSalt})) AS h3,
-          xxHash32(toUInt64((number % ${Math.max(tracesCount, 1)})) * 4 + ${seedSalt}) AS traceH1,
-          xxHash32(toUInt64((number % ${Math.max(tracesCount, 1)})) * 4 + 1 + ${seedSalt}) AS traceH2,
-          (number % ${scoresPerTrace * 5}) + intDiv(number, ${Math.max(tracesCount, 1)}) * ${scoresPerTrace * 5} AS nameKey
-        FROM numbers(${totalScores})
+    const scores: ScoreRecordInsertType[] = [];
+    for (let i = 0; i < totalScores; i++) {
+      const traceIdx = i % tracesCount;
+      const ts = new Date(
+        Date.now() -
+          Math.floor((traceIdx * 86400 * opts.numberOfDays) / tracesCount) *
+            1000 +
+          Math.floor(i / tracesCount) * 90000,
       );
-    `;
+      const tsStr = ts.toISOString().replace("T", " ").replace("Z", "");
+      const nameKey = i % 5;
+      const name = scoreNames[nameKey];
+      const dataTypeIdx = nameKey % 3;
+      const dataType = dataTypes[dataTypeIdx];
+      const value =
+        dataType === "NUMERIC"
+          ? Math.random() * 100
+          : dataType === "BOOLEAN"
+            ? Math.random() < 0.5
+              ? 1
+              : 0
+            : 0;
+      const stringValue =
+        dataType === "BOOLEAN"
+          ? value === 1
+            ? "True"
+            : "False"
+          : dataType === "CATEGORICAL"
+            ? `category_${Math.floor(Math.random() * 5) + 1}`
+            : null;
+
+      scores.push({
+        id: `${idPrefix}score-bulk-${i}-${idSuffix}`,
+        timestamp: tsStr,
+        project_id: projectId,
+        environment,
+        trace_id: `${idPrefix}trace-bulk-${traceIdx}-${idSuffix}`,
+        observation_id: null,
+        name,
+        value,
+        source: "API",
+        comment: "Generated synthetic score",
+        metadata: {},
+        data_type: dataType,
+        string_value: stringValue,
+        created_at: tsStr,
+        updated_at: tsStr,
+        event_ts: new Date().toISOString().replace("T", " ").replace("Z", ""),
+        is_deleted: 0,
+        author_user_id: null,
+        config_id: null,
+        dataset_run_id: null,
+        queue_id: null,
+        long_string_value: "",
+        evaluator_id: "",
+        evaluation_rule_id: "",
+        session_id: null,
+      });
+    }
+
+    const batchSize = 1000;
+    for (let i = 0; i < scores.length; i += batchSize) {
+      await createScoresCh(scores.slice(i, i + batchSize));
+    }
   }
 }

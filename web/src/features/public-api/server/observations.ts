@@ -39,18 +39,18 @@ function buildObservationsFilter(props: ObservationsApiQueryProps) {
     publicApiObservationsFilterParams,
     advancedFilters,
     observationsTableUiColumnDefinitions.filter(
-      (c) => c.clickhouseTableName !== "scores",
+      (c) => c.analyticsTableName !== "scores",
     ),
     observationsTableCols,
   );
 
   const filteredChFilter = chFilter.filter(
-    (f) => f.clickhouseTable !== "scores",
+    (f) => f.analyticsTable !== "scores",
   );
 
   filteredChFilter.push(
     new StringFilter({
-      clickhouseTable: "observations",
+      analyticsTable: "observations",
       field: "project_id",
       operator: "=",
       value: props.projectId,

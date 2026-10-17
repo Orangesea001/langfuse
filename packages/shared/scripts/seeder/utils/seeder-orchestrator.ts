@@ -13,7 +13,8 @@ import {
   seedMediaTraces,
 } from "../seed-media";
 import {
-  analyticsClient,
+  commandAnalytics,
+  queryAnalytics,
   createTrace,
   DatasetRunItemRecordInsertType,
   logger,
@@ -268,7 +269,7 @@ export class SeederOrchestrator {
       if (opts.mode === "bulk") {
         logger.info(`Using bulk generation for ${tracesPerProject} traces`);
 
-        const traceQuery = this.queryBuilder.buildBulkTracesInsert(
+        await this.queryBuilder.executeBulkTracesInsert(
           projectId,
           tracesPerProject,
           "default",
@@ -276,7 +277,7 @@ export class SeederOrchestrator {
           { numberOfDays: opts.numberOfDays },
         );
 
-        const observationQuery = this.queryBuilder.buildBulkObservationsInsert(
+        await this.queryBuilder.executeBulkObservationsInsert(
           projectId,
           tracesPerProject,
           observationsPerTrace,
@@ -284,17 +285,13 @@ export class SeederOrchestrator {
           this.fileContent || undefined,
           { numberOfDays: opts.numberOfDays },
         );
-        const scoreQuery = this.queryBuilder.buildBulkScoresInsert(
+        await this.queryBuilder.executeBulkScoresInsert(
           projectId,
           tracesPerProject,
           scoresPerTrace,
           "default",
           { numberOfDays: opts.numberOfDays, observationsPerTrace },
         );
-
-        await this.executeQuery(traceQuery);
-        await this.executeQuery(observationQuery);
-        await this.executeQuery(scoreQuery);
       } else {
         // Use detailed generation for smaller datasets
         const traces = this.dataGenerator.generateSyntheticTraces(
@@ -359,12 +356,7 @@ export class SeederOrchestrator {
 
   private async executeQuery(query: string): Promise<void> {
     try {
-      await analyticsClient().command({
-        query,
-        analytics_settings: {
-          wait_end_of_query: 1,
-        },
-      });
+      await commandAnalytics({ query });
     } catch (error) {
       logger.error("Query execution failed:", error);
       logger.error("Failed query:", query);
@@ -377,27 +369,18 @@ export class SeederOrchestrator {
 
     for (const table of tables) {
       try {
-        const query = `
-          SELECT
-            project_id,
-            count() AS per_project_count,
-            bar(per_project_count, 0, (
-              SELECT count(*)
-              FROM ${table}
-            ), 50) AS bar_representation
-          FROM ${table}
-          GROUP BY project_id
-          ORDER BY count() desc
-        `;
-
-        const result = await analyticsClient().query({
-          query,
-          format: "TabSeparated",
+        const rows = await queryAnalytics<{
+          project_id: string;
+          per_project_count: number;
+        }>({
+          query: `SELECT project_id, COUNT(*) AS per_project_count FROM ${table} GROUP BY project_id ORDER BY per_project_count DESC`,
         });
 
+        const lines = rows
+          .map((r) => `  project ${r.project_id}: ${r.per_project_count} rows`)
+          .join("\n");
         logger.info(
-          `${table.charAt(0).toUpperCase() + table.slice(1)} per Project: \n` +
-            (await result.text()),
+          `${table.charAt(0).toUpperCase() + table.slice(1)} per Project:\n${lines}`,
         );
       } catch (error) {
         logger.warn(`Could not log statistics for ${table}:`, error);

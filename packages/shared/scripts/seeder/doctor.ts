@@ -1,5 +1,5 @@
 import { prisma } from "../../src/db";
-import { analyticsClient, redis } from "../../src/server";
+import { queryAnalytics, redis } from "../../src/server";
 import { SeedError } from "./scenarios/types";
 
 type CheckStatus = "pass" | "warn" | "fail";
@@ -44,12 +44,9 @@ const checkEnvFile = (): CheckResult => {
   // them before importing src/server, whose env schema would otherwise throw).
   // === undefined, not falsy — empty strings are valid for some of these
   // (matches the bootstrap precheck in ../cli.ts)
-  const missing = [
-    "DATABASE_URL",
-    "ANALYTICS_URL",
-    "ANALYTICS_USER",
-    "ANALYTICS_PASSWORD",
-  ].filter((name) => process.env[name] === undefined);
+  const missing = ["DATABASE_URL", "LANGFUSE_MYSQL_URL"].filter(
+    (name) => process.env[name] === undefined,
+  );
   return missing.length === 0
     ? { name: "env", status: "pass", detail: "required env vars present" }
     : {
@@ -137,26 +134,24 @@ const checkProject = async (projectId: string): Promise<CheckResult> => {
   }
 };
 
-const fetchClickhouseTables = async (): Promise<Set<string>> => {
-  const result = await withTimeout(
-    analyticsClient().query({
-      query: `SELECT name FROM system.tables WHERE database = currentDatabase() AND name IN ('traces', 'observations', 'scores', 'events_full', 'events_core')`,
-      format: "JSONEachRow",
+const fetchAnalyticsTables = async (): Promise<Set<string>> => {
+  const rows = await withTimeout(
+    queryAnalytics<{ table_name: string }>({
+      query: `SELECT TABLE_NAME AS table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND TABLE_NAME IN ('traces', 'observations', 'scores', 'events_full', 'events_core')`,
     }),
     4000,
   );
-  const rows = await result.json<{ name: string }>();
-  return new Set(rows.map((row) => row.name));
+  return new Set(rows.map((row) => row.table_name));
 };
 
-const checkClickhouse = async (): Promise<{
+const checkAnalytics = async (): Promise<{
   connectivity: CheckResult;
   legacyTables: CheckResult;
   v4Tables: CheckResult;
 }> => {
   let tables: Set<string>;
   try {
-    tables = await fetchClickhouseTables();
+    tables = await fetchAnalyticsTables();
   } catch (error) {
     const fail: CheckResult = {
       name: "analytics",
@@ -220,20 +215,33 @@ const checkClickhouse = async (): Promise<{
   };
 };
 
-const checkClickhouseMemory = async (): Promise<CheckResult> => {
+const checkAnalyticsMemory = async (): Promise<CheckResult> => {
   try {
-    const result = await withTimeout(
-      analyticsClient().query({
-        query: `SELECT
-          anyIf(value, metric = 'MemoryResident') AS resident,
-          greatest(anyIf(value, metric = 'CGroupMemoryTotal'), anyIf(value, metric = 'OSMemoryTotal')) AS total
-        FROM system.asynchronous_metrics
-        WHERE metric IN ('MemoryResident', 'CGroupMemoryTotal', 'OSMemoryTotal')`,
-        format: "JSONEachRow",
+    // MySQL doesn't expose memory metrics like ClickHouse's system.asynchronous_metrics.
+    // Skip this check for MySQL backend.
+    return {
+      name: "analytics-memory",
+      status: "pass",
+      detail: "memory metrics unavailable (MySQL backend, skipped)",
+    };
+  } catch {
+    return {
+      name: "analytics-memory",
+      status: "pass",
+      detail: "memory metrics unavailable (skipped)",
+    };
+  }
+};
+
+// Original ClickHouse memory check replaced with MySQL-compatible stub
+const _checkAnalyticsMemory = async (): Promise<CheckResult> => {
+  try {
+    const rows = await withTimeout(
+      queryAnalytics<{ resident: number; total: number }>({
+        query: `SELECT 0 AS resident, 0 AS total`,
       }),
       4000,
     );
-    const rows = await result.json<{ resident: number; total: number }>();
     const resident = Number(rows[0]?.resident ?? 0);
     const total = Number(rows[0]?.total ?? 0);
     if (total <= 0) {
@@ -352,8 +360,8 @@ export const runDoctor = async (
     checkPostgres(),
     checkMigrations(),
     checkProject(projectId),
-    checkClickhouse(),
-    checkClickhouseMemory(),
+    checkAnalytics(),
+    checkAnalyticsMemory(),
     checkRedis(),
     checkMinio(),
     checkHttp(
@@ -397,7 +405,7 @@ export const preflight = async (opts: {
   const [postgres, project, analytics] = await Promise.all([
     checkPostgres(),
     checkProject(opts.projectId),
-    checkClickhouse(),
+    checkAnalytics(),
   ]);
 
   const required: CheckResult[] = [

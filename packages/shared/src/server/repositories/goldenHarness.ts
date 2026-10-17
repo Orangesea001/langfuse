@@ -91,23 +91,23 @@ export function buildClickhouseMock(
 ): typeof ClickhouseModule {
   return {
     ...actual,
-    queryAnalytics: async (opts) => {
+    queryAnalytics: async (opts: any) => {
       capture("queryAnalytics", opts);
       return [];
     },
-    queryAnalyticsStream: async function* (opts) {
+    queryAnalyticsStream: async function* (opts: any) {
       capture("queryAnalyticsStream", opts);
       yield* [];
     },
-    queryAnalyticsStreamRawText: async function* (opts) {
+    queryAnalyticsStreamRawText: async function* (opts: any) {
       capture("queryAnalyticsStreamRawText", opts);
       yield* [];
     },
-    queryAnalyticsWithProgress: async function* (opts) {
+    queryAnalyticsWithProgress: async function* (opts: any) {
       capture("queryAnalyticsWithProgress", opts);
       yield* [];
     },
-    queryAnalyticsExecRaw: async (opts) => {
+    queryAnalyticsExecRaw: async (opts: any) => {
       // NOTE: `opts.format` is dropped here on purpose — see CapturedQuery's
       // "KNOWN GAP". Revisit before any exec-raw call site is golden-tested.
       capture("queryAnalyticsExecRaw", opts);
@@ -117,7 +117,7 @@ export function buildClickhouseMock(
         responseHeaders: {},
       };
     },
-    commandAnalytics: async (opts) => {
+    commandAnalytics: async (opts: any) => {
       capture("commandAnalytics", opts);
     },
   } as unknown as typeof ClickhouseModule;

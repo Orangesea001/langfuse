@@ -43,8 +43,8 @@ export function getOrganizationPlanServerSide(
       // never to a paid one; the paid gate for usage thresholds reads
       // attachedPlanId
       // instead, so a drifted code does not get a paying org ingestion-blocked.
-      if (cloudConfig.clickhouse?.organizationId) {
-        const { planCode } = cloudConfig.clickhouse;
+      if (cloudConfig.analytics?.organizationId) {
+        const { planCode } = cloudConfig.analytics;
         return planCode ? chbPlanCodeToPlan[planCode] : "cloud:hobby";
       }
 

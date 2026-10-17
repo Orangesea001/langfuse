@@ -121,7 +121,7 @@ const eventTimeBoundFilters = (fromTime?: Date, toTime?: Date) =>
     ...(fromTime
       ? [
           new DateTimeFilter({
-            clickhouseTable: "events_proto",
+            analyticsTable: "events_proto",
             field: "start_time",
             tablePrefix: "e",
             operator: ">=" as const,
@@ -132,7 +132,7 @@ const eventTimeBoundFilters = (fromTime?: Date, toTime?: Date) =>
     ...(toTime
       ? [
           new DateTimeFilter({
-            clickhouseTable: "events_proto",
+            analyticsTable: "events_proto",
             field: "start_time",
             tablePrefix: "e",
             operator: "<" as const,

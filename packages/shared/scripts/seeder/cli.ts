@@ -11,12 +11,7 @@ const ENV_FIX = "cp .env.dev.example .env  (then review required values)";
 
 // Vars without defaults in the shared env schema; absence makes the
 // src/server import itself throw before any CLI code can run.
-const REQUIRED_ENV_VARS = [
-  "DATABASE_URL",
-  "ANALYTICS_URL",
-  "ANALYTICS_USER",
-  "ANALYTICS_PASSWORD",
-];
+const REQUIRED_ENV_VARS = ["DATABASE_URL", "LANGFUSE_MYSQL_URL"];
 
 // === undefined, not falsy: empty strings are valid for some of these
 // (e.g. passwordless local Analytics) and pass the zod schema; only

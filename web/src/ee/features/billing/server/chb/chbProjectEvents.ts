@@ -25,7 +25,7 @@ import { randomUUID } from "crypto";
  * helper's internals for a queue — call sites keep the same signature.
  *
  * Sync starts at checkout, not at signup. Nothing is mirrored to CHB until
- * checkout persists `cloudConfig.clickhouse.organizationId`: before that CHB
+ * checkout persists `cloudConfig.analytics.organizationId`: before that CHB
  * has no organization to attribute a project to, so an event would be
  * unroutable, and the vast majority of orgs never check out at all.
  * `resolveChbOrganizationId` is the single gate enforcing this, and checkout
@@ -223,13 +223,13 @@ export async function sendChbProjectEvent(params: {
 /**
  * The CHB organization id to attribute events to, or null when the org has not
  * checked out yet. Every outbound project event goes through this gate: an org
- * without `cloudConfig.clickhouse.organizationId` is not a CHB customer, so
+ * without `cloudConfig.analytics.organizationId` is not a CHB customer, so
  * there is nothing for CHB to route a project event to.
  */
 async function resolveChbOrganizationId(orgId: string): Promise<string | null> {
   const org = await prisma.organization.findUnique({ where: { id: orgId } });
   if (!org) return null;
-  return parseDbOrg(org).cloudConfig?.clickhouse?.organizationId ?? null;
+  return parseDbOrg(org).cloudConfig?.analytics?.organizationId ?? null;
 }
 
 /**
@@ -271,7 +271,7 @@ export function emitChbProjectEvent(params: {
  * Send LANGFUSE_PROJECT_CREATED for every project the org already has.
  *
  * Checkout calls this right after it persists
- * `cloudConfig.clickhouse.organizationId`, which is the first moment CHB can
+ * `cloudConfig.analytics.organizationId`, which is the first moment CHB can
  * attribute projects to an organization. Projects created before that point
  * were deliberately never synced, so without this backfill CHB would only ever
  * meter projects created after checkout.

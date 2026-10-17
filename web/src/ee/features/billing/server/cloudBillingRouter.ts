@@ -16,7 +16,7 @@ import { isCloudBillingEnabled } from "../utils/isCloudBilling";
 
 const PROVIDER_LABEL: Record<BillingProvider, string> = {
   stripe: "Stripe",
-  clickhouse: "ClickHouse Billing",
+  analytics: "ClickHouse Billing",
 };
 
 /**

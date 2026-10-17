@@ -142,6 +142,10 @@
     "./src/server/repositories/clickhouse": {
       "import": "./dist/src/server/repositories/clickhouse.js",
       "require": "./dist/src/server/repositories/clickhouse.js"
+    },
+    "./src/server/clickhouse/clickhouseIdentifiers": {
+      "import": "./dist/src/server/clickhouse/clickhouseIdentifiers.js",
+      "require": "./dist/src/server/clickhouse/clickhouseIdentifiers.js"
     }
   },
   "scripts": {

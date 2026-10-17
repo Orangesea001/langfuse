@@ -1,4 +1,4 @@
-import { analyticsClient } from "../../../src/server";
+import { queryAnalytics } from "../../../src/server";
 import { ScenarioContext } from "./types";
 
 /**
@@ -9,14 +9,12 @@ export const countRows = async (
   table: string,
   whereSql: string,
   params: Record<string, string | number | string[]>,
-  countExpr = "count()",
+  countExpr = "COUNT(*)",
 ): Promise<number> => {
-  const result = await analyticsClient().query({
+  const rows = await queryAnalytics<{ c: string | number }>({
     query: `SELECT ${countExpr} AS c FROM ${table} WHERE ${whereSql}`,
-    query_params: params,
-    format: "JSONEachRow",
+    params,
   });
-  const rows = await result.json<{ c: string | number }>();
   return Number(rows[0]?.c ?? 0);
 };
 

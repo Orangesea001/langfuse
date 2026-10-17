@@ -321,7 +321,7 @@ export class BatchProjectCleaner extends PeriodicExclusiveRunner {
     await commandClickhouse({
       query,
       params: { projectIds },
-      clickhouseConfigs: {
+      analyticsConfigs: {
         request_timeout: env.LANGFUSE_BATCH_PROJECT_CLEANER_DELETE_TIMEOUT_MS,
       },
     });

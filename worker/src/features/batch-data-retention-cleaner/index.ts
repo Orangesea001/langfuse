@@ -491,7 +491,7 @@ export class BatchDataRetentionCleaner extends PeriodicExclusiveRunner {
           candidateLimit: env.LANGFUSE_BATCH_DATA_RETENTION_CLEANER_CHUNK_SIZE,
         },
         useMultipartParamsAuto: true,
-        clickhouseConfigs: {
+        analyticsConfigs: {
           // The shared client derives max_execution_time five seconds after
           // this request timeout and sends progress headers.
           request_timeout:
@@ -576,7 +576,7 @@ export class BatchDataRetentionCleaner extends PeriodicExclusiveRunner {
         },
         useMultipartParamsAuto: true,
         preferredClickhouseService,
-        clickhouseConfigs: {
+        analyticsConfigs: {
           request_timeout:
             env.LANGFUSE_BATCH_DATA_RETENTION_CLEANER_CANDIDATE_QUERY_TIMEOUT_MS,
           clickhouse_settings: {
@@ -714,7 +714,7 @@ export class BatchDataRetentionCleaner extends PeriodicExclusiveRunner {
     await commandClickhouse({
       query,
       params,
-      clickhouseConfigs: {
+      analyticsConfigs: {
         request_timeout:
           env.LANGFUSE_BATCH_DATA_RETENTION_CLEANER_DELETE_TIMEOUT_MS,
       },

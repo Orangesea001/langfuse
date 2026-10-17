@@ -209,7 +209,7 @@ export const experimentIoScenario: ScenarioDefinition = {
         "events_full",
         "project_id = {projectId: String} AND experiment_id = {experimentId: String} AND span_id = experiment_item_root_span_id AND isValidJSON(input) AND isValidJSON(output)",
         { projectId: ctx.projectId, experimentId },
-        "uniqExact(span_id)",
+        "COUNT(DISTINCT span_id)",
       );
       for (const [entity, expected] of Object.entries(counts)) {
         if (verified[entity] !== expected) {

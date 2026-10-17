@@ -14,3 +14,11 @@ export {
   type TranslatedQuery,
 } from "./sqlTranslator";
 export { MySqlWriter } from "./writer";
+export {
+  resolveRefKey,
+  resolveZebraUri,
+  getZebraPoolOptions,
+  REF_KEY_MAP,
+  ZEBRA_DEFAULTS,
+  type DeployEnv,
+} from "./zebra";

@@ -154,7 +154,7 @@ export default class BackfillEventsFullFromObservations extends ChunkedClickhous
         WHERE database = currentDatabase()
           AND table = '${PID_TID_SORTING_TABLE}'
       `,
-      clickhouseSettings: {
+      analyticsSettings: {
         skip_unavailable_shards: 1,
       },
       tags: {

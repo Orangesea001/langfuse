@@ -11,7 +11,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 /** Compatible with ClickhouseQueryOpts */
 export type MySqlQueryOpts = {
   query: string;
-  params?: Record<string, unknown>;
+  params?: Record<string, unknown> | unknown[];
   tags?: Record<string, string | undefined>;
   analyticsConfigs?: unknown;
   analyticsSettings?: unknown;
@@ -27,7 +27,19 @@ export async function queryMySql<T>(opts: MySqlQueryOpts): Promise<T[]> {
   return await instrumentAsync(
     { name: "mysql-query", spanKind: SpanKind.CLIENT },
     async (span) => {
-      const { sql, params } = translateQuery(opts.query, opts.params);
+      // Support both {param:Type} named params and ? positional array params
+      let sql: string;
+      let params: unknown[];
+      if (Array.isArray(opts.params)) {
+        // Already positional ? params - use as-is
+        sql = opts.query;
+        params = opts.params;
+      } else {
+        // Named {param:Type} params - translate to positional
+        const translated = translateQuery(opts.query, opts.params);
+        sql = translated.sql;
+        params = translated.params;
+      }
 
       span.setAttribute("db.system", "mysql");
       if (opts.tags) {
@@ -85,7 +97,17 @@ export async function* streamMySql<T>(
   opts: MySqlQueryOpts,
   batchSize: number = 1000,
 ): AsyncGenerator<T> {
-  const { sql, params } = translateQuery(opts.query, opts.params);
+  // Support both {param:Type} named params and ? positional array params
+  let sql: string;
+  let params: unknown[];
+  if (Array.isArray(opts.params)) {
+    sql = opts.query;
+    params = opts.params;
+  } else {
+    const translated = translateQuery(opts.query, opts.params);
+    sql = translated.sql;
+    params = translated.params;
+  }
 
   let offset = 0;
   let hasMore = true;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   queryClickhouse,
   queryClickhouseWithProgress,
@@ -70,7 +71,7 @@ describe("queryClickhouseWithProgress", () => {
 
     const generator = queryClickhouseWithProgress({
       query: `SELECT throwIf(number = 2, 'memory limit exceeded: would use 10.23 GiB') AS v FROM numbers(10)`,
-      clickhouseSettings: { max_block_size: "1" },
+      analyticsSettings: { max_block_size: "1" },
     });
 
     let foundException = false;

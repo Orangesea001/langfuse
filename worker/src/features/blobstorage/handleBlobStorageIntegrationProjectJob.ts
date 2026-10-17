@@ -605,7 +605,7 @@ const processBlobStorageExport = async (config: {
                   config.minTimestamp,
                   config.maxTimestamp,
                 )
-              ).stream;
+              ).stream as any;
               break;
             case "scores":
               parquetSource = (
@@ -614,7 +614,7 @@ const processBlobStorageExport = async (config: {
                   config.minTimestamp,
                   config.maxTimestamp,
                 )
-              ).stream;
+              ).stream as any;
               break;
             case "observations":
               parquetSource = (
@@ -624,7 +624,7 @@ const processBlobStorageExport = async (config: {
                   config.maxTimestamp,
                   exportFieldGroups,
                 )
-              ).stream;
+              ).stream as any;
               break;
             case "observations_v2": // observations_v2 is the events table
               parquetSource = (
@@ -635,7 +635,7 @@ const processBlobStorageExport = async (config: {
                   exportFieldGroups,
                   config.convertV4LatencyToSeconds,
                 )
-              ).stream;
+              ).stream as any;
               break;
             default:
               throw new Error(`Unsupported table type: ${config.table}`);

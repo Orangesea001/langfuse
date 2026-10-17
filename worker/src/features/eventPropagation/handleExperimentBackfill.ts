@@ -164,7 +164,7 @@ async function getDatasetRunItemsSinceLastRun(
       lastRun: convertDateToClickhouseDateTime(lastRun),
       upperBound: convertDateToClickhouseDateTime(upperBound),
     },
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 120000, // 2 minutes timeout
     },
   });
@@ -252,7 +252,7 @@ async function getRelevantObservations(
       minTime: convertDateToClickhouseDateTime(minTime),
       maxTime: convertDateToClickhouseDateTime(maxTime),
     },
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 60_000,
     },
   });
@@ -329,7 +329,7 @@ async function getRelevantTraces(
       minTime: convertDateToClickhouseDateTime(minTime),
       maxTime: convertDateToClickhouseDateTime(maxTime),
     },
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 60_000,
     },
   });
@@ -537,7 +537,7 @@ export function convertEnrichedSpansToEventRecords(
   opts: { plainEventTsFromSource?: boolean } = {},
 ): EventRecordInsertType[] {
   const records: EventRecordInsertType[] = [];
-  const now = toClickhouseDateTime();
+  const now = toClickhouseDateTime(Date.now());
 
   for (const span of spans) {
     // Flatten metadata for ClickHouse Array(String) columns
@@ -823,6 +823,13 @@ async function updateBackfillTimestamp(timestamp: Date): Promise<void> {
  * Handles initialization, throttle checking, execution, and timestamp updates.
  */
 export async function runExperimentBackfill(): Promise<void> {
+  // MySQL mode: experiment backfill relies on ClickHouse ANTI JOIN and LIMIT 1 BY
+  // which have no MySQL equivalents. Skip in MySQL mode.
+  if (process.env.LANGFUSE_MYSQL_URL) {
+    logger.debug("[EXPERIMENT BACKFILL] Skipped in MySQL mode (not supported)");
+    return;
+  }
+
   logger.info("[EXPERIMENT BACKFILL] Checking if backfill should run");
 
   try {

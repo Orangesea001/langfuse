@@ -62,7 +62,7 @@ export class ChbBillingService {
     id: string;
     cloudConfig: CloudConfigSchema | null;
   }) {
-    const chb = parsedOrg.cloudConfig?.clickhouse;
+    const chb = parsedOrg.cloudConfig?.analytics;
     if (!chb?.organizationId) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
@@ -124,7 +124,7 @@ export class ChbBillingService {
 
   async getSubscriptionInfo(orgId: string): Promise<BillingSubscriptionInfo> {
     const { org, parsedOrg } = await this.getParsedOrg(orgId);
-    const chb = parsedOrg.cloudConfig?.clickhouse;
+    const chb = parsedOrg.cloudConfig?.analytics;
 
     if (!chb?.attachedPlanId) {
       // No attached plan yet (hobby / pre-checkout) → same cached-cycle fallback the
@@ -165,7 +165,7 @@ export class ChbBillingService {
   }
 
   /**
-   * Claim `cloudConfig.clickhouse.organizationId` for this org, atomically.
+   * Claim `cloudConfig.analytics.organizationId` for this org, atomically.
    *
    * A read-then-write would let two concurrent first-time checkouts each create
    * a CH organization and then race to persist one. The loser's CH org is not
@@ -183,7 +183,7 @@ export class ChbBillingService {
    *
    * Both `COALESCE`s pass through `NULLIF(…, 'null'::jsonb)`: a JSON-null is not
    * a SQL NULL, so `COALESCE` alone does not catch it. The guard counts a stored
-   * `{"clickhouse": null}` as unclaimed — correctly, it holds no CHB state — so
+   * `{"analytics": null}` as unclaimed — correctly, it holds no CHB state — so
    * the merge has to accept that value too, and `||` against a JSON-null scalar
    * concatenates into `[null, {...}]` instead of merging. Keep the two clauses in
    * step: a `clickhouse` that is not an object fails CloudConfigSchema, and
@@ -200,7 +200,7 @@ export class ChbBillingService {
             COALESCE(NULLIF(cloud_config, 'null'::jsonb), '{}'::jsonb),
             '{clickhouse}',
             COALESCE(
-              NULLIF(cloud_config -> 'clickhouse', 'null'::jsonb),
+              NULLIF(cloud_config -> 'analytics', 'null'::jsonb),
               '{}'::jsonb
             )
               || jsonb_build_object('organizationId', ${chOrganizationId}::text),
@@ -208,7 +208,7 @@ export class ChbBillingService {
           )
       WHERE id = ${orgId}
         AND COALESCE(
-              cloud_config -> 'clickhouse' -> 'organizationId',
+              cloud_config -> 'analytics' -> 'organizationId',
               'null'::jsonb
             ) = 'null'::jsonb
     `;
@@ -241,7 +241,7 @@ export class ChbBillingService {
           "Cannot initialize ClickHouse Billing checkout for a Stripe-billed organization",
       });
     }
-    if (parsedOrg.cloudConfig?.clickhouse?.attachedPlanId) {
+    if (parsedOrg.cloudConfig?.analytics?.attachedPlanId) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message:
@@ -274,7 +274,7 @@ export class ChbBillingService {
       opId,
     });
 
-    const existingChOrgId = parsedOrg.cloudConfig?.clickhouse?.organizationId;
+    const existingChOrgId = parsedOrg.cloudConfig?.analytics?.organizationId;
 
     logger.info("chbBillingService.checkout.session.create", {
       orgId,
@@ -300,8 +300,8 @@ export class ChbBillingService {
     // taking the org's rate-limit and lookback overrides with it. (Not its plan
     // override or stripe.customerId — both are checkout interlocks above, so an
     // org carrying either never reaches this line.)
-    const validatedChb = CloudConfigSchema.shape.clickhouse.safeParse({
-      ...parsedOrg.cloudConfig?.clickhouse,
+    const validatedChb = CloudConfigSchema.shape.analytics.safeParse({
+      ...parsedOrg.cloudConfig?.analytics,
       organizationId: session.organizationId,
     });
     if (!validatedChb.success || !validatedChb.data) {
@@ -379,7 +379,7 @@ export class ChbBillingService {
       after: {
         ...parsedOrg.cloudConfig,
         clickhouse: {
-          ...parsedOrg.cloudConfig?.clickhouse,
+          ...parsedOrg.cloudConfig?.analytics,
           organizationId: chOrganizationId,
         },
       },
@@ -521,7 +521,7 @@ export class ChbBillingService {
    */
   async cancelImmediatelyAndInvoice(orgId: string, opId?: string) {
     const { parsedOrg } = await this.getParsedOrg(orgId);
-    const chb = parsedOrg.cloudConfig?.clickhouse;
+    const chb = parsedOrg.cloudConfig?.analytics;
     if (!chb?.attachedPlanId) {
       logger.info("chbBillingService.cancel.now:noop.noActiveAttachedPlan", {
         orgId,
@@ -571,7 +571,7 @@ export class ChbBillingService {
     },
   ) {
     const { parsedOrg } = await this.getParsedOrg(orgId);
-    const chb = parsedOrg.cloudConfig?.clickhouse;
+    const chb = parsedOrg.cloudConfig?.analytics;
     if (!chb?.attachedPlanId) {
       return { invoices: [], hasMore: false, cursors: {} };
     }

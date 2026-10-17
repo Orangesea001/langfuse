@@ -280,7 +280,7 @@ export const createAuthedProjectAPIRoute = <
       headers: req.headers,
       projectId: auth.scope.projectId,
       apiKeyId: auth.scope.apiKeyId,
-      clickhouse: {
+      analytics: {
         surface: "publicapi",
         route: clickHouseRouteForRequest(req),
       },

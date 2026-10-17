@@ -58,7 +58,7 @@ vi.mock("@langfuse/shared/src/server", async (importOriginal) => {
           ? candidateProjectIds.map(String)
           : [],
         preferredClickhouseService: opts.preferredClickhouseService,
-        requestTimeout: opts.clickhouseConfigs?.request_timeout,
+        requestTimeout: opts.analyticsConfigs?.request_timeout,
       });
       if (
         integrationHooks.failExactEnrichmentForProjectId !== null &&
@@ -86,10 +86,10 @@ vi.mock("@langfuse/shared/src/server", async (importOriginal) => {
       if (opts.query.includes("SELECT DISTINCT project_id")) {
         integrationHooks.candidateHttpTimeouts.push({
           send: Number(
-            opts.clickhouseConfigs?.clickhouse_settings?.http_send_timeout,
+            opts.analyticsConfigs?.clickhouse_settings?.http_send_timeout,
           ),
           receive: Number(
-            opts.clickhouseConfigs?.clickhouse_settings?.http_receive_timeout,
+            opts.analyticsConfigs?.clickhouse_settings?.http_receive_timeout,
           ),
         });
       }

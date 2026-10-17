@@ -207,7 +207,7 @@ export default class BackfillEventsFullFromDatasetRunItems implements IBackgroun
         cDriId: cursorTuple.driId,
         batchSize,
       },
-      clickhouseConfigs: {
+      analyticsConfigs: {
         request_timeout: 120_000,
       },
       tags: {
@@ -225,7 +225,7 @@ export default class BackfillEventsFullFromDatasetRunItems implements IBackgroun
    * Deduplicated `(project_id, trace_id)` pairs for the batch, as ClickHouse
    * tuple params for composite `(project_id, trace_id) IN (...)` filters.
    */
-  private buildTracePairs(driBatch: DatasetRunItem[]): TupleParam[] {
+  private buildTracePairs(driBatch: DatasetRunItem[]): unknown[][] {
     return [
       ...new Map(
         driBatch.map((d) => [
@@ -308,7 +308,7 @@ export default class BackfillEventsFullFromDatasetRunItems implements IBackgroun
         minTime: convertDateToClickhouseDateTime(minTime),
         maxTime: convertDateToClickhouseDateTime(maxTime),
       },
-      clickhouseConfigs: {
+      analyticsConfigs: {
         request_timeout: 120_000,
       },
       tags: {
@@ -386,7 +386,7 @@ export default class BackfillEventsFullFromDatasetRunItems implements IBackgroun
         minTime: convertDateToClickhouseDateTime(minTime),
         maxTime: convertDateToClickhouseDateTime(maxTime),
       },
-      clickhouseConfigs: {
+      analyticsConfigs: {
         request_timeout: 120_000,
       },
       tags: {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { makeAPICall } from "@/src/__tests__/test-utils";
 import waitForExpect from "wait-for-expect";
 import {

@@ -32,7 +32,7 @@ export type CloudBillingService =
  * served by Stripe and error instead.
  *
  * This dispatch is also the structural interlock that keeps Stripe checkout
- * unreachable for any org holding a `cloudConfig.clickhouse` block: such
+ * unreachable for any org holding a `cloudConfig.analytics` block: such
  * orgs always resolve to the CHB service.
  */
 export const resolveBillingService = async (
@@ -58,12 +58,12 @@ export const resolveBillingService = async (
   const cutoff = env.LANGFUSE_CLOUD_BILLING_CHB_CUTOFF_DATE;
   const billingProvider = getBillingProvider(parsedOrg, { cutoff });
 
-  if (billingProvider === "clickhouse") {
+  if (billingProvider === "analytics") {
     // Shared process-wide, so every billing request reuses one Auth0 token
     // cache rather than minting a token per request.
     const client = getChbApiClient();
     if (!client) {
-      if (parsedOrg.cloudConfig?.clickhouse?.organizationId) {
+      if (parsedOrg.cloudConfig?.analytics?.organizationId) {
         // Sticky CHB org: Stripe cannot serve it, this is a config error
         logger.error(
           `resolveBillingService: org ${orgId} is CHB-billed but the CHB REST env is not configured`,
@@ -85,7 +85,7 @@ export const resolveBillingService = async (
       };
     }
     return {
-      billingProvider: "clickhouse",
+      billingProvider: "analytics",
       service: new ChbBillingService(client, ctx),
     };
   }

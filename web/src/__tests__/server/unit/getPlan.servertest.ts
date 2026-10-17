@@ -34,7 +34,7 @@ describe("getOrganizationPlanServerSide (cloud)", () => {
   ])("maps CHB plan code %s to %s", (planCode, expected) => {
     expect(
       getOrganizationPlanServerSide(
-        cloudConfig({ clickhouse: { organizationId: CHB_ORG_ID, planCode } }),
+        cloudConfig({ analytics: { organizationId: CHB_ORG_ID, planCode } }),
       ),
     ).toBe(expected);
   });
@@ -44,10 +44,10 @@ describe("getOrganizationPlanServerSide (cloud)", () => {
     // failing the whole config. The org must still resolve to the free tier: it
     // carries CHB state, so leftover Stripe fields must not decide its plan.
     const parsed = cloudConfig({
-      clickhouse: { organizationId: CHB_ORG_ID, planCode: "scale" },
+      analytics: { organizationId: CHB_ORG_ID, planCode: "scale" },
       stripe: { activeProductId: STRIPE_TEAM_PRODUCT_ID },
     });
-    expect(parsed.clickhouse?.planCode).toBeNull();
+    expect(parsed.analytics?.planCode).toBeNull();
 
     expect(getOrganizationPlanServerSide(parsed)).toBe("cloud:hobby");
   });
@@ -55,7 +55,7 @@ describe("getOrganizationPlanServerSide (cloud)", () => {
   it("resolves a CHB org with no plan code yet to cloud:hobby", () => {
     expect(
       getOrganizationPlanServerSide(
-        cloudConfig({ clickhouse: { organizationId: CHB_ORG_ID } }),
+        cloudConfig({ analytics: { organizationId: CHB_ORG_ID } }),
       ),
     ).toBe("cloud:hobby");
   });
@@ -65,7 +65,7 @@ describe("getOrganizationPlanServerSide (cloud)", () => {
       getOrganizationPlanServerSide(
         cloudConfig({
           plan: "Enterprise",
-          clickhouse: { organizationId: CHB_ORG_ID, planCode: "LANGFUSE_CORE" },
+          analytics: { organizationId: CHB_ORG_ID, planCode: "LANGFUSE_CORE" },
         }),
       ),
     ).toBe("cloud:enterprise");

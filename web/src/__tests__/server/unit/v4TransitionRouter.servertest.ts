@@ -1466,7 +1466,7 @@ describe("v4TransitionRouter", () => {
     expect(usageQuery?.tags).toEqual({
       route: "v4-sdk-usage-summary",
     });
-    expect(usageQuery?.clickhouseSettings).toEqual({
+    expect(usageQuery?.analyticsSettings).toEqual({
       use_query_cache: 1,
       query_cache_ttl: 300,
     });
@@ -1885,7 +1885,8 @@ describe("v4TransitionRouter", () => {
       });
       mockedQueryClickhouse.mockImplementation(async (args) => {
         if (!args.query.includes("FROM events_core")) return [];
-        return (args.params?.toTimestamp as string) === HOT_START_CLICKHOUSE
+        return ((args.params as Record<string, unknown>)
+          ?.toTimestamp as string) === HOT_START_CLICKHOUSE
           ? [historicalRow]
           : [gapRow];
       });
@@ -1910,10 +1911,14 @@ describe("v4TransitionRouter", () => {
       );
       expect(eventsCoreCalls).toHaveLength(2);
       const [historicalCall] = eventsCoreCalls.filter(
-        ([args]) => args.params?.toTimestamp === HOT_START_CLICKHOUSE,
+        ([args]) =>
+          (args.params as Record<string, unknown>)?.toTimestamp ===
+          HOT_START_CLICKHOUSE,
       );
       const [gapCall] = eventsCoreCalls.filter(
-        ([args]) => args.params?.toTimestamp === RECENT_CUTOFF_CLICKHOUSE,
+        ([args]) =>
+          (args.params as Record<string, unknown>)?.toTimestamp ===
+          RECENT_CUTOFF_CLICKHOUSE,
       );
       // Half-open boundary: an event exactly at hotStart lands only in the
       // live gap query.
@@ -1933,7 +1938,7 @@ describe("v4TransitionRouter", () => {
       // Both events_core SELECTs opt into the ClickHouse query cache; the
       // minute-aligned cutoff keeps their AST identical within a minute.
       for (const [args] of eventsCoreCalls) {
-        expect(args.clickhouseSettings).toEqual({
+        expect(args.analyticsSettings).toEqual({
           use_query_cache: 1,
           query_cache_ttl: 300,
         });
@@ -2219,7 +2224,8 @@ describe("v4TransitionRouter", () => {
         await seedRedisCache();
         mockedQueryClickhouse.mockImplementation(async (args) => {
           if (!args.query.includes("FROM events_core")) return [];
-          return (args.params?.toTimestamp as string) === HOT_START_CLICKHOUSE
+          return ((args.params as Record<string, unknown>)
+            ?.toTimestamp as string) === HOT_START_CLICKHOUSE
             ? [
                 mockSdkUsageRow({
                   projectId,

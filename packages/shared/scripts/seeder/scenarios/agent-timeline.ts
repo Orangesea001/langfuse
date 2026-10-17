@@ -331,13 +331,13 @@ const run = async (
       "traces",
       `project_id = {projectId: String} AND id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     observations: await countRows(
       "observations",
       `project_id = {projectId: String} AND trace_id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
   };
   if (withMetadata) {
@@ -345,9 +345,9 @@ const run = async (
     // view's explicit-step model) — verify it landed, not just the row counts.
     verified.langgraphNodes = await countRows(
       "observations",
-      `project_id = {projectId: String} AND trace_id = {traceId: String} AND metadata[{nodeTag: String}] != ''`,
+      `project_id = {projectId: String} AND trace_id = {traceId: String} AND JSON_EXTRACT(metadata, '$.langgraph_node') IS NOT NULL AND JSON_EXTRACT(metadata, '$.langgraph_node') != ''`,
       { projectId: ctx.projectId, traceId, nodeTag: LANGGRAPH_NODE_TAG },
-      `uniqExact(metadata[{nodeTag: String}])`,
+      `COUNT(DISTINCT JSON_EXTRACT(metadata, '$.langgraph_node'))`,
     );
   }
   if (withV4) {
@@ -355,7 +355,7 @@ const run = async (
       "events_full",
       `project_id = {projectId: String} AND trace_id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(span_id)",
+      "COUNT(DISTINCT span_id)",
     );
   }
 

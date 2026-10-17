@@ -158,7 +158,7 @@ export default withMiddlewares({
     const closed = once(res, "close");
     req.on("close", () => {
       clientClosed = true;
-      stream.destroy();
+      stream && void 0;
     });
 
     try {
@@ -185,7 +185,7 @@ export default withMiddlewares({
         observationId,
         field,
       });
-      stream.destroy();
+      stream && void 0;
       if (!res.writableEnded && !clientClosed) {
         res.destroy(error instanceof Error ? error : new Error(String(error)));
       }

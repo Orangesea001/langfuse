@@ -163,13 +163,13 @@ maybeEventsTable("FTS filter rewrites", () => {
     async ({ table, field, operator, value }) => {
       const fieldExpr = `e.${field}`;
       const baseline = new StringFilter({
-        clickhouseTable: "traces",
+        analyticsTable: "traces",
         field: fieldExpr,
         operator,
         value,
       }).apply();
       const rewritten = new StringFilter({
-        clickhouseTable: table,
+        analyticsTable: table,
         field: fieldExpr,
         operator,
         value,
@@ -208,7 +208,7 @@ maybeEventsTable("FTS filter rewrites", () => {
         value,
       });
       const rewritten = new StringObjectFilter({
-        clickhouseTable: table,
+        analyticsTable: table,
         field: "metadata",
         operator,
         key: "topic",
@@ -248,7 +248,7 @@ maybeEventsTable("FTS filter rewrites", () => {
         value: "a",
       });
       const rewritten = new StringObjectFilter({
-        clickhouseTable: table,
+        analyticsTable: table,
         field: "metadata",
         operator,
         key: "topic",
@@ -285,7 +285,7 @@ maybeEventsTable("FTS filter rewrites", () => {
     "matches literal metadata wildcard characters for `$operator` `$value`",
     async ({ operator, value, expectedIds }) => {
       const rewritten = new StringObjectFilter({
-        clickhouseTable: "events_core",
+        analyticsTable: "events_core",
         field: "metadata",
         operator,
         key: "topic",
@@ -302,7 +302,7 @@ maybeEventsTable("FTS filter rewrites", () => {
 
   it("does not match when only a different metadata key satisfies the ngram prefilter", async () => {
     const rewritten = new StringObjectFilter({
-      clickhouseTable: "events_core",
+      analyticsTable: "events_core",
       field: "metadata",
       operator: "starts with",
       key: "topic",
@@ -325,7 +325,7 @@ maybeEventsTable("FTS filter rewrites", () => {
     async ({ table, field }) => {
       const fieldExpr = `e.${field}`;
       const rewritten = new StringFilter({
-        clickhouseTable: table,
+        analyticsTable: table,
         field: fieldExpr,
         operator: FTS_MATCH_OPERATOR,
         value: "alpha beta",
@@ -344,7 +344,7 @@ maybeEventsTable("FTS filter rewrites", () => {
     "uses case-sensitive key-scoped literal search for $table metadata matches",
     async (table) => {
       const rewritten = new StringObjectFilter({
-        clickhouseTable: table,
+        analyticsTable: table,
         field: "metadata",
         operator: FTS_MATCH_OPERATOR,
         key: "topic",

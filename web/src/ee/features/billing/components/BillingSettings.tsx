@@ -57,7 +57,7 @@ export const BillingSettings = () => {
   );
   const showBillingDiscount = Boolean(
     organization?.cloudConfig?.stripe?.activeSubscriptionId &&
-    billingProvider !== "clickhouse",
+    billingProvider !== "analytics",
   );
 
   // Don't render billing settings if cloud billing is not available

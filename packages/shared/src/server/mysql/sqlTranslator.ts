@@ -36,11 +36,22 @@ export function translateQuery(
   }
 
   const params: unknown[] = [];
+  // Handle Array(Type) params: {param: Array(String)} → (?, ?, ?)
+  // Handle scalar params: {param: String} → ?
   const sql = query.replace(
-    /\{(\w+):\s*[^}]+\}/g,
-    (_match, paramName: string) => {
+    /\{(\w+):\s*([^}]+)\}/g,
+    (_match, paramName: string, typeSpec: string) => {
       if (namedParams && paramName in namedParams) {
-        params.push(namedParams[paramName]);
+        const value = namedParams[paramName];
+        if (typeSpec.startsWith("Array(") && Array.isArray(value)) {
+          // Expand array into (?, ?, ?) for IN clauses
+          const placeholders = value.map((item: unknown) => {
+            params.push(item);
+            return "?";
+          });
+          return "(" + placeholders.join(", ") + ")";
+        }
+        params.push(value);
         return "?";
       }
       // Parameter not found in namedParams - leave as-is (will cause MySQL error)
@@ -67,6 +78,21 @@ export function parseAnalyticsUTCDateTimeFormat(dateTimeStr: string): Date {
 /**
  * Convert a Date to MySQL datetime string format.
  */
-export function convertDateToMySqlDateTime(date: Date): string {
-  return date.toISOString().replace("T", " ").replace("Z", "").slice(0, 23);
+export function convertDateToMySqlDateTime(
+  date: Date | number | string | null | undefined,
+): string {
+  if (date === null || date === undefined) {
+    // Return current datetime for null/undefined values (safe default)
+    const now = new Date();
+    return now.toISOString().replace("T", " ").replace("Z", "").slice(0, 23);
+  }
+  if (typeof date === "string")
+    return date.includes("T")
+      ? date.replace("T", " ").replace("Z", "").slice(0, 23)
+      : date.slice(0, 23);
+  const d = typeof date === "number" ? new Date(date) : date;
+  return d.toISOString().replace("T", " ").replace("Z", "").slice(0, 23);
 }
+
+/** @deprecated Use convertDateToMySqlDateTime instead. Alias for backward compat. */
+export const toClickhouseDateTime = convertDateToMySqlDateTime;

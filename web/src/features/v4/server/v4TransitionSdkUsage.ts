@@ -237,7 +237,7 @@ const querySdkUsageRows = ({
     // settings and the result cache is per ClickHouse server/process; the
     // SELECT uses no nondeterministic functions, so cached rows stay valid for
     // the key's lifetime. Not applied to `system.query_log`.
-    clickhouseSettings: {
+    analyticsSettings: {
       use_query_cache: 1,
       query_cache_ttl: SDK_USAGE_QUERY_CACHE_TTL_SECONDS,
     },

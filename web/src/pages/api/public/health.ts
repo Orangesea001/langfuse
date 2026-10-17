@@ -20,7 +20,7 @@ export default async function handler(
     await telemetry();
     const ctx = contextWithLangfuseProps({
       headers: req.headers,
-      clickhouse: {
+      analytics: {
         surface: "publicapi",
         route: clickHouseRouteForRequest(req),
       },

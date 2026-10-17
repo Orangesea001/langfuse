@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import path from "path";
 import { prisma } from "../../../src/db";
-import { analyticsClient } from "../../../src/server";
+// commandAnalytics no longer needed - bulk inserts use createTracesCh etc.
 import { AnalyticsQueryBuilder } from "../utils/analytics-builder";
 import {
   ScenarioContext,
@@ -122,41 +122,8 @@ const run = async (
     orderBy: { createdAt: "asc" },
     take: 10,
   });
-  const queries = [
-    builder.buildBulkTracesInsert(
-      ctx.projectId,
-      count,
-      ctx.environment,
-      fileContent,
-      bulkOpts,
-    ),
-  ];
-  if (observationsPerTrace > 0) {
-    queries.push(
-      builder.buildBulkObservationsInsert(
-        ctx.projectId,
-        count,
-        observationsPerTrace,
-        ctx.environment,
-        fileContent,
-        { ...bulkOpts, prompts },
-      ),
-    );
-  }
-  if (scoresPerTrace > 0) {
-    queries.push(
-      builder.buildBulkScoresInsert(
-        ctx.projectId,
-        count,
-        scoresPerTrace,
-        ctx.environment,
-        {
-          ...bulkOpts,
-          observationsPerTrace,
-        },
-      ),
-    );
-  }
+  // MySQL-compatible bulk inserts (JS-generated data)
+  // No more ClickHouse-specific INSERT...SELECT FROM numbers() SQL
   // The bulk SQL references {id-prefix}-session_0..99 on ~30% of traces; the
   // session detail page 404s without the Postgres trace_sessions rows
   // (same contract long-session handles for its own session).
@@ -169,11 +136,34 @@ const run = async (
     skipDuplicates: true,
   });
 
-  for (const query of queries) {
-    await analyticsClient().command({
-      query,
-      analytics_settings: { wait_end_of_query: 1 },
-    });
+  await builder.executeBulkTracesInsert(
+    ctx.projectId,
+    count,
+    ctx.environment,
+    fileContent,
+    bulkOpts,
+  );
+  if (observationsPerTrace > 0) {
+    await builder.executeBulkObservationsInsert(
+      ctx.projectId,
+      count,
+      observationsPerTrace,
+      ctx.environment,
+      fileContent,
+      { ...bulkOpts, prompts },
+    );
+  }
+  if (scoresPerTrace > 0) {
+    await builder.executeBulkScoresInsert(
+      ctx.projectId,
+      count,
+      scoresPerTrace,
+      ctx.environment,
+      {
+        ...bulkOpts,
+        observationsPerTrace,
+      },
+    );
   }
 
   const idSuffix = escapeLike(ctx.projectId.slice(-8));
@@ -185,7 +175,7 @@ const run = async (
         projectId: ctx.projectId,
         prefix: `${escapeLike(ctx.idPrefix)}-trace-bulk-%-${idSuffix}`,
       },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     observations: await countRows(
       "observations",
@@ -194,7 +184,7 @@ const run = async (
         projectId: ctx.projectId,
         prefix: `${escapeLike(ctx.idPrefix)}-obs-bulk-%-${idSuffix}`,
       },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     scores: await countRows(
       "scores",
@@ -203,7 +193,7 @@ const run = async (
         projectId: ctx.projectId,
         prefix: `${escapeLike(ctx.idPrefix)}-score-bulk-%-${idSuffix}`,
       },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
   };
 

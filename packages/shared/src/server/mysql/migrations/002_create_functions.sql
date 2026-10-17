@@ -23,9 +23,11 @@ BEGIN
     SET j_len = JSON_LENGTH(json_obj);
     
     WHILE i < j_len DO
-        SET j_key = JSON_UNQUOTE(JSON_EXTRACT(json_obj, CONCAT('$.', JSON_UNQUOTE(JSON_EXTRACT(JSON_KEYS(json_obj), CONCAT('$[', i, ']'))))));
+        -- Extract key name from JSON_KEYS array at index i
+        SET j_key = JSON_UNQUOTE(JSON_EXTRACT(JSON_KEYS(json_obj), CONCAT('$[', i, ']')));
         IF j_key LIKE key_pattern THEN
-            SET j_val = CAST(JSON_EXTRACT(json_obj, CONCAT('$.', JSON_UNQUOTE(JSON_EXTRACT(JSON_KEYS(json_obj), CONCAT('$[', i, ']'))))) AS DECIMAL(65,3));
+            -- Extract the value for this key from the JSON object
+            SET j_val = CAST(JSON_EXTRACT(json_obj, CONCAT('$.', j_key)) AS DECIMAL(65,3));
             IF j_val IS NOT NULL THEN
                 SET result = result + j_val;
             END IF;
@@ -69,7 +71,7 @@ BEGIN
     DECLARE result JSON DEFAULT JSON_ARRAY();
     DECLARE i INT DEFAULT 0;
     DECLARE j_len INT;
-    DECLARE elem VARCHAR(65535);
+    DECLARE elem TEXT;
     
     IF json_arr IS NULL THEN
         RETURN NULL;

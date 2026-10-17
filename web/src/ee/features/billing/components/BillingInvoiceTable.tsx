@@ -40,7 +40,7 @@ export function BillingInvoiceTable() {
   // stripe.customerId and would otherwise never see its invoice history.
   const hasBillingIdentity = Boolean(
     organization?.cloudConfig?.stripe?.customerId ??
-    organization?.cloudConfig?.clickhouse?.organizationId,
+    organization?.cloudConfig?.analytics?.organizationId,
   );
   const shouldShowTable = isCloudBillingAvailable && hasBillingIdentity;
 

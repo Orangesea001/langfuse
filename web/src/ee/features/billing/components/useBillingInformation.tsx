@@ -106,11 +106,11 @@ export const useBillingInformation = (): UseBillingInformationResult => {
   // session org's cloudConfig so gating does not flicker for CHB orgs.
   const billingProvider: BillingProvider =
     subscriptionInfo?.billingProvider ??
-    (organization?.cloudConfig?.clickhouse?.organizationId
-      ? "clickhouse"
+    (organization?.cloudConfig?.analytics?.organizationId
+      ? "analytics"
       : "stripe");
 
-  const chbPlanCode = organization?.cloudConfig?.clickhouse?.planCode;
+  const chbPlanCode = organization?.cloudConfig?.analytics?.planCode;
   const currentProductId =
     organization?.cloudConfig?.stripe?.activeProductId ??
     (chbPlanCode ? mapChbPlanCodeToStripeProductId(chbPlanCode) : null);
@@ -126,7 +126,7 @@ export const useBillingInformation = (): UseBillingInformationResult => {
     ),
     hasActiveSubscription: Boolean(
       organization?.cloudConfig?.stripe?.activeSubscriptionId ??
-      organization?.cloudConfig?.clickhouse?.attachedPlanId,
+      organization?.cloudConfig?.analytics?.attachedPlanId,
     ),
     hasValidPaymentMethod: subscriptionInfo?.hasValidPaymentMethod ?? false,
     billingProvider,

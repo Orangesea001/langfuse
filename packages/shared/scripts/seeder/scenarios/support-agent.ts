@@ -820,13 +820,13 @@ const run = async (
       "traces",
       `project_id = {projectId: String} AND id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     observations: await countRows(
       "observations",
       `project_id = {projectId: String} AND trace_id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
   };
   if (withV4) {
@@ -834,7 +834,7 @@ const run = async (
       "events_full",
       `project_id = {projectId: String} AND trace_id = {traceId: String}`,
       { projectId: ctx.projectId, traceId },
-      "uniqExact(span_id)",
+      "COUNT(DISTINCT span_id)",
     );
   }
 

@@ -30,6 +30,7 @@ export {
 export { createFilterFromFilterState } from "./analytics-sql/factory";
 export {
   analyticsSearchCondition,
+  clickhouseSearchCondition,
   type ClickhouseSearchConditionOptions,
 } from "./analytics-sql/search";
 export {

@@ -20,7 +20,7 @@ import {
   eventsTableUiColumnDefinitions,
   enrichObservationWithModelData,
   createModelCache,
-  clickhouseSearchCondition,
+  analyticsSearchCondition,
   convertObservation,
   convertEventsObservation,
   shouldSkipObservationsFinal,
@@ -80,7 +80,7 @@ export const getObservationStream = async (
   // Check if we should skip deduplication for OTEL projects
   const skipDedup = await shouldSkipObservationsFinal(projectId);
 
-  const clickhouseConfigs = {
+  const analyticsConfigs = {
     request_timeout: 180_000, // 3 minutes
     clickhouse_settings: {
       join_algorithm: "partial_merge" as const,
@@ -98,7 +98,7 @@ export const getObservationStream = async (
       matchesUiColumnMapping(col, f.column),
     );
     // Keep the filter if it's not a trace-level filter
-    return columnDef?.clickhouseTableName !== "traces";
+    return columnDef?.analyticsTableName !== "traces";
   });
 
   const distinctScoreNames = await getDistinctScoreNames({
@@ -108,13 +108,13 @@ export const getObservationStream = async (
     isTimestampFilter: (filter: FilterCondition): filter is TimeFilter => {
       return filter.column === "Start Time" && filter.type === "datetime";
     },
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService: props.preferredClickhouseService,
   });
 
   const scoresFilter = new FilterList([
     new StringFilter({
-      clickhouseTable: "scores",
+      analyticsTable: "scores",
       field: "project_id",
       operator: "=",
       value: projectId,
@@ -125,7 +125,7 @@ export const getObservationStream = async (
 
   const observationsFilter = new FilterList([
     new StringFilter({
-      clickhouseTable: "observations",
+      analyticsTable: "observations",
       field: "project_id",
       operator: "=",
       value: projectId,
@@ -151,7 +151,7 @@ export const getObservationStream = async (
 
   const appliedObservationsFilter = observationsFilter.apply();
 
-  const search = clickhouseSearchCondition({
+  const search = analyticsSearchCondition({
     query: searchQuery,
     searchType,
     tablePrefix: "o",
@@ -282,7 +282,7 @@ export const getObservationStream = async (
       ...appliedObservationsFilter.params,
       ...search.params,
     },
-    clickhouseConfigs,
+    analyticsConfigs,
     tags: { projectId },
     preferredClickhouseService: props.preferredClickhouseService,
   });
@@ -445,7 +445,7 @@ const getObservationStreamFromEvents = async (
   const isCsv = props.fileFormat === BatchExportFileFormat.CSV;
   const batchSize = isCsv ? DEFAULT_BATCH_SIZE : REDUCED_BATCH_SIZE;
 
-  const clickhouseConfigs = {
+  const analyticsConfigs = {
     request_timeout: 180_000, // 3 minutes
     clickhouse_settings: {
       join_algorithm: "partial_merge" as const,
@@ -469,11 +469,11 @@ const getObservationStreamFromEvents = async (
     const columnDef = eventsTableUiColumnDefinitions.find((col) =>
       matchesUiColumnMapping(col, f.column),
     );
-    if (columnDef?.clickhouseTableName === "comments") return false;
-    if (columnDef?.clickhouseTableName === "scores") {
+    if (columnDef?.analyticsTableName === "comments") return false;
+    if (columnDef?.analyticsTableName === "scores") {
       // Observation-scoped score columns select from the "s." alias,
       // trace-only ones from "ts.".
-      return columnDef.clickhouseSelect.startsWith("s.");
+      return columnDef.analyticsSelect.startsWith("s.");
     }
     return true;
   });
@@ -486,7 +486,7 @@ const getObservationStreamFromEvents = async (
       filterItem: FilterCondition,
     ): filterItem is TimeFilter =>
       filterItem.column === "Start Time" && filterItem.type === "datetime",
-    clickhouseConfigs,
+    analyticsConfigs,
     // Same service as the values read below: a missing name is silently dropped.
     preferredClickhouseService: "EventsReadOnly",
   });
@@ -592,7 +592,7 @@ const getObservationStreamFromEvents = async (
   const asyncGenerator = queryClickhouseStream<EventsObservationRow>({
     query,
     params: queryParams,
-    clickhouseConfigs,
+    analyticsConfigs,
     tags: { projectId },
     preferredClickhouseService: "EventsReadOnly",
   });

@@ -54,7 +54,7 @@ export const getEventsStream = async (props: {
     rowLimit = env.BATCH_EXPORT_ROW_LIMIT,
   } = props;
 
-  const clickhouseConfigs = {
+  const analyticsConfigs = {
     request_timeout: 180_000, // 3 minutes
     clickhouse_settings: {
       join_algorithm: "partial_merge" as const,
@@ -81,7 +81,7 @@ export const getEventsStream = async (props: {
     projectId,
     cutoffCreatedAt,
     startTimeFrom,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService: "EventsReadOnly",
   });
 
@@ -152,7 +152,7 @@ export const getEventsStream = async (props: {
   const asyncGenerator = queryClickhouseStream<EventRow>({
     query,
     params: queryParams,
-    clickhouseConfigs,
+    analyticsConfigs,
     tags: { projectId },
     preferredClickhouseService: "EventsReadOnly",
   });
@@ -340,7 +340,7 @@ export const getEventsStreamForDataset = async (props: {
   const asyncGenerator = queryClickhouseStream<DatasetEventRow>({
     query,
     params: queryParams,
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 180_000,
       clickhouse_settings: {
         http_send_timeout: 300,
@@ -408,7 +408,7 @@ export const getEventsStreamForAnnotationQueue = async (props: {
   const asyncGenerator = queryClickhouseStream<AnnotationQueueEventRow>({
     query,
     params: queryParams,
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 180_000,
       clickhouse_settings: {
         http_send_timeout: 300,

@@ -120,6 +120,19 @@ const EnvSchema = z.object({
   // MySQL connection for analytics store (replacing ClickHouse)
   LANGFUSE_MYSQL_URL: z.string().default(""),
   LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
+
+  // Zebra Proxy connection (for Meituan internal deployment)
+  // When set, takes precedence over LANGFUSE_MYSQL_URL
+  LANGFUSE_ZEBRA_APP_NAME: z.string().default(""),
+  LANGFUSE_ZEBRA_REF_KEY: z.string().default(""),
+  LANGFUSE_ZEBRA_PROXY_HOST: z.string().default(""),
+
+  // Deployment environment for Zebra ref_key resolution (Meituan internal)
+  // Maps to ref_key: PRODUCTION→bjintel_langfuse_product, TEST→bjintel_langfuse_test, etc.
+  // Follows aip's DEPLOY_ENV pattern.
+  DEPLOY_ENV: z
+    .enum(["PRODUCTION", "STAGING", "TEST", "DEVELOPMENT"])
+    .default("DEVELOPMENT"),
   ANALYTICS_URL: z.string().default(""),
   ANALYTICS_READ_ONLY_URL: z.url().optional(),
   ANALYTICS_EVENTS_READ_ONLY_URL: z.url().optional(),

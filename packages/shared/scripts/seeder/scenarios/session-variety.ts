@@ -446,19 +446,19 @@ const run = async (
       "traces",
       `project_id = {projectId: String} AND session_id IN {sessionIds: Array(String)}`,
       { projectId: ctx.projectId, sessionIds },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
     sessions: await countRows(
       "traces",
       `project_id = {projectId: String} AND session_id IN {sessionIds: Array(String)}`,
       { projectId: ctx.projectId, sessionIds },
-      "uniqExact(session_id)",
+      "COUNT(DISTINCT session_id)",
     ),
     scores: await countRows(
       "scores",
       `project_id = {projectId: String} AND session_id IN {sessionIds: Array(String)}`,
       { projectId: ctx.projectId, sessionIds },
-      "uniqExact(id)",
+      "COUNT(DISTINCT id)",
     ),
   };
   if (withV4) {
@@ -466,7 +466,7 @@ const run = async (
       "events_full",
       `project_id = {projectId: String} AND session_id IN {sessionIds: Array(String)}`,
       { projectId: ctx.projectId, sessionIds },
-      "uniqExact(span_id)",
+      "COUNT(DISTINCT span_id)",
     );
   }
 

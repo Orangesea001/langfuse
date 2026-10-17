@@ -104,6 +104,17 @@ export const handleEventPropagationJob = async (
   // (never-invoked) job even when the cursor legitimately has nothing to advance.
   await updateLastRunStartedAt();
 
+  // MySQL mode: Event propagation uses ClickHouse-specific partition system (system.parts,
+  // _partition_value, groupUniqArray, etc.) which has no MySQL equivalent.
+  // In MySQL mode, events are written directly to the events table during ingestion,
+  // so this partition-based propagation is not needed.
+  if (env.LANGFUSE_MYSQL_URL) {
+    logger.debug(
+      "[DUAL WRITE] Skipping event propagation in MySQL mode (no partition system)",
+    );
+    return;
+  }
+
   try {
     // Step 1: Get the last processed partition from Redis and find the next one to process
     const lastProcessedPartition = await getLastProcessedPartition();
@@ -337,10 +348,10 @@ export const handleEventPropagationJob = async (
         WHERE obs._partition_value = tuple('${partitionToProcess}')
         ${excludeProjectIdsInClause ? `AND obs.project_id ${excludeProjectIdsInClause}` : ""}
       `,
-      clickhouseConfigs: {
+      analyticsConfigs: {
         request_timeout: 1_800_000, // 30 minutes timeout
       },
-      clickhouseSettings: {
+      analyticsSettings: {
         parallel_view_processing: 1,
         max_insert_threads: String(
           env.LANGFUSE_EVENT_PROPAGATION_MAX_INSERT_THREADS,

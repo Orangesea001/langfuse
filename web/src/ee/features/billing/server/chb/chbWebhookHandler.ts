@@ -27,7 +27,7 @@ import { sendChbProjectEvent } from "./chbProjectEvents";
 /**
  * ClickHouse Billing webhook handler — structural twin of
  * stripeWebhookHandler. CHB is the source of truth for attached-plan state;
- * this handler is the single writer of `cloudConfig.clickhouse` (plus the
+ * this handler is the single writer of `cloudConfig.analytics` (plus the
  * checkout-session write of `organizationId`).
  *
  * Pipeline: verify HMAC → dedupe → resolve org (region fan-out) → ordering
@@ -174,7 +174,7 @@ async function getOrgByChbOrganizationId(
   const org = await prisma.organization.findFirst({
     where: {
       cloudConfig: {
-        path: ["clickhouse", "organizationId"],
+        path: ["analytics", "organizationId"],
         equals: chbOrganizationId,
       },
     },
@@ -213,7 +213,7 @@ async function isDuplicateEvent(eventId: string): Promise<boolean> {
  * Drop the dedupe claim for an event that failed to apply. Without this, the
  * 500 we return sends CHB into a retry that its own claim now suppresses as a
  * duplicate, and the event is lost for the whole 24h TTL — long after CHB has
- * stopped retrying. Losing one means a missing cloudConfig.clickhouse block, a
+ * stopped retrying. Losing one means a missing cloudConfig.analytics block, a
  * still-suspended paying org, or an unmetered project, all needing manual
  * reconciliation.
  */
@@ -305,7 +305,7 @@ export async function chbWebhookHandler(req: NextRequest) {
 
   // Interlock (must never happen): an org bills through exactly one provider.
   // Checking getBillingProvider here would be dead code -- it returns
-  // "clickhouse" for anything carrying a clickhouse.organizationId, which is
+  // "analytics" for anything carrying a analytics.organizationId, which is
   // precisely how this org was just resolved. The state that actually needs
   // catching is the contradiction: a live Stripe subscription alongside CHB
   // state means the customer is being billed twice, and applying more CHB state
@@ -320,7 +320,7 @@ export async function chbWebhookHandler(req: NextRequest) {
   // Ordering guard: drop events at or before the last applied one (protects
   // against retries and out-of-order delivery).
   const lastEventCreatedAt =
-    parsedOrg.cloudConfig?.clickhouse?.lastEventCreatedAt;
+    parsedOrg.cloudConfig?.analytics?.lastEventCreatedAt;
   if (
     lastEventCreatedAt &&
     Date.parse(event.occurredAt) <= Date.parse(lastEventCreatedAt)
@@ -402,7 +402,7 @@ export async function chbWebhookHandler(req: NextRequest) {
 async function persistAndPropagate(params: {
   parsedOrg: ParsedOrganization;
   event: ChbWebhookEvent;
-  clickhouse: unknown;
+  analytics: unknown;
   orgColumns?: {
     cloudBillingCycleAnchor?: Date;
     cloudFreeTierUsageThresholdState?: null;
@@ -414,7 +414,7 @@ async function persistAndPropagate(params: {
   // parseDbOrg for the whole cloudConfig.
   const updatedCloudConfig = {
     ...parsedOrg.cloudConfig,
-    clickhouse: CloudConfigSchema.shape.clickhouse.parse(params.clickhouse),
+    analytics: CloudConfigSchema.shape.analytics.parse(params.analytics),
   };
 
   await prisma.organization.update({
@@ -492,7 +492,7 @@ async function readAttachedPlanState(
   event: ChbWebhookEvent,
 ) {
   const chOrganizationId = event.data.payload.organizationId;
-  const existing = parsedOrg.cloudConfig?.clickhouse;
+  const existing = parsedOrg.cloudConfig?.analytics;
 
   const attachedPlan = await fetchAttachedPlan(chOrganizationId);
 
@@ -521,7 +521,7 @@ async function readAttachedPlanState(
     isPaidAndCurrent: attachedPlan.payment?.status === "active",
     // A full snapshot, not a merge: CHB is the source of truth, so a
     // re-subscription cannot inherit state from a previously cancelled plan.
-    clickhouse: {
+    analytics: {
       organizationId: chOrganizationId,
       attachedPlanId: attachedPlan.id,
       planCode,
@@ -543,13 +543,13 @@ async function handleAttachedPlanCreated(
   parsedOrg: ParsedOrganization,
   event: ChbWebhookEvent,
 ) {
-  const { attachedPlan, isPaidAndCurrent, clickhouse } =
+  const { attachedPlan, isPaidAndCurrent, analytics } =
     await readAttachedPlanState(parsedOrg, event);
 
   await persistAndPropagate({
     parsedOrg,
     event,
-    clickhouse,
+    analytics,
     orgColumns: {
       // First paid subscription anchors the billing cycle on the plan start
       cloudBillingCycleAnchor: attachedPlan.period?.startDate
@@ -567,7 +567,7 @@ async function handleAttachedPlanCreated(
   // created before checkout would otherwise be invisible to CHB metering.
   // Post-commit and best-effort -- CHB's own backfill pipeline is the backstop.
   try {
-    await backfillProjectEvents(parsedOrg, clickhouse.organizationId);
+    await backfillProjectEvents(parsedOrg, analytics.organizationId);
   } catch (error) {
     logger.error(
       `[CHB Webhook] Project backfill failed for org ${parsedOrg.id}`,
@@ -589,7 +589,7 @@ async function handleAttachedPlanChanged(
   parsedOrg: ParsedOrganization,
   event: ChbWebhookEvent,
 ) {
-  const { isPaidAndCurrent, clickhouse } = await readAttachedPlanState(
+  const { isPaidAndCurrent, analytics } = await readAttachedPlanState(
     parsedOrg,
     event,
   );
@@ -597,7 +597,7 @@ async function handleAttachedPlanChanged(
   await persistAndPropagate({
     parsedOrg,
     event,
-    clickhouse,
+    analytics,
     orgColumns: isPaidAndCurrent
       ? { cloudFreeTierUsageThresholdState: null }
       : undefined,
@@ -615,12 +615,12 @@ async function handleAttachedPlanCancelled(
   parsedOrg: ParsedOrganization,
   event: ChbWebhookEvent,
 ) {
-  const existing = parsedOrg.cloudConfig?.clickhouse;
+  const existing = parsedOrg.cloudConfig?.analytics;
 
   await persistAndPropagate({
     parsedOrg,
     event,
-    clickhouse: {
+    analytics: {
       organizationId: event.data.payload.organizationId,
       stripeCustomerId: existing?.stripeCustomerId,
       lastEventCreatedAt: event.occurredAt,
