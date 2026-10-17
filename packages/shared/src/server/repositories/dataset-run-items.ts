@@ -340,14 +340,14 @@ const getDatasetRunsTableInternal = async <T>(
         dri.dataset_run_id,
         dri.project_id,
         -- For numeric scores, use tuples of (name, avg_value)
-        groupArrayIf(
-          tuple(s.name, s.avg_value),
+        JSON_ARRAYAGG(CASE WHEN s.avg_value THEN 
+          tuple(s.name ELSE NULL END),
           s.data_type IN ('NUMERIC', 'BOOLEAN')
         ) AS scores_avg,
         -- For categorical scores, use name:value format for improved query performance
-        groupArrayIf(
-          concat(s.name, ':', s.string_value),
-          s.data_type = 'CATEGORICAL' AND notEmpty(s.string_value)
+        JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN 
+          concat(s.name ELSE NULL END),
+          s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)
         ) AS score_categories,
         ${scoreBooleansAggregation("s.")} AS score_booleans
       FROM dataset_run_items_rmt dri
@@ -651,14 +651,14 @@ const getQualifyingDatasetItems = async <T>(opts: {
        dri.project_id,
        dri.trace_id,
        -- For numeric scores, use tuples of (name, avg_value)
-       groupArrayIf(
-         tuple(s.name, s.avg_value),
+       JSON_ARRAYAGG(CASE WHEN s.avg_value THEN 
+         tuple(s.name ELSE NULL END),
          s.data_type IN ('NUMERIC', 'BOOLEAN')
        ) AS scores_avg,
        -- For categorical scores, use name:value format for improved query performance
-       groupArrayIf(
-         concat(s.name, ':', s.string_value),
-         s.data_type = 'CATEGORICAL' AND notEmpty(s.string_value)
+       JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN 
+         concat(s.name ELSE NULL END),
+         s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)
        ) AS score_categories,
         ${scoreBooleansAggregation("s.")} AS score_booleans
      FROM dataset_run_items_rmt dri
@@ -833,14 +833,14 @@ const getDatasetRunItemsTableInternal = async <
        dri.project_id,
        dri.trace_id,
        -- For numeric scores, use tuples of (name, avg_value)
-       groupArrayIf(
-         tuple(s.name, s.avg_value),
+       JSON_ARRAYAGG(CASE WHEN s.avg_value THEN 
+         tuple(s.name ELSE NULL END),
          s.data_type IN ('NUMERIC', 'BOOLEAN')
        ) AS scores_avg,
        -- For categorical scores, use name:value format for improved query performance
-       groupArrayIf(
-         concat(s.name, ':', s.string_value),
-         s.data_type = 'CATEGORICAL' AND notEmpty(s.string_value)
+       JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN 
+         concat(s.name ELSE NULL END),
+         s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)
        ) AS score_categories,
         ${scoreBooleansAggregation("s.")} AS score_booleans
      FROM dataset_run_items_rmt dri

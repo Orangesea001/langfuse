@@ -141,7 +141,7 @@ export const eventsTracesAggregation = (
  * per-row columns like `id` or `comment`.
  */
 export const scoreBooleansAggregation = (columnPrefix = ""): string =>
-  `groupUniqArrayIf(concat(${columnPrefix}name, ':', lowerUTF8(${columnPrefix}string_value)), ${columnPrefix}data_type = 'BOOLEAN' AND notEmpty(${columnPrefix}string_value))`;
+  `groupUniqArrayIf(concat(${columnPrefix}name, ':', LOWER(${columnPrefix}string_value)), ${columnPrefix}data_type = 'BOOLEAN' AND (LENGTH(${columnPrefix}string_value) > 0))`;
 
 interface BaseScoresParams {
   projectId: string;
@@ -200,7 +200,7 @@ const buildScoresAggregationCTE = (
   const primaryKey = isTraceLevel ? "project_id" : "observation_id";
   const additionalInnerCols = isTraceLevel ? ["id"] : ["comment"];
   const additionalOuterCols = isTraceLevel
-    ? ["groupUniqArray(id) as score_ids"]
+    ? ["JSON_ARRAYAGG(DISTINCT id) as score_ids"]
     : [];
   const observationFilter = isTraceLevel ? "AND observation_id IS NULL" : "";
   const orderBy = isTraceLevel ? "" : "ORDER BY trace_id";
@@ -210,10 +210,10 @@ const buildScoresAggregationCTE = (
         trace_id,
         ${primaryKey},
         ${additionalOuterCols.length > 0 ? additionalOuterCols.join(",\n        ") + "," : ""}
-        groupArrayIf(tuple(name, avg_value, data_type, string_value), data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg,
-        groupArrayIf(concat(name, ':', string_value), data_type IN ('CATEGORICAL', 'TEXT') AND notEmpty(string_value)) AS score_categories,
+        JSON_ARRAYAGG(CASE WHEN avg_value, data_type, string_value THEN tuple(name ELSE NULL END), data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg,
+        JSON_ARRAYAGG(CASE WHEN ':', string_value THEN concat(name ELSE NULL END), data_type IN ('CATEGORICAL', 'TEXT') AND (LENGTH(string_value) > 0)) AS score_categories,
         -- BOOLEAN scores also stay in scores_avg for legacy numeric filters; true/false filters need raw-value existence instead of avg(value).
-        ${scoreBooleansAggregation()} AS score_booleans${params.includeTupleEncoding ? `,\n        groupArrayIf(tuple(name, string_value, data_type), data_type IN ('CATEGORICAL', 'TEXT') AND notEmpty(string_value)) AS score_categories_tuples` : ""}
+        ${scoreBooleansAggregation()} AS score_booleans${params.includeTupleEncoding ? `,\n        JSON_ARRAYAGG(CASE WHEN string_value, data_type THEN tuple(name ELSE NULL END), data_type IN ('CATEGORICAL', 'TEXT') AND (LENGTH(string_value) > 0)) AS score_categories_tuples` : ""}
       FROM (
         SELECT
           ${primaryKey},
@@ -319,7 +319,7 @@ const buildEventsTracesScoresAggregation = (
     SELECT
       trace_id,
       project_id,
-      groupUniqArray(id) as score_ids
+      JSON_ARRAYAGG(DISTINCT id) as score_ids
     FROM scores
     WHERE project_id = {projectId: String}
       AND observation_id IS NULL
@@ -482,13 +482,13 @@ export const eventsSessionScoresAggregation = (params: {
     SELECT
       project_id,
       session_id AS score_session_id,
-      groupArrayIf(
-        tuple(name, avg_value),
+      JSON_ARRAYAGG(CASE WHEN avg_value THEN 
+        tuple(name ELSE NULL END),
         data_type IN ('NUMERIC', 'BOOLEAN')
       ) AS scores_avg,
-      groupArrayIf(
-        concat(name, ':', string_value),
-        data_type IN ('CATEGORICAL', 'TEXT') AND notEmpty(string_value)
+      JSON_ARRAYAGG(CASE WHEN ':', string_value THEN 
+        concat(name ELSE NULL END),
+        data_type IN ('CATEGORICAL', 'TEXT') AND (LENGTH(string_value) > 0)
       ) AS score_categories,
       ${scoreBooleansAggregation()} AS score_booleans
     FROM (

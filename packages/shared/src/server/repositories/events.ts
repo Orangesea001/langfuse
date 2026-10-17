@@ -1147,10 +1147,10 @@ export const getTraceByIdFromEventsTable = async ({
   } else if (renderingProps.truncated) {
     queryBuilder
       .select(
-        `leftUTF8(t.input, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as input`,
+        `LEFT(t.input, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as input`,
       )
       .select(
-        `leftUTF8(t.output, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as output`,
+        `LEFT(t.output, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as output`,
       );
   } else {
     queryBuilder.selectColumns("t.input", "t.output");
@@ -2634,18 +2634,18 @@ export const getObservationsBatchIOFromEventsTable = async <
     ? env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT
     : fullReadCharLimit;
   const inputSelect = charLimit
-    ? `leftUTF8(e.input, ${charLimit}) as input`
+    ? `LEFT(e.input, ${charLimit}) as input`
     : `e.input as input`;
   const outputSelect = charLimit
-    ? `leftUTF8(e.output, ${charLimit}) as output`
+    ? `LEFT(e.output, ${charLimit}) as output`
     : `e.output as output`;
   // events_core already stores these pre-truncated, so only a full read needs
   // capping — an explicit limit has to bound every large field, not just I/O.
   const capOnFullRead = (expr: string) =>
-    fullReadCharLimit ? `leftUTF8(${expr}, ${fullReadCharLimit})` : expr;
+    fullReadCharLimit ? `LEFT(${expr}, ${fullReadCharLimit})` : expr;
   const capEachOnFullRead = (expr: string) =>
     fullReadCharLimit
-      ? `arrayMap(v -> leftUTF8(v, ${fullReadCharLimit}), ${expr})`
+      ? `arrayMap(v -> LEFT(v, ${fullReadCharLimit}), ${expr})`
       : expr;
   const metadataValues = capEachOnFullRead("e.metadata_values");
   const experimentFieldsSelect = opts.includeExperimentFields
@@ -3511,7 +3511,7 @@ const traceCostsByIdentifier = (params: {
       "e.trace_id as trace_id",
       ...params.identifiers.map(({ identifier, alias }) => {
         const identifierColumn = evalExecutionIdentifierColumn(identifier);
-        return `anyIf(${identifierColumn}, notEmpty(${identifierColumn})) as ${alias}`;
+        return `anyIf(${identifierColumn}, (LENGTH(${identifierColumn}) > 0)) as ${alias}`;
       }),
       "sum(e.total_cost) as trace_total_cost",
       ...(params.additionalSelect ?? []),

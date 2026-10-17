@@ -507,12 +507,12 @@ export const getTraceByIdFromTracesTable = async ({
   const inputColumn = excludeInputOutput
     ? "''"
     : renderingProps.truncated
-      ? `leftUTF8(input, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT})`
+      ? `LEFT(input, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT})`
       : "input";
   const outputColumn = excludeInputOutput
     ? "''"
     : renderingProps.truncated
-      ? `leftUTF8(output, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT})`
+      ? `LEFT(output, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT})`
       : "output";
   // map() (not a '{}' string literal) so the excluded column keeps the
   // Map type and converts to an empty object in the domain model.
@@ -1662,7 +1662,7 @@ async function buildTracesBaseQuery(
         SUM(IF(level = 'ERROR', 1, 0)) as error_count,
         SUM(IF(level = 'DEFAULT', 1, 0)) as default_count,
         SUM(IF(level = 'DEBUG', 1, 0)) as debug_count,
-        groupUniqArray(id) as observation_ids
+        JSON_ARRAYAGG(DISTINCT id) as observation_ids
       FROM observations ${shouldUseFinal ? "" : ""}
       WHERE project_id = {projectId: String}
       ${fromTimeFilter ? `AND start_time >= {cteFromTimeFilter: DateTime64(3)} - ${TRACE_TO_OBSERVATIONS_INTERVAL}` : ""}
@@ -1680,9 +1680,9 @@ async function buildTracesBaseQuery(
       SELECT
         trace_id,
         project_id,
-        groupUniqArray(id) as score_ids,
-        groupArrayIf(tuple(name, avg_value), data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg,
-        groupArrayIf(concat(name, ':', string_value), data_type = 'CATEGORICAL' AND notEmpty(string_value)) AS score_categories,
+        JSON_ARRAYAGG(DISTINCT id) as score_ids,
+        JSON_ARRAYAGG(CASE WHEN avg_value THEN tuple(name ELSE NULL END), data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg,
+        JSON_ARRAYAGG(CASE WHEN ':', string_value THEN concat(name ELSE NULL END), data_type = 'CATEGORICAL' AND (LENGTH(string_value) > 0)) AS score_categories,
         ${scoreBooleansAggregation()} AS score_booleans
       FROM (
         SELECT
@@ -1717,9 +1717,9 @@ async function buildTracesBaseQuery(
       SELECT
         trace_id,
         project_id,
-        groupUniqArray(id) as score_ids,
-        groupArrayIf(tuple(name, value), data_type IN ('NUMERIC', 'BOOLEAN')) as scores_avg,
-        groupArrayIf(concat(name, ':', string_value), data_type = 'CATEGORICAL') as score_categories
+        JSON_ARRAYAGG(DISTINCT id) as score_ids,
+        JSON_ARRAYAGG(CASE WHEN value THEN tuple(name ELSE NULL END), data_type IN ('NUMERIC', 'BOOLEAN')) as scores_avg,
+        JSON_ARRAYAGG(CASE WHEN ':', string_value THEN concat(name ELSE NULL END), data_type = 'CATEGORICAL') as score_categories
       FROM scores
       WHERE project_id = {projectId: String}
       AND session_id IS NULL

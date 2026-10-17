@@ -657,7 +657,7 @@ export class NullFilter implements Filter {
         query:
           this.operator === "is null"
             ? `empty(${metadataNames})`
-            : `notEmpty(${metadataNames})`,
+            : `(LENGTH(${metadataNames}) > 0)`,
         params: {},
       };
     }

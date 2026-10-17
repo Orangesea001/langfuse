@@ -383,10 +383,10 @@ const optionRowsArrayExpression = (column: EventFilterOptionColumn) => {
   // boolean entries put the value directly in element 1 and carry no label.
   const isLabeled = definition.kind === "labeledScalar";
   const valueExpression = isLabeled
-    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 1)"
+    ? "JSON_EXTRACT(JSON_EXTRACT(option, CONCAT('$[', CONCAT('$[', 1, ']', ']'))), 1)"
     : "JSON_EXTRACT(option, CONCAT('$[', 1, ']'))";
   const displayValueExpression = isLabeled
-    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 2)"
+    ? "JSON_EXTRACT(JSON_EXTRACT(option, CONCAT('$[', CONCAT('$[', 1, ']', ']'))), 2)"
     : "''";
 
   return `arrayMap(option -> ${castEventFilterOptionRowTuple(
@@ -641,10 +641,10 @@ const exactOptionRowsArrayExpression = (
         ? "if(JSON_EXTRACT(option, CONCAT('$[', 1, ']')) = 'true', CAST(1 AS SIGNED), CAST(0 AS SIGNED))"
         : "CAST(0 AS SIGNED)";
   const valueExpression = isLabeled
-    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 1)"
+    ? "JSON_EXTRACT(JSON_EXTRACT(option, CONCAT('$[', CONCAT('$[', 1, ']', ']'))), 1)"
     : "JSON_EXTRACT(option, CONCAT('$[', 1, ']'))";
   const displayValueExpression = isLabeled
-    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 2)"
+    ? "JSON_EXTRACT(JSON_EXTRACT(option, CONCAT('$[', CONCAT('$[', 1, ']', ']'))), 2)"
     : "''";
 
   return `arrayMap(option -> ${castEventFilterOptionRowTuple(

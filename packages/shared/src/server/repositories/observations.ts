@@ -478,7 +478,7 @@ const getObservationByIdInternal = async ({
     level,
     status_message,
     version,
-    ${fetchWithInputOutput ? (renderingProps.truncated ? `leftUTF8(input, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as input, leftUTF8(output, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as output,` : "input, output,") : ""}
+    ${fetchWithInputOutput ? (renderingProps.truncated ? `LEFT(input, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as input, LEFT(output, ${env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT}) as output,` : "input, output,") : ""}
     provided_model_name,
     internal_model_id,
     model_parameters,
@@ -792,14 +792,14 @@ const getObservationsTableInternal = async <T>(
       trace_id,
       observation_id,
       -- For numeric scores, use tuples of (name, avg_value)
-      groupArrayIf(
-        tuple(name, avg_value),
+      JSON_ARRAYAGG(CASE WHEN avg_value THEN 
+        tuple(name ELSE NULL END),
         data_type IN ('NUMERIC', 'BOOLEAN')
       ) AS scores_avg,
       -- For categorical scores, use name:value format for improved query performance
-      groupArrayIf(
-        concat(name, ':', string_value),
-        data_type = 'CATEGORICAL' AND notEmpty(string_value)
+      JSON_ARRAYAGG(CASE WHEN ':', string_value THEN 
+        concat(name ELSE NULL END),
+        data_type = 'CATEGORICAL' AND (LENGTH(string_value) > 0)
       ) AS score_categories,
       ${scoreBooleansAggregation()} AS score_booleans
     FROM (

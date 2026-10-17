@@ -206,8 +206,8 @@ const experimentScoreCTE = (params: {
     .select(
       "s.project_id AS project_id",
       "s.experiment_id AS experiment_id",
-      `groupArrayIf(tuple(s.name, s.exp_avg, s.data_type, s.string_value), s.data_type IN ('NUMERIC', 'BOOLEAN')) AS ${prefix}scores_avg`,
-      `groupArrayIf(concat(s.name, ':', s.string_value), s.data_type = 'CATEGORICAL' AND notEmpty(s.string_value)) AS ${prefix}score_categories`,
+      `JSON_ARRAYAGG(CASE WHEN s.exp_avg, s.data_type, s.string_value THEN tuple(s.name ELSE NULL END), s.data_type IN ('NUMERIC', 'BOOLEAN')) AS ${prefix}scores_avg`,
+      `JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN concat(s.name ELSE NULL END), s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)) AS ${prefix}score_categories`,
       `${scoreBooleansAggregation("s.")} AS ${prefix}score_booleans`,
     )
     .groupBy("s.project_id", "s.experiment_id")
@@ -286,8 +286,8 @@ const experimentItemScoreCTE = (params: {
     .select(
       "sc.project_id AS project_id",
       "sc.root_span_id AS root_span_id",
-      "groupArrayIf(tuple(sc.name, sc.item_avg, sc.data_type, sc.string_value), sc.data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg",
-      "groupArrayIf(concat(sc.name, ':', sc.string_value), sc.data_type = 'CATEGORICAL' AND notEmpty(sc.string_value)) AS score_categories",
+      "JSON_ARRAYAGG(CASE WHEN sc.item_avg, sc.data_type, sc.string_value THEN tuple(sc.name ELSE NULL END), sc.data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg",
+      "JSON_ARRAYAGG(CASE WHEN ':', sc.string_value THEN concat(sc.name ELSE NULL END), sc.data_type = 'CATEGORICAL' AND (LENGTH(sc.string_value) > 0)) AS score_categories",
       `${scoreBooleansAggregation("sc.")} AS score_booleans`,
     )
     .groupBy("sc.project_id", "sc.root_span_id")
@@ -670,7 +670,7 @@ const buildExperimentRunScoreFilterOptionsQuery = (params: {
       name AS name,
       source AS source,
       data_type AS data_type,
-      groupUniqArrayIf(${SCORE_CATEGORICAL_VALUE_LIMIT})(string_value, data_type = 'CATEGORICAL' AND notEmpty(string_value)) AS values
+      JSON_ARRAYAGG(DISTINCT CASE WHEN data_type = 'CATEGORICAL' AND (LENGTH(string_value THEN string_value ELSE NULL END) > 0)) AS values
     FROM scores
     WHERE project_id = {projectId: String}
       AND dataset_run_id IN ({experimentIds: Array(String)})
@@ -732,7 +732,7 @@ const buildScoreFilterOptionsQuery = (params: {
       "s.name AS name",
       "s.data_type AS data_type",
       "s.source AS source",
-      `groupUniqArrayIf(${SCORE_CATEGORICAL_VALUE_LIMIT})(s.string_value, s.data_type = 'CATEGORICAL' AND notEmpty(s.string_value)) AS values`,
+      `JSON_ARRAYAGG(DISTINCT CASE WHEN s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value THEN s.string_value ELSE NULL END) > 0)) AS values`,
     )
     .groupBy("s.name", "s.data_type", "s.source")
     .orderBy("ORDER BY s.name ASC")
@@ -1450,7 +1450,7 @@ export const getExperimentItemsBatchIO = async (props: {
   })
     .selectIO(true, env.LANGFUSE_SERVER_SIDE_IO_CHAR_LIMIT)
     .selectRaw(
-      "leftUTF8(e.experiment_item_expected_output, {truncateLength: UInt32}) as expected_output",
+      "LEFT(e.experiment_item_expected_output, {truncateLength: UInt32}) as expected_output",
       "e.experiment_item_id as item_id",
       "e.experiment_id as experiment_id",
     )

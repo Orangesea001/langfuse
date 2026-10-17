@@ -570,7 +570,7 @@ const EVENTS_AGGREGATION_FIELDS = {
   default_count: "SUM(IF(level = 'DEFAULT', 1, 0)) as default_count",
   debug_count: "SUM(IF(level = 'DEBUG', 1, 0)) as debug_count",
 
-  tags: "argMaxIf(tags, event_ts, notEmpty(tags)) AS tags",
+  tags: "argMaxIf(tags, event_ts, (LENGTH(tags) > 0)) AS tags",
   release: "argMaxIf(release, event_ts, release <> '') AS release",
 
   // Evaluator execution fields are stamped on every internal evaluation span.
@@ -1197,7 +1197,7 @@ export class EventsQueryBuilder extends BaseEventsQueryBuilder<
         this.ioFields.charLimit !== undefined
       ) {
         fieldExpressions.push(
-          `leftUTF8(input, ${this.ioFields.charLimit}) as input, leftUTF8(output, ${this.ioFields.charLimit}) as output`,
+          `LEFT(input, ${this.ioFields.charLimit}) as input, LEFT(output, ${this.ioFields.charLimit}) as output`,
         );
       } else if (this.ioFields.mode === "sizeCapped") {
         const { inlineChars, previewChars } = this.ioFields;
@@ -1206,8 +1206,8 @@ export class EventsQueryBuilder extends BaseEventsQueryBuilder<
         // select anyway, and not every deployment's events_full is guaranteed
         // to carry the materialized columns.
         fieldExpressions.push(
-          `if(lengthUTF8(e.input) <= ${inlineChars}, e.input, leftUTF8(e.input, ${previewChars})) as input`,
-          `if(lengthUTF8(e.output) <= ${inlineChars}, e.output, leftUTF8(e.output, ${previewChars})) as output`,
+          `if(lengthUTF8(e.input) <= ${inlineChars}, e.input, LEFT(e.input, ${previewChars})) as input`,
+          `if(lengthUTF8(e.output) <= ${inlineChars}, e.output, LEFT(e.output, ${previewChars})) as output`,
           `lengthUTF8(e.input) as input_length`,
           `lengthUTF8(e.output) as output_length`,
         );
@@ -1225,7 +1225,7 @@ export class EventsQueryBuilder extends BaseEventsQueryBuilder<
     ) {
       const { inlineChars, previewChars } = this.ioFields;
       fieldExpressions.push(
-        `mapFromArrays(arrayReverse(e.metadata_names), arrayMap(v -> if(lengthUTF8(v) <= ${inlineChars}, v, leftUTF8(v, ${previewChars})), arrayReverse(e.metadata_values))) as metadata`,
+        `mapFromArrays(arrayReverse(e.metadata_names), arrayMap(v -> if(lengthUTF8(v) <= ${inlineChars}, v, LEFT(v, ${previewChars})), arrayReverse(e.metadata_values))) as metadata`,
         // The flag checks only each key's WINNING value. A duplicate key ships
         // both entries in the Map's JSON, and the client's JSON.parse keeps the
         // last textual duplicate — with the arrayReverse above that resolves to
@@ -1483,11 +1483,11 @@ const EVENTS_SESSION_AGGREGATION_FIELDS = {
   session_id: "session_id",
   max_timestamp: "max(start_time) AS max_timestamp",
   min_timestamp: "min(start_time) AS min_timestamp",
-  trace_ids: "groupUniqArray(trace_id) AS trace_ids",
+  trace_ids: "JSON_ARRAYAGG(DISTINCT trace_id) AS trace_ids",
   user_ids:
     "groupUniqArrayIf(user_id, user_id IS NOT NULL AND user_id != '') AS user_ids",
   trace_count: "uniq(trace_id) AS trace_count",
-  trace_tags: "groupUniqArrayArrayIf(tags, notEmpty(tags)) AS trace_tags",
+  trace_tags: "groupUniqArrayArrayIf(tags, (LENGTH(tags) > 0)) AS trace_tags",
   environment:
     "argMaxIf(environment, event_ts, environment <> '') AS environment",
   metadata_names:

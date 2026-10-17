@@ -1111,7 +1111,7 @@ export const getCategoricalScoresGroupedByName = async (
   const query = `
     SELECT
       name AS label,
-      groupUniqArray(${FILTER_OPTION_CATEGORICAL_VALUE_LIMIT})(string_value) AS values
+      JSON_ARRAYAGG(DISTINCT ${FILTER_OPTION_CATEGORICAL_VALUE_LIMIT})(string_value) AS values
     FROM scores s
     WHERE s.project_id = {projectId: String}
     AND s.data_type = 'CATEGORICAL'
@@ -2543,7 +2543,7 @@ const buildAnalyticsScoreTraceAttributesFromEventsCte = (
         nullIf(argMaxIf(e.session_id, e.event_ts, e.session_id <> ''), '') as session_id,
         nullIf(argMaxIf(e.user_id, e.event_ts, e.user_id <> ''), '') as user_id,
         nullIf(argMax(e.release, e.event_ts), '') as release,
-        arraySort(groupUniqArrayArrayIf(e.tags, notEmpty(e.tags))) as tags,
+        arraySort(groupUniqArrayArrayIf(e.tags, (LENGTH(e.tags) > 0))) as tags,
         argMax(e.metadata_values[indexOf(e.metadata_names, '$posthog_session_id')], e.event_ts) as posthog_session_id,
         argMax(e.metadata_values[indexOf(e.metadata_names, '$mixpanel_session_id')], e.event_ts) as mixpanel_session_id
       FROM events_core e
