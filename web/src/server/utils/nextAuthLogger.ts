@@ -66,12 +66,12 @@ export const serializeNextAuthMetadata = (
 const DEBUG_LEVEL_NEXT_AUTH_ERROR_CODES = new Set(["CLIENT_FETCH_ERROR"]);
 
 export const nextAuthLogger: Partial<LoggerInstance> = {
-error: (code, metadata) => {
-const payload = {
-...serializeNextAuthMetadata(metadata),
-nextAuthErrorCode: code,
-};
-if (DEBUG_LEVEL_NEXT_AUTH_ERROR_CODES.has(String(code))) {
+  error: (code, metadata) => {
+    const payload = {
+      ...serializeNextAuthMetadata(metadata),
+      nextAuthErrorCode: code,
+    };
+    if (DEBUG_LEVEL_NEXT_AUTH_ERROR_CODES.has(String(code))) {
       logger.debug(`[NEXT_AUTH] ${code}`, payload);
       return;
     }

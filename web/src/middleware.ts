@@ -83,18 +83,16 @@ export async function middleware(req: NextRequest) {
     // proxies — e.g. local nginx for the dev.evp.* domain or the production
     // gateway — where req.url may carry the internal upstream origin),
     // otherwise the request's own origin.
-    const origin = (
-      process.env.NEXTAUTH_URL ?? req.nextUrl.origin
-    ).replace(/\/+$/, "");
+    const origin = (process.env.NEXTAUTH_URL ?? req.nextUrl.origin).replace(
+      /\/+$/,
+      "",
+    );
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
     // The SSO server appends ?code= to redirect_uri after login; NextAuth's
     // callback route reads callbackUrl from the query to return the user to
     // the page they originally requested.
     const originalUrl = `${origin}${basePath}${req.nextUrl.pathname}${req.nextUrl.search}`;
-    const redirectUri = new URL(
-      `${basePath}/api/auth/callback/mt-sso`,
-      origin,
-    );
+    const redirectUri = new URL(`${basePath}/api/auth/callback/mt-sso`, origin);
     redirectUri.searchParams.set("callbackUrl", originalUrl);
 
     const ssoLoginUrl = new URL(`${loginServer}/login`);

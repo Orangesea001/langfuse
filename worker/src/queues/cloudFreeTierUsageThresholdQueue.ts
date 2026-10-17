@@ -2,8 +2,12 @@
 import { Processor } from "bullmq";
 import { logger, QueueJobs } from "@langfuse/shared/src/server";
 
-export const cloudFreeTierUsageThresholdQueueProcessor: Processor = async (job) => {
+export const cloudFreeTierUsageThresholdQueueProcessor: Processor = async (
+  job,
+) => {
   if (job.name === QueueJobs.CloudFreeTierUsageThresholdJob) {
-    logger.warn("CloudFreeTierUsageThresholdJob is disabled for internal deployment");
+    logger.warn(
+      "CloudFreeTierUsageThresholdJob is disabled for internal deployment",
+    );
   }
 };

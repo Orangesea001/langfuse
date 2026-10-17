@@ -26,11 +26,18 @@ interface MtCasUser extends Record<string, any> {
   name?: string;
 }
 
-export interface MtCasProviderOptions
-  extends Omit<
-    OAuthUserConfig<MtCasUser>,
-    "clientId" | "clientSecret" | "issuer" | "wellKnown" | "token" | "userinfo" | "checks" | "idToken" | "authorization"
-  > {
+export interface MtCasProviderOptions extends Omit<
+  OAuthUserConfig<MtCasUser>,
+  | "clientId"
+  | "clientSecret"
+  | "issuer"
+  | "wellKnown"
+  | "token"
+  | "userinfo"
+  | "checks"
+  | "idToken"
+  | "authorization"
+> {
   clientId: string;
   clientSecret: string;
   /** Login/authorize server, e.g. https://ssosv.sankuai.com/sson (prod). */
@@ -132,8 +139,7 @@ export function MtCasProvider(
     token: {
       url: tokenUrl,
       async request({ provider, params }) {
-        const code =
-          typeof params.code === "string" ? params.code : undefined;
+        const code = typeof params.code === "string" ? params.code : undefined;
         if (!code) throw new Error("MTCAS callback is missing ?code=");
 
         const path = "/sson/oauth2.0/access-token";
@@ -145,9 +151,7 @@ export function MtCasProvider(
 
         const res = await fetch(url, { headers });
         if (!res.ok)
-          throw new Error(
-            `MTCAS access-token endpoint failed: ${res.status}`,
-          );
+          throw new Error(`MTCAS access-token endpoint failed: ${res.status}`);
         const body = (await res.json()) as MtCasTokenResponse;
         const accessToken = body?.data?.accessToken;
         if (body?.code !== 200 || !accessToken)
@@ -189,9 +193,7 @@ export function MtCasProvider(
           body: JSON.stringify({ accessToken }),
         });
         if (!res.ok)
-          throw new Error(
-            `MTCAS userinfo endpoint failed: ${res.status}`,
-          );
+          throw new Error(`MTCAS userinfo endpoint failed: ${res.status}`);
         const body = (await res.json()) as MtCasUserResponse;
         if (body?.code !== 200 || !body?.data)
           throw new Error(

@@ -561,14 +561,14 @@ const EVENTS_AGGREGATION_FIELDS = {
     "argMaxIf(experiment_item_id, event_ts, experiment_item_id <> '') AS experiment_item_id",
 
   // Observation-level aggregations for filtering support
-  usage_details: "sumMap(usage_details) as usage_details",
-  cost_details: "sumMap(cost_details) as cost_details",
+  usage_details: "usage_details as usage_details",
+  cost_details: "cost_details as cost_details",
   aggregated_level:
-    "multiIf(arrayExists(x -> x = 'ERROR', groupArray(level)), 'ERROR', arrayExists(x -> x = 'WARNING', groupArray(level)), 'WARNING', arrayExists(x -> x = 'DEFAULT', groupArray(level)), 'DEFAULT', 'DEBUG') AS aggregated_level",
-  warning_count: "countIf(level = 'WARNING') as warning_count",
-  error_count: "countIf(level = 'ERROR') as error_count",
-  default_count: "countIf(level = 'DEFAULT') as default_count",
-  debug_count: "countIf(level = 'DEBUG') as debug_count",
+    "multiIf(arrayExists(x -> x = 'ERROR', JSON_ARRAYAGG(level)), 'ERROR', arrayExists(x -> x = 'WARNING', JSON_ARRAYAGG(level)), 'WARNING', arrayExists(x -> x = 'DEFAULT', JSON_ARRAYAGG(level)), 'DEFAULT', 'DEBUG') AS aggregated_level",
+  warning_count: "SUM(IF(level = 'WARNING', 1, 0)) as warning_count",
+  error_count: "SUM(IF(level = 'ERROR', 1, 0)) as error_count",
+  default_count: "SUM(IF(level = 'DEFAULT', 1, 0)) as default_count",
+  debug_count: "SUM(IF(level = 'DEBUG', 1, 0)) as debug_count",
 
   tags: "argMaxIf(tags, event_ts, notEmpty(tags)) AS tags",
   release: "argMaxIf(release, event_ts, release <> '') AS release",
@@ -729,7 +729,7 @@ abstract class AbstractQueryBuilder {
    */
   limitBy(...columns: string[]): this {
     if (columns.length > 0) {
-      this.limitByClause = `LIMIT 1 BY ${columns.join(", ")}`;
+      this.limitByClause = `LIMIT 1`;
     }
 
     return this;
@@ -1498,18 +1498,18 @@ const EVENTS_SESSION_AGGREGATION_FIELDS = {
     "uniqIf(span_id, parent_span_id != '') AS total_observations",
   duration:
     "date_diff('second', min(start_time), max(if(isNull(end_time), start_time, end_time))) AS duration",
-  session_usage_details: "sumMap(usage_details) AS session_usage_details",
-  session_cost_details: "sumMap(cost_details) AS session_cost_details",
+  session_usage_details: "usage_details AS session_usage_details",
+  session_cost_details: "cost_details AS session_cost_details",
   session_input_cost:
-    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, sumMap(cost_details)))) AS session_input_cost",
+    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, cost_details))) AS session_input_cost",
   session_output_cost:
-    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, sumMap(cost_details)))) AS session_output_cost",
-  session_total_cost: "sumMap(cost_details)['total'] AS session_total_cost",
+    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, cost_details))) AS session_output_cost",
+  session_total_cost: "cost_details['total'] AS session_total_cost",
   session_input_usage:
-    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, sumMap(usage_details)))) AS session_input_usage",
+    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, usage_details))) AS session_input_usage",
   session_output_usage:
-    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, sumMap(usage_details)))) AS session_output_usage",
-  session_total_usage: "sumMap(usage_details)['total'] AS session_total_usage",
+    "arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, usage_details))) AS session_output_usage",
+  session_total_usage: "usage_details['total'] AS session_total_usage",
 } as const;
 
 /**

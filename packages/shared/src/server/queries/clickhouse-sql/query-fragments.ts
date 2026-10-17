@@ -223,7 +223,7 @@ const buildScoresAggregationCTE = (
           data_type,
           string_value,
           avg(value) as avg_value
-        FROM scores FINAL
+        FROM scores 
         WHERE project_id = {projectId: String}
           ${observationFilter}
           ${params.scoreRowsFilter ? `AND ${params.scoreRowsFilter.query}` : ""}
@@ -456,9 +456,9 @@ export const experimentItemLevelsAggregation = (params: {
     selectExpression: `e.experiment_id AS experiment_id,
       e.experiment_item_id AS experiment_item_id,
       multiIf(
-        countIf(e.level = 'ERROR') > 0, 'ERROR',
-        countIf(e.level = 'WARNING') > 0, 'WARNING',
-        countIf(e.level = 'DEFAULT') > 0, 'DEFAULT',
+        SUM(IF(e.level = 'ERROR', 1, 0)) > 0, 'ERROR',
+        SUM(IF(e.level = 'WARNING', 1, 0)) > 0, 'WARNING',
+        SUM(IF(e.level = 'DEFAULT', 1, 0)) > 0, 'DEFAULT',
         'DEBUG'
       ) AS aggregated_level`,
   })
@@ -499,7 +499,7 @@ export const eventsSessionScoresAggregation = (params: {
         data_type,
         string_value,
         avg(value) avg_value
-      FROM scores s FINAL
+      FROM scores s 
       WHERE
         project_id = {projectId: String}
       GROUP BY
@@ -625,7 +625,7 @@ export const buildScoresCTE = (params: ScoresCTEParams): CTEWithSchema => {
       data_type,
       string_value,
       avg(value) avg_value
-    FROM scores s FINAL
+    FROM scores s 
     WHERE
       project_id = {projectId: String}
       ${observationFilter}

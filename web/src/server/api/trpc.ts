@@ -524,7 +524,8 @@ const enforceTraceAccess = (readSource: "v3" | "v4") =>
 
     // V3 legacy trace-table reads were removed — this deployment is v4-only
     // (events_only write mode), so every read goes to the events tables.
-    const useEventsTraceSource = env.LANGFUSE_MIGRATION_V4_WRITE_MODE !== "legacy";
+    const useEventsTraceSource =
+      env.LANGFUSE_MIGRATION_V4_WRITE_MODE !== "legacy";
 
     let clickhouseTrace = traceId
       ? useEventsTraceSource

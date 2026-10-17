@@ -5,7 +5,7 @@ import { queryClickhouseStream } from "./clickhouse";
 
 // Exercise the real query builder, intercepting execution before any client loads.
 vi.mock("./clickhouse", async () => ({
-  TupleParam: Array,  // MySQL uses Array instead of CH TupleParam
+  TupleParam: Array, // MySQL uses Array instead of CH TupleParam
   queryClickhouseStream: vi.fn(),
 }));
 vi.mock("./index", () => ({ clickhouseCompliantRandomCharacters: vi.fn() }));

@@ -27,7 +27,8 @@ const remainingQueryPatterns: QueryPattern[] = [
   {
     description: "Pagination with WHERE + ORDER BY + LIMIT",
     usedIn: ["traces.ts", "observations.ts", "scores.ts", "events.ts"],
-    chSyntax: "WHERE project_id = {projectId:String} ORDER BY timestamp DESC LIMIT {limit:UInt32}",
+    chSyntax:
+      "WHERE project_id = {projectId:String} ORDER BY timestamp DESC LIMIT {limit:UInt32}",
     mysqlSyntax: "WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?",
     verified: true,
   },
@@ -35,7 +36,8 @@ const remainingQueryPatterns: QueryPattern[] = [
     description: "FINAL keyword for ReplacingMergeTree dedup read",
     usedIn: ["traces.ts", "observations.ts", "scores.ts"],
     chSyntax: "FROM traces FINAL",
-    mysqlSyntax: "FROM traces (no FINAL needed — MySQL uses transactional reads)",
+    mysqlSyntax:
+      "FROM traces (no FINAL needed — MySQL uses transactional reads)",
     verified: true,
   },
   {
@@ -57,8 +59,10 @@ const remainingQueryPatterns: QueryPattern[] = [
   {
     description: "GROUP BY model for model filter",
     usedIn: ["observations.ts"],
-    chSyntax: "SELECT provided_model_name, count() FROM observations GROUP BY provided_model_name",
-    mysqlSyntax: "SELECT provided_model_name, COUNT(*) FROM observations GROUP BY provided_model_name",
+    chSyntax:
+      "SELECT provided_model_name, count() FROM observations GROUP BY provided_model_name",
+    mysqlSyntax:
+      "SELECT provided_model_name, COUNT(*) FROM observations GROUP BY provided_model_name",
     verified: true,
   },
 
@@ -66,15 +70,18 @@ const remainingQueryPatterns: QueryPattern[] = [
   {
     description: "Score AVG + COUNT aggregation",
     usedIn: ["dashboards.ts"],
-    chSyntax: "SELECT s.name, count(*) as count, avg(s.value) as avg_value FROM scores s FINAL GROUP BY s.name",
-    mysqlSyntax: "SELECT s.name, COUNT(*) as count, AVG(s.value) as avg_value FROM scores s GROUP BY s.name",
+    chSyntax:
+      "SELECT s.name, count(*) as count, avg(s.value) as avg_value FROM scores s FINAL GROUP BY s.name",
+    mysqlSyntax:
+      "SELECT s.name, COUNT(*) as count, AVG(s.value) as avg_value FROM scores s GROUP BY s.name",
     verified: true,
   },
   {
     description: "Score histogram bucketing",
     usedIn: ["scores.ts", "dashboard-router.ts"],
     chSyntax: "histogram(10)(value) — ClickHouse built-in",
-    mysqlSyntax: "Application-side bucketing: FLOOR(value * 10) / 10 or pre-computed bins",
+    mysqlSyntax:
+      "Application-side bucketing: FLOOR(value * 10) / 10 or pre-computed bins",
     verified: true,
   },
 
@@ -89,8 +96,10 @@ const remainingQueryPatterns: QueryPattern[] = [
   {
     description: "LEFT JOIN observations↔traces for time alignment",
     usedIn: ["observations.ts"],
-    chSyntax: "LEFT JOIN traces t ON o.trace_id = t.id AND o.project_id = t.project_id",
-    mysqlSyntax: "LEFT JOIN traces t ON o.trace_id = t.id AND o.project_id = t.project_id (identical)",
+    chSyntax:
+      "LEFT JOIN traces t ON o.trace_id = t.id AND o.project_id = t.project_id",
+    mysqlSyntax:
+      "LEFT JOIN traces t ON o.trace_id = t.id AND o.project_id = t.project_id (identical)",
     verified: true,
   },
 
@@ -98,8 +107,10 @@ const remainingQueryPatterns: QueryPattern[] = [
   {
     description: "ReplacingMergeTree idempotent insert",
     usedIn: ["ClickhouseWriter (worker)"],
-    chSyntax: "INSERT INTO traces VALUES ... (ReplacingMergeTree deduplicates by event_ts)",
-    mysqlSyntax: "INSERT INTO traces ... ON DUPLICATE KEY UPDATE ... (upsert by primary key)",
+    chSyntax:
+      "INSERT INTO traces VALUES ... (ReplacingMergeTree deduplicates by event_ts)",
+    mysqlSyntax:
+      "INSERT INTO traces ... ON DUPLICATE KEY UPDATE ... (upsert by primary key)",
     verified: true,
   },
 
@@ -113,7 +124,10 @@ const remainingQueryPatterns: QueryPattern[] = [
   },
 ];
 
-const removedPatternsThatMustNotReturn: { pattern: string; description: string }[] = [
+const removedPatternsThatMustNotReturn: {
+  pattern: string;
+  description: string;
+}[] = [
   {
     pattern: "ARRAY JOIN mapKeys(cost_details)",
     description: "Cost by-type timeseries (ClickHouse Map array expansion)",
@@ -124,7 +138,8 @@ const removedPatternsThatMustNotReturn: { pattern: string; description: string }
   },
   {
     pattern: "WITH FILL",
-    description: "Time series gap filling (ClickHouse-specific ORDER BY clause)",
+    description:
+      "Time series gap filling (ClickHouse-specific ORDER BY clause)",
   },
   {
     pattern: "toStartOfInterval",
@@ -140,7 +155,8 @@ const removedPatternsThatMustNotReturn: { pattern: string; description: string }
   },
   {
     pattern: "mapFilter(x -> positionCaseInsensitive",
-    description: "Daily metrics usage filter (ClickHouse lambda + higher-order function)",
+    description:
+      "Daily metrics usage filter (ClickHouse lambda + higher-order function)",
   },
   {
     pattern: "groupArray(tuple(",
@@ -170,7 +186,10 @@ describe("MySQL replace ClickHouse compatibility", () => {
       for (const pattern of remainingQueryPatterns) {
         for (const syntax of chOnlySyntax) {
           // histogram() is allowed because we handle it app-side
-          if (syntax === "histogram(" && pattern.mysqlSyntax.includes("Application-side")) {
+          if (
+            syntax === "histogram(" &&
+            pattern.mysqlSyntax.includes("Application-side")
+          ) {
             continue;
           }
           expect(
@@ -193,7 +212,10 @@ describe("MySQL replace ClickHouse compatibility", () => {
         "dashboards.ts",
       ];
       for (const repo of coreRepos) {
-        expect(coveredFiles.has(repo), `${repo} not covered by any query pattern`).toBe(true);
+        expect(
+          coveredFiles.has(repo),
+          `${repo} not covered by any query pattern`,
+        ).toBe(true);
       }
     });
   });

@@ -4,12 +4,7 @@ import { showSuccessToast, showErrorToast } from "@/src/features/notifications";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import {
-  BotMessageSquare,
-  Check,
-  ChevronRight,
-  Copy,
-} from "lucide-react";
+import { BotMessageSquare, Check, ChevronRight, Copy } from "lucide-react";
 import { env } from "@/src/env.mjs";
 import { useIsInAppAgentLauncherVisible } from "@/src/features/in-app-agent/components/InAppAiAgentProvider";
 import { useLangfuseCloudRegion } from "@/src/features/organizations/hooks";

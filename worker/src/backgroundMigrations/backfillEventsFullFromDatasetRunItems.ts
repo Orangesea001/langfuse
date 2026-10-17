@@ -568,7 +568,9 @@ export default class BackfillEventsFullFromDatasetRunItems implements IBackgroun
     const tableRows = await queryClickhouse<Record<string, string>>({
       query: "SHOW TABLES",
     });
-    const tableNames = tableRows.map((row: any) => ({ name: Object.values(row)[0] as string }));
+    const tableNames = tableRows.map((row: any) => ({
+      name: Object.values(row)[0] as string,
+    }));
 
     const requiredTables = [
       "dataset_run_items_rmt",

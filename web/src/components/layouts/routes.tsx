@@ -220,8 +220,8 @@ export const ROUTES: Route[] = [
       isLangfuseCloud && hasActiveCloudIncident,
     menuNode: <CloudStatusMenu />,
   },
-// The legacy "V4 Preview" sidebar toggle was removed — this deployment is
-// v4-only (events_only write mode).
+  // The legacy "V4 Preview" sidebar toggle was removed — this deployment is
+  // v4-only (events_only write mode).
   {
     title: "Upgrade Plan",
     icon: Sparkle,

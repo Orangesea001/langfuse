@@ -8,8 +8,17 @@
  * The ClickHouse-specific types (ClickHouseSettings, TupleParam, etc.) are
  * kept as no-ops or stubs for API compatibility.
  */
-import { queryMySql, streamMySql, commandMySql, executeMySql, type MySqlQueryOpts } from "../mysql/queryExecutor.js";
-import { translateQuery, parseClickhouseUTCDateTimeFormat as parseDate } from "../mysql/sqlTranslator.js";
+import {
+  queryMySql,
+  streamMySql,
+  commandMySql,
+  executeMySql,
+  type MySqlQueryOpts,
+} from "../mysql/queryExecutor.js";
+import {
+  translateQuery,
+  parseClickhouseUTCDateTimeFormat as parseDate,
+} from "../mysql/sqlTranslator.js";
 import { logger } from "../logger";
 import { randomUUID } from "crypto";
 
@@ -26,11 +35,16 @@ export const TupleParam = Array;
 
 /** Error class preserved for compatibility; MySQL errors are wrapped in it */
 export class ClickHouseResourceError extends Error {
-  static ERROR_ADVICE_MESSAGE = "An error occurred while querying the analytics store. Please try again later.";
+  static ERROR_ADVICE_MESSAGE =
+    "An error occurred while querying the analytics store. Please try again later.";
   public readonly errorType: string = "UNKNOWN";
   public readonly tags?: Record<string, unknown>;
 
-  constructor(errType: string, originalError: Error, tags?: Record<string, unknown>) {
+  constructor(
+    errType: string,
+    originalError: Error,
+    tags?: Record<string, unknown>,
+  ) {
     super(originalError.message, { cause: originalError });
     this.name = "ClickHouseResourceError";
     this.errorType = errType;
@@ -42,7 +56,10 @@ export class ClickHouseResourceError extends Error {
     return error instanceof ClickHouseResourceError;
   }
 
-  static wrapIfResourceError(error: Error, _tags?: Record<string, unknown>): Error {
+  static wrapIfResourceError(
+    error: Error,
+    _tags?: Record<string, unknown>,
+  ): Error {
     // MySQL doesn't have CH resource errors; just return the original
     return error;
   }
@@ -69,7 +86,9 @@ export type ClickhouseQueryOpts = {
  * Execute a query and return typed results.
  * Replaces the ClickHouse implementation with MySQL.
  */
-export async function queryClickhouse<T>(opts: ClickhouseQueryOpts): Promise<T[]> {
+export async function queryClickhouse<T>(
+  opts: ClickhouseQueryOpts,
+): Promise<T[]> {
   try {
     return await queryMySql<T>({
       query: opts.query,
@@ -125,7 +144,9 @@ export type ClickhouseExecRawResult = {
  * Upsert records into MySQL.
  * Replaces the ClickHouse bulk insert.
  */
-export async function upsertClickhouse<T extends Record<string, unknown>>(opts: {
+export async function upsertClickhouse<
+  T extends Record<string, unknown>,
+>(opts: {
   table: string;
   records: T[];
   tags?: Record<string, string | undefined>;
@@ -160,7 +181,13 @@ export async function upsertClickhouse<T extends Record<string, unknown>>(opts: 
       const value = record[col];
       if (value === null || value === undefined) allParams.push(null);
       else if (typeof value === "object") allParams.push(JSON.stringify(value));
-      else if (value instanceof Date) allParams.push(value.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, ""));
+      else if (value instanceof Date)
+        allParams.push(
+          value
+            .toISOString()
+            .replace("T", " ")
+            .replace(/\.\d{3}Z$/, ""),
+        );
       else allParams.push(value);
     }
   }

@@ -18,7 +18,10 @@ export type ClickHouseVersion = {
 };
 
 /** No-op: returns empty settings for MySQL */
-export const getClickHouseCompatibilitySettings = (): Record<string, unknown> => ({});
+export const getClickHouseCompatibilitySettings = (): Record<
+  string,
+  unknown
+> => ({});
 
 /** No-op: initialization not needed for MySQL */
 export const initializeClickhouseCompatibility = async (): Promise<void> => {
@@ -37,7 +40,9 @@ export const resolveClickHouseCompatibility = () => ({
 });
 
 /** No-op: version parsing */
-export const parseClickHouseVersion = (_rawVersion: string): ClickHouseVersion | null => null;
+export const parseClickHouseVersion = (
+  _rawVersion: string,
+): ClickHouseVersion | null => null;
 
 /** No-op: version band check */
 export const isClickHouseVersionInBand = (
@@ -46,7 +51,10 @@ export const isClickHouseVersionInBand = (
 ): boolean => false;
 
 /** No-op: resolve JSON bad unicode escape mode */
-export const resolveClickHouseJsonBadUnicodeEscapeMode = () => "sanitize" as const;
+export const resolveClickHouseJsonBadUnicodeEscapeMode = () =>
+  "sanitize" as const;
 
 /** No-op: set version for tests */
-export const setClickHouseCompatibilityVersionForTests = (_version: string | null): void => {};
+export const setClickHouseCompatibilityVersionForTests = (
+  _version: string | null,
+): void => {};

@@ -1,7 +1,5 @@
 // ClickHouseClientConfigOptions no longer needed (MySQL backend)
-import {
-  type ClickHouseClientConfigOptions,
-} from "../repositories/clickhouse";
+import { type ClickHouseClientConfigOptions } from "../repositories/clickhouse";
 
 import { OrderByState } from "../../interfaces/orderBy";
 import { sessionCols } from "../tableMappings/mapSessionTable";

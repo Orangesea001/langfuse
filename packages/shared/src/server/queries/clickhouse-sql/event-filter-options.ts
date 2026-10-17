@@ -32,7 +32,7 @@ const castEventFilterOptionRowTuple = (tupleExpression: string): string =>
   `CAST(${tupleExpression} AS ${EVENTS_FILTER_OPTION_ROW_TUPLE_TYPE})`;
 
 const EVENTS_APPROX_TOTAL_COUNT_TUPLE = castEventFilterOptionRowTuple(
-  `tuple('${EVENTS_APPROX_TOTAL_COUNT_MARKER}', '', toUInt64(approx_total_count), toInt64(0), '')`,
+  `tuple('${EVENTS_APPROX_TOTAL_COUNT_MARKER}', '', CAST(approx_total_count AS UNSIGNED), CAST(0 AS SIGNED), '')`,
 );
 
 const EVENTS_FILTER_OPTION_TOP_K_MAX_N = 65_536;
@@ -46,7 +46,7 @@ const EVENTS_SAMPLE_FACTOR_SELECT = "any(e._sample_factor) AS sample_factor";
 /** eventFilterOptionCountExpression scales a grouped event count back to full-table scale. */
 const eventFilterOptionCountExpression = (sampleRows: number) =>
   sampleRows > 0
-    ? "toUInt64(round(count() * any(e._sample_factor)))"
+    ? "CAST(round(count( AS UNSIGNED) * MIN(e._sample_factor)))"
     : "count()";
 
 type EventFilterOptionSort = "countDesc" | "alpha" | "booleanAsc";
@@ -304,7 +304,7 @@ const eventFilterOptionColumnSqlLiteral = (column: EventFilterOptionColumn) =>
   `'${column}'`;
 
 const stringValueExpression = (expression: string) =>
-  `toString(ifNull(${expression}, ''))`;
+  `CAST(ifNull(${expression}, '' AS CHAR))`;
 
 // Shared by the sumMap keys and the parallel "ones" counts array so both derive
 // their length from one filter and cannot drift apart.
@@ -315,13 +315,13 @@ const optionValuesFilteredExpression = (
     ? `arrayDistinct(${definition.expression})`
     : definition.expression;
 
-  return `arrayFilter(value -> length(toString(value)) > 0, ${valuesExpression})`;
+  return `arrayFilter(value -> length(CAST(value AS CHAR)) > 0, ${valuesExpression})`;
 };
 
 const optionValuesArrayExpression = (
   definition: Extract<EventFilterOptionDefinition, { kind: "array" }>,
 ): string =>
-  `arrayMap(value -> toString(value), ${optionValuesFilteredExpression(definition)})`;
+  `arrayMap(value -> CAST(value AS CHAR), ${optionValuesFilteredExpression(definition)})`;
 
 const optionPresenceCondition = (column: EventFilterOptionColumn): string => {
   const definition = EVENTS_FILTER_OPTION_DEFINITIONS[column];
@@ -362,7 +362,7 @@ const optionTopKSelectExpression = (column: EventFilterOptionColumn) => {
   }
 
   if (definition.kind === "boolean") {
-    return `arrayFilter(option -> tupleElement(option, 2) > 0, [tuple('false', countIf(NOT (${definition.expression})), toUInt64(0)), tuple('true', countIf(${definition.expression}), toUInt64(0))]) AS ${optionTopAlias(column)}`;
+    return `arrayFilter(option -> JSON_EXTRACT(option, CONCAT('$[', 2, ']')) > 0, [tuple('false', SUM(IF(NOT (${definition.expression}, 1, 0))), CAST(0 AS UNSIGNED)), tuple('true', SUM(IF(${definition.expression}, 1, 0)), CAST(0 AS UNSIGNED))]) AS ${optionTopAlias(column)}`;
   }
 
   return `approx_top_kArray({optionLimit: UInt64})(${optionValuesArrayExpression(definition)}) AS ${optionTopAlias(column)}`;
@@ -375,22 +375,22 @@ const optionRowsArrayExpression = (column: EventFilterOptionColumn) => {
   // below provides alphabetical ordering within the top-k candidate set.
   const sortKeyExpression =
     definition.sort === "countDesc"
-      ? "-toInt64(tupleElement(option, 2))"
+      ? "-CAST(JSON_EXTRACT(option, CONCAT('$[', 2 AS SIGNED, ']')))"
       : definition.sort === "booleanAsc"
-        ? "if(tupleElement(option, 1) = 'true', toInt64(1), toInt64(0))"
-        : "toInt64(0)";
+        ? "if(JSON_EXTRACT(option, CONCAT('$[', 1, ']')) = 'true', CAST(1 AS SIGNED), CAST(0 AS SIGNED))"
+        : "CAST(0 AS SIGNED)";
   // labeledScalar top-k entries nest (value, label) in element 1; scalar/array/
   // boolean entries put the value directly in element 1 and carry no label.
   const isLabeled = definition.kind === "labeledScalar";
   const valueExpression = isLabeled
-    ? "tupleElement(tupleElement(option, 1), 1)"
-    : "tupleElement(option, 1)";
+    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 1)"
+    : "JSON_EXTRACT(option, CONCAT('$[', 1, ']'))";
   const displayValueExpression = isLabeled
-    ? "tupleElement(tupleElement(option, 1), 2)"
+    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 2)"
     : "''";
 
   return `arrayMap(option -> ${castEventFilterOptionRowTuple(
-    `tuple(${eventFilterOptionColumnSqlLiteral(column)}, ${valueExpression}, tupleElement(option, 2), ${sortKeyExpression}, ${displayValueExpression})`,
+    `tuple(${eventFilterOptionColumnSqlLiteral(column)}, ${valueExpression}, JSON_EXTRACT(option, CONCAT('$[', 2, ']')), ${sortKeyExpression}, ${displayValueExpression})`,
   )}, ${topAlias})`;
 };
 
@@ -452,7 +452,7 @@ export const buildEventsFilterOptionColumnQuery = (params: {
 
   const valueExpression =
     definition.kind === "scalar" || definition.kind === "labeledScalar"
-      ? `toString(${definition.expression})`
+      ? `CAST(${definition.expression} AS CHAR)`
       : definition.kind === "boolean"
         ? `if(${definition.expression}, 'true', 'false')`
         : `arrayJoin(${optionValuesArrayExpression(definition)})`;
@@ -528,7 +528,7 @@ export const buildEventsFilterOptionsForColumnsQuery = (params: {
   // approx_top_k counts live inside the tuple, so scale in the outer projection.
   const sampleFactorRow = sampled ? ",\n    sample_factor" : "";
   const countExpression = sampled
-    ? "toUInt64(round(option.count * sample_factor))"
+    ? "CAST(round(option.count * sample_factor AS UNSIGNED))"
     : "option.count";
 
   const query = `
@@ -588,7 +588,7 @@ const exactOptionAggSelectExpressions = (
 
   if (definition.kind === "boolean") {
     return [
-      `arrayFilter(option -> tupleElement(option, 2) > 0, [tuple('false', countIf(NOT (${definition.expression})), toUInt64(0)), tuple('true', countIf(${definition.expression}), toUInt64(0))]) AS ${topAlias}`,
+      `arrayFilter(option -> JSON_EXTRACT(option, CONCAT('$[', 2, ']')) > 0, [tuple('false', SUM(IF(NOT (${definition.expression}, 1, 0))), CAST(0 AS UNSIGNED)), tuple('true', SUM(IF(${definition.expression}, 1, 0)), CAST(0 AS UNSIGNED))]) AS ${topAlias}`,
     ];
   }
 
@@ -600,21 +600,21 @@ const exactOptionAggSelectExpressions = (
   // GROUP BY. `<column>_hist` is aggregate state and is projectable.
   const histogram =
     definition.kind === "scalar"
-      ? `sumMapIf([${stringValueExpression(definition.expression)}], [toUInt64(1)], ${definition.includeWhen})`
+      ? `sumMapIf([${stringValueExpression(definition.expression)}], [CAST(1 AS UNSIGNED)], ${definition.includeWhen})`
       : definition.kind === "labeledScalar"
-        ? `sumMapIf([tuple(${stringValueExpression(definition.expression)}, ${stringValueExpression(definition.labelExpression)})], [toUInt64(1)], ${definition.includeWhen})`
+        ? `sumMapIf([tuple(${stringValueExpression(definition.expression)}, ${stringValueExpression(definition.labelExpression)})], [CAST(1 AS UNSIGNED)], ${definition.includeWhen})`
         : (() => {
             const filtered = optionValuesFilteredExpression(definition);
-            const keys = `arrayMap(value -> toString(value), ${filtered})`;
-            const ones = `arrayMap(value -> toUInt64(1), ${filtered})`;
-            return `sumMap(${keys}, ${ones})`;
+            const keys = `arrayMap(value -> CAST(value AS CHAR), ${filtered})`;
+            const ones = `arrayMap(value -> CAST(1 AS UNSIGNED), ${filtered})`;
+            return `${keys}, ${ones}`;
           })();
 
-  const zipped = `arrayZip(tupleElement(${histAlias}, 1), tupleElement(${histAlias}, 2))`;
+  const zipped = `arrayZip(JSON_EXTRACT(${histAlias}, CONCAT('$[', 1, ']')), JSON_EXTRACT(${histAlias}, CONCAT('$[', 2, ']')))`;
   const ranked =
     definition.sort === "countDesc"
-      ? `arraySort(pair -> tuple(-toInt64(tupleElement(pair, 2)), tupleElement(pair, 1)), ${zipped})`
-      : `arraySort(pair -> tupleElement(pair, 1), ${zipped})`;
+      ? `arraySort(pair -> tuple(-CAST(JSON_EXTRACT(pair, CONCAT('$[', 2 AS SIGNED, ']'))), JSON_EXTRACT(pair, CONCAT('$[', 1, ']'))), ${zipped})`
+      : `arraySort(pair -> JSON_EXTRACT(pair, CONCAT('$[', 1, ']')), ${zipped})`;
 
   return [
     `${histogram} AS ${histAlias}`,
@@ -636,19 +636,19 @@ const exactOptionRowsArrayExpression = (
   // Output row is cast to the named EVENTS_FILTER_OPTION_ROW_TUPLE_TYPE.
   const sortKeyExpression =
     definition.sort === "countDesc"
-      ? "-toInt64(tupleElement(option, 2))"
+      ? "-CAST(JSON_EXTRACT(option, CONCAT('$[', 2 AS SIGNED, ']')))"
       : definition.sort === "booleanAsc"
-        ? "if(tupleElement(option, 1) = 'true', toInt64(1), toInt64(0))"
-        : "toInt64(0)";
+        ? "if(JSON_EXTRACT(option, CONCAT('$[', 1, ']')) = 'true', CAST(1 AS SIGNED), CAST(0 AS SIGNED))"
+        : "CAST(0 AS SIGNED)";
   const valueExpression = isLabeled
-    ? "tupleElement(tupleElement(option, 1), 1)"
-    : "tupleElement(option, 1)";
+    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 1)"
+    : "JSON_EXTRACT(option, CONCAT('$[', 1, ']'))";
   const displayValueExpression = isLabeled
-    ? "tupleElement(tupleElement(option, 1), 2)"
+    ? "JSON_EXTRACT(tupleElement(option, CONCAT('$[', 1, ']')), 2)"
     : "''";
 
   return `arrayMap(option -> ${castEventFilterOptionRowTuple(
-    `tuple(${eventFilterOptionColumnSqlLiteral(column)}, ${valueExpression}, tupleElement(option, 2), ${sortKeyExpression}, ${displayValueExpression})`,
+    `tuple(${eventFilterOptionColumnSqlLiteral(column)}, ${valueExpression}, JSON_EXTRACT(option, CONCAT('$[', 2, ']')), ${sortKeyExpression}, ${displayValueExpression})`,
   )}, ${alias})`;
 };
 
@@ -701,7 +701,7 @@ export const buildEventsExactFilterOptionsForColumnsQuery = (params: {
 
   const sampleFactorRow = sampled ? ",\n    sample_factor" : "";
   const countExpression = sampled
-    ? "toUInt64(round(option.count * sample_factor))"
+    ? "CAST(round(option.count * sample_factor AS UNSIGNED))"
     : "option.count";
 
   const query = `
@@ -762,9 +762,12 @@ export const buildEventsMetadataValuesQuery = (params: {
     selectExpression: `${valueAccessor} AS value, ${eventFilterOptionCountExpression(sampleRows)} AS count`,
   })
     .where(eventsFilter.apply())
-    .whereRaw("has(e.metadata_names, {metadataKey: String})", {
-      metadataKey: params.key,
-    })
+    .whereRaw(
+      "JSON_CONTAINS(e.metadata_names, CAST({metadataKey: String} AS JSON))",
+      {
+        metadataKey: params.key,
+      },
+    )
     .whereRaw(`length(${valueAccessor}) > 0`)
     .orderBy("ORDER BY count() DESC, value ASC")
     .limit(params.limit, 0)

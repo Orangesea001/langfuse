@@ -97,78 +97,78 @@ if (env.AUTH_DISABLE_USERNAME_PASSWORD !== "true") {
   staticProviders.push(
     CredentialsProvider({
       name: "credentials",
-    credentials: {
-      email: {
-        label: "Email",
-        type: "email",
-        placeholder: "jsmith@example.com",
-      },
-      password: { label: "Password", type: "password" },
-    },
-    async authorize(credentials, _req) {
-      if (!credentials) throw new Error("No credentials");
-      if (env.AUTH_DISABLE_USERNAME_PASSWORD === "true")
-        throw new Error(
-          "Sign in with email and password is disabled for this instance. Please use SSO.",
-        );
-
-      const blockedDomains = getSSOBlockedDomains();
-      const domain = credentials.email.split("@")[1]?.toLowerCase();
-      if (domain && blockedDomains.includes(domain)) {
-        throw new Error(
-          "Sign in with email and password is disabled for this domain. Please use SSO.",
-        );
-      }
-
-      // EE: Check custom SSO enforcement
-      const multiTenantSsoProvider =
-        await getSsoAuthProviderIdForDomain(domain);
-      if (multiTenantSsoProvider) {
-        throw new Error(ENTERPRISE_SSO_REQUIRED_MESSAGE);
-      }
-
-      const dbUser = await prisma.user.findUnique({
-        where: {
-          email: credentials.email.toLowerCase(),
+      credentials: {
+        email: {
+          label: "Email",
+          type: "email",
+          placeholder: "jsmith@example.com",
         },
-      });
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials, _req) {
+        if (!credentials) throw new Error("No credentials");
+        if (env.AUTH_DISABLE_USERNAME_PASSWORD === "true")
+          throw new Error(
+            "Sign in with email and password is disabled for this instance. Please use SSO.",
+          );
 
-      if (!dbUser) {
-        // Keep bcrypt work comparable across failed login paths to reduce timing-based user enumeration.
-        await hashPassword(credentials.password);
-        throw new Error("Invalid credentials");
-      }
+        const blockedDomains = getSSOBlockedDomains();
+        const domain = credentials.email.split("@")[1]?.toLowerCase();
+        if (domain && blockedDomains.includes(domain)) {
+          throw new Error(
+            "Sign in with email and password is disabled for this domain. Please use SSO.",
+          );
+        }
 
-      if (dbUser.password === null) {
-        throw new Error(
-          "Please sign in with the identity provider (e.g. Google, GitHub, Azure AD, etc.) that is linked to your account.",
+        // EE: Check custom SSO enforcement
+        const multiTenantSsoProvider =
+          await getSsoAuthProviderIdForDomain(domain);
+        if (multiTenantSsoProvider) {
+          throw new Error(ENTERPRISE_SSO_REQUIRED_MESSAGE);
+        }
+
+        const dbUser = await prisma.user.findUnique({
+          where: {
+            email: credentials.email.toLowerCase(),
+          },
+        });
+
+        if (!dbUser) {
+          // Keep bcrypt work comparable across failed login paths to reduce timing-based user enumeration.
+          await hashPassword(credentials.password);
+          throw new Error("Invalid credentials");
+        }
+
+        if (dbUser.password === null) {
+          throw new Error(
+            "Please sign in with the identity provider (e.g. Google, GitHub, Azure AD, etc.) that is linked to your account.",
+          );
+        }
+
+        const isValidPassword = await verifyPassword(
+          credentials.password,
+          dbUser.password,
         );
-      }
+        if (!isValidPassword) throw new Error("Invalid credentials");
 
-      const isValidPassword = await verifyPassword(
-        credentials.password,
-        dbUser.password,
-      );
-      if (!isValidPassword) throw new Error("Invalid credentials");
-
-      const userObj = {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        image: dbUser.image,
-        emailVerified: dbUser.emailVerified?.toISOString(),
-        featureFlags: parseFlags(dbUser.featureFlags, {
+        const userObj = {
+          id: dbUser.id,
+          name: dbUser.name,
           email: dbUser.email,
-          // The full session callback resolves deployment and rollout
-          // availability before applying employee defaults.
-          v4BetaEnabled: false,
-        }),
-        canCreateOrganizations: canCreateOrganizations(dbUser.email),
-        organizations: [],
-      };
+          image: dbUser.image,
+          emailVerified: dbUser.emailVerified?.toISOString(),
+          featureFlags: parseFlags(dbUser.featureFlags, {
+            email: dbUser.email,
+            // The full session callback resolves deployment and rollout
+            // availability before applying employee defaults.
+            v4BetaEnabled: false,
+          }),
+          canCreateOrganizations: canCreateOrganizations(dbUser.email),
+          organizations: [],
+        };
 
-      return userObj;
-    },
+        return userObj;
+      },
     }),
   );
 }
@@ -676,9 +676,7 @@ const createExtendedPrismaAdapter = (signupAttribution?: {
       // user's MIS login and no email claim is available) create users with a
       // null email. Identity is anchored on providerAccountId (`sub`), and
       // User.email is nullable, so only validate the email when present.
-      logger.info(
-        "Creating db user without an email (emailless SSO login)",
-      );
+      logger.info("Creating db user without an email (emailless SSO login)");
     }
 
     const user = await prismaAdapter.createUser(profile);

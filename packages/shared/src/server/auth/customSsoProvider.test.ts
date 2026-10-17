@@ -8,7 +8,8 @@ vi.mock("../../env", () => ({
     LANGFUSE_CUSTOM_SSO_NAME_CLAIM: "name",
     LANGFUSE_CUSTOM_SSO_SUB_CLAIM: "sub",
     LANGFUSE_CUSTOM_SSO_IMAGE_CLAIM: "picture",
-    LANGFUSE_CUSTOM_SSO_CLIENT_ASSERTION_AUD: "https://ssosv.sankuai.com/sson/auth/oidc/v1/token",
+    LANGFUSE_CUSTOM_SSO_CLIENT_ASSERTION_AUD:
+      "https://ssosv.sankuai.com/sson/auth/oidc/v1/token",
   },
 }));
 
@@ -141,12 +142,13 @@ describe("CustomSSOProvider", () => {
       vi.fn(async () => ({ sub: "linshu07", name: "林述" })),
     );
 
-    expect(provider.profile(profile as any, fakeTokenSet() as any))
-      .toMatchObject({
-        id: "linshu07",
-        name: "林述",
-        email: null,
-      });
+    expect(
+      provider.profile(profile as any, fakeTokenSet() as any),
+    ).toMatchObject({
+      id: "linshu07",
+      name: "林述",
+      email: null,
+    });
   });
 
   it("keeps the subject as the identity anchor for emailless logins", () => {

@@ -75,7 +75,6 @@ export { EXCEPTION_TAG_HEADER_NAME } from "./clickhouse/client";
 export {
   getClickHouseCompatibilitySettings,
   initializeClickhouseCompatibility,
-
   getClickHouseJsonBadUnicodeEscapeMode,
 } from "./clickhouse/compatibility";
 export * from "./clickhouse/schemaUtils";

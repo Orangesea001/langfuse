@@ -1,14 +1,10 @@
-import {
-  queryClickhouse,
-} from "./clickhouse";
+import { queryClickhouse } from "./clickhouse";
 import { createFilterFromFilterState } from "../queries/clickhouse-sql/factory";
 import { FilterState } from "../../types";
 import { DateTimeFilter, FilterList } from "../queries";
 import { dashboardColumnDefinitions } from "../tableMappings";
 import { convertDateToClickhouseDateTime } from "../clickhouse/client";
-import {
-  SCORE_TO_TRACE_OBSERVATIONS_INTERVAL,
-} from "./constants";
+import { SCORE_TO_TRACE_OBSERVATIONS_INTERVAL } from "./constants";
 
 export type DateTrunc = "month" | "week" | "day" | "hour" | "minute";
 
@@ -62,8 +58,8 @@ export const getScoreAggregate = async (
       avg(s.value) as avg_value,
       s.source,
       s.data_type
-    FROM scores s FINAL 
-     ${hasTraceFilter ? "JOIN traces t FINAL ON t.id = s.trace_id AND t.project_id = s.project_id" : ""}
+    FROM scores s  
+     ${hasTraceFilter ? "JOIN traces t  ON t.id = s.trace_id AND t.project_id = s.project_id" : ""}
     WHERE s.project_id = {projectId: String}
     AND ${chFilterApplied.query}
     ${environmentFilter.query ? `AND ${environmentFilter.query}` : ""}
@@ -93,7 +89,6 @@ export const getScoreAggregate = async (
 
   return result;
 };
-
 
 export const extractFromAndToTimestampsFromFilter = (filter?: FilterState) => {
   if (!filter)

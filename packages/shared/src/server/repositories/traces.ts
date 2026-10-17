@@ -122,19 +122,19 @@ export const checkTraceExistsAndGetTimestamp = async ({
     WITH observations_agg AS (
       SELECT
         multiIf(
-          arrayExists(x -> x = 'ERROR', groupArray(level)), 'ERROR',
-          arrayExists(x -> x = 'WARNING', groupArray(level)), 'WARNING',
-          arrayExists(x -> x = 'DEFAULT', groupArray(level)), 'DEFAULT',
+          arrayExists(x -> x = 'ERROR', JSON_ARRAYAGG(level)), 'ERROR',
+          arrayExists(x -> x = 'WARNING', JSON_ARRAYAGG(level)), 'WARNING',
+          arrayExists(x -> x = 'DEFAULT', JSON_ARRAYAGG(level)), 'DEFAULT',
           'DEBUG'
         ) AS aggregated_level,
-        countIf(level = 'ERROR') as error_count,
-        countIf(level = 'WARNING') as warning_count,
-        countIf(level = 'DEFAULT') as default_count,
-        countIf(level = 'DEBUG') as debug_count,
+        SUM(IF(level = 'ERROR', 1, 0)) as error_count,
+        SUM(IF(level = 'WARNING', 1, 0)) as warning_count,
+        SUM(IF(level = 'DEFAULT', 1, 0)) as default_count,
+        SUM(IF(level = 'DEBUG', 1, 0)) as debug_count,
         -- Remove those columns as this should only be used within the evalService and doesn't use them
         -- date_diff('millisecond', least(min(start_time), min(end_time)), greatest(max(start_time), max(end_time))) as latency_milliseconds,
-        -- sumMap(usage_details) as usage_details,
-        -- sumMap(cost_details) as cost_details,
+        -- usage_details as usage_details,
+        -- cost_details as cost_details,
         trace_id,
         project_id
       FROM observations o
@@ -168,7 +168,7 @@ export const checkTraceExistsAndGetTimestamp = async ({
       t.id as id,
       t.project_id as project_id,
       t.timestamp as timestamp
-    -- We skip FINAL here. If one trace exists that matches the conditions, we consider this truthy
+    -- We skip  here. If one trace exists that matches the conditions, we consider this truthy
     -- even if the trace got updated in the meantime to a non-matching state.
     -- As updates are usually addittive, this is deemed acceptable given the performance benefits.
     FROM traces t
@@ -178,7 +178,7 @@ export const checkTraceExistsAndGetTimestamp = async ({
     AND t.timestamp >= {timestamp: DateTime64(3)} - ${TRACE_TO_OBSERVATIONS_INTERVAL}
     ${maxTimeStamp ? `AND t.timestamp <= {maxTimeStamp: DateTime64(3)}` : ""}
     ${!maxTimeStamp ? `AND t.timestamp <= {timestamp: DateTime64(3)} + INTERVAL 2 DAY` : ""}
-    ${exactTimestamp ? `AND toDate(t.timestamp) = toDate({exactTimestamp: DateTime64(3)})` : ""}
+    ${exactTimestamp ? `AND DATE(t.timestamp) = DATE({exactTimestamp: DateTime64(3)})` : ""}
     GROUP BY t.id, t.project_id, t.timestamp
   `;
 
@@ -541,7 +541,7 @@ export const getTraceByIdFromTracesTable = async ({
     FROM traces
     WHERE id = {traceId: String}
     AND project_id = {projectId: String}
-    ${timestamp ? `AND toDate(timestamp) = toDate({timestamp: DateTime64(3)})` : ""}
+    ${timestamp ? `AND DATE(timestamp) = DATE({timestamp: DateTime64(3)})` : ""}
     ${fromTimestamp ? `AND timestamp >= {fromTimestamp: DateTime64(3)}` : ""}
     ORDER BY event_ts DESC
     LIMIT 1
@@ -820,7 +820,7 @@ export const getTracesIdentifierForSessionFromTracesTable = async (
     WHERE (project_id = {projectId: String})
     AND (session_id = {sessionId: String})
     ORDER BY timestamp ASC
-    LIMIT 1 BY id, project_id;
+    LIMIT 1 project_id;
   `;
 
   const rows = await queryClickhouse<{
@@ -1083,7 +1083,7 @@ export const getUserMetrics = async (
             t.user_id as user_id,
             anyLast(t.environment) as environment,
             count(distinct o.id) as obs_count,
-            sumMap(usage_details) as sum_usage_details,
+            usage_details as sum_usage_details,
             sum(total_cost) as sum_total_cost,
             max(t.timestamp) as max_timestamp,
             min(t.timestamp) as min_timestamp,
@@ -1123,7 +1123,7 @@ export const getUserMetrics = async (
                     t.timestamp,
                     t.environment
                 FROM
-                    __TRACE_TABLE__ t FINAL
+                    __TRACE_TABLE__ t 
                 WHERE
                     t.user_id IN ({userIds: Array(String) })
                     AND t.project_id = {projectId: String }
@@ -1221,7 +1221,7 @@ const buildTracesForBlobStorageExportQuery = (
       output as output,
       created_at,
       updated_at
-    FROM ${traceTable} FINAL
+    FROM ${traceTable} 
     WHERE project_id = {projectId: String}
     AND timestamp >= {minTimestamp: DateTime64(3)}
     AND timestamp < {maxTimestamp: DateTime64(3)}
@@ -1287,7 +1287,7 @@ export const getTracesForAnalyticsIntegrations = async function* (
              sum(total_cost) as total_cost,
              count(*) as observation_count,
              date_diff('millisecond', least(min(start_time), min(end_time)), greatest(max(start_time), max(end_time))) as latency_milliseconds
-      FROM observations o FINAL
+      FROM observations o 
       WHERE o.project_id = {projectId: String}
       AND o.start_time >= {minTimestamp: DateTime64(3)} - ${TRACE_TO_OBSERVATIONS_INTERVAL}
       AND o.start_time < {maxTimestamp: DateTime64(3)} + ${OBSERVATIONS_TO_TRACE_INTERVAL}
@@ -1309,7 +1309,7 @@ export const getTracesForAnalyticsIntegrations = async function* (
       o.total_cost as total_cost,
       o.latency_milliseconds / 1000 as latency,
       o.observation_count as observation_count
-    FROM ${traceTable} t FINAL
+    FROM ${traceTable} t 
     LEFT JOIN observations_agg o ON t.id = o.trace_id AND t.project_id = o.project_id
     WHERE t.project_id = {projectId: String}
     AND t.timestamp >= {minTimestamp: DateTime64(3)}
@@ -1473,11 +1473,11 @@ export const getTraceCountsByProjectAndDay = async ({
     SELECT
       count(*) as count,
       project_id,
-      toDate(timestamp) as date
+      DATE(timestamp) as date
     FROM traces
     WHERE timestamp >= {startDate: DateTime64(3)}
     AND timestamp < {endDate: DateTime64(3)}
-    GROUP BY project_id, toDate(timestamp)
+    GROUP BY project_id, DATE(timestamp)
   `;
 
   const rows = await queryClickhouse<{
@@ -1655,15 +1655,15 @@ async function buildTracesBaseQuery(
         trace_id,
         project_id,
         ${includeMetricsInCTE ? "sum(total_cost) as total_cost, date_diff('millisecond', least(min(start_time), min(end_time)), greatest(max(start_time), max(end_time))) as latency_milliseconds, " : ""}
-        sumMap(usage_details) as usage_details,
-        sumMap(cost_details) as cost_details,
-        multiIf(arrayExists(x -> x = 'ERROR', groupArray(level)), 'ERROR', arrayExists(x -> x = 'WARNING', groupArray(level)), 'WARNING', arrayExists(x -> x = 'DEFAULT', groupArray(level)), 'DEFAULT', 'DEBUG') AS aggregated_level,
-        countIf(level = 'WARNING') as warning_count,
-        countIf(level = 'ERROR') as error_count,
-        countIf(level = 'DEFAULT') as default_count,
-        countIf(level = 'DEBUG') as debug_count,
+        usage_details as usage_details,
+        cost_details as cost_details,
+        multiIf(arrayExists(x -> x = 'ERROR', JSON_ARRAYAGG(level)), 'ERROR', arrayExists(x -> x = 'WARNING', JSON_ARRAYAGG(level)), 'WARNING', arrayExists(x -> x = 'DEFAULT', JSON_ARRAYAGG(level)), 'DEFAULT', 'DEBUG') AS aggregated_level,
+        SUM(IF(level = 'WARNING', 1, 0)) as warning_count,
+        SUM(IF(level = 'ERROR', 1, 0)) as error_count,
+        SUM(IF(level = 'DEFAULT', 1, 0)) as default_count,
+        SUM(IF(level = 'DEBUG', 1, 0)) as debug_count,
         groupUniqArray(id) as observation_ids
-      FROM observations ${shouldUseFinal ? "FINAL" : ""}
+      FROM observations ${shouldUseFinal ? "" : ""}
       WHERE project_id = {projectId: String}
       ${fromTimeFilter ? `AND start_time >= {cteFromTimeFilter: DateTime64(3)} - ${TRACE_TO_OBSERVATIONS_INTERVAL}` : ""}
       ${toTimeFilter && propagateObservationsTimeBounds ? `AND start_time <= {cteToTimeFilter: DateTime64(3)} + ${TRACE_TO_OBSERVATIONS_INTERVAL}` : ""}
@@ -1693,7 +1693,7 @@ async function buildTracesBaseQuery(
           data_type,
           string_value,
           avg(value) as avg_value
-        FROM scores FINAL
+        FROM scores 
         WHERE project_id = {projectId: String}
         AND session_id IS NULL
         AND dataset_run_id IS NULL
@@ -1741,7 +1741,7 @@ async function buildTracesBaseQuery(
     (shouldUseSkipIndexes ? ", t.event_ts desc" : "");
 
   const queryMiddle = `
-  FROM traces t ${shouldUseSkipIndexes ? "" : "FINAL"}
+  FROM traces t ${shouldUseSkipIndexes ? "" : ""}
   ${select.includeObservations || select.includeMetrics || filtersNeedObservations ? "LEFT JOIN observation_stats o ON t.id = o.trace_id AND t.project_id = o.project_id" : ""}
   ${select.includeScores || filtersNeedScores ? "LEFT JOIN score_stats s ON t.id = s.trace_id AND t.project_id = s.project_id" : ""}
   WHERE t.project_id = {projectId: String}
@@ -1805,9 +1805,9 @@ async function buildTracesBaseQuery(
       ${paginationClause}
     )`);
 
-    const ioFinal = shouldUseSkipIndexes ? "" : "FINAL";
+    const ioFinal = shouldUseSkipIndexes ? "" : "";
     const ioDedup = shouldUseSkipIndexes
-      ? "ORDER BY event_ts DESC LIMIT 1 BY id, project_id"
+      ? "ORDER BY event_ts DESC LIMIT 1 project_id"
       : "";
     ctes.push(`io AS (
       SELECT id as _io_id, project_id as _io_project_id, input, output, metadata

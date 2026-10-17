@@ -95,7 +95,7 @@ const buildTraceBatchEventQuery = (props: TraceBatchEventStreamProps) => {
     timeGroupParams[minParam] = chunk.map(({ minStart }) => minStart);
     timeGroupParams[maxParam] = chunk.map(({ maxStart }) => maxStart);
     timeGroupPredicates.push(
-      `arrayExists((group_project_id, group_trace_ids, min_ms, max_ms) -> e.project_id = group_project_id AND has(group_trace_ids, e.trace_id) AND e.start_time BETWEEN fromUnixTimestamp64Milli(min_ms) AND fromUnixTimestamp64Milli(max_ms), {${projectParam}:Array(String)}, {${tracesParam}:Array(Array(String))}, {${minParam}:Array(Int64)}, {${maxParam}:Array(Int64)})`,
+      `arrayExists((group_project_id, group_trace_ids, min_ms, max_ms) -> e.project_id = group_project_id AND JSON_CONTAINS(group_trace_ids, CAST(e.trace_id AS JSON)) AND e.start_time BETWEEN fromUnixTimestamp64Milli(min_ms) AND fromUnixTimestamp64Milli(max_ms), {${projectParam}:Array(String)}, {${tracesParam}:Array(Array(String))}, {${minParam}:Array(Int64)}, {${maxParam}:Array(Int64)})`,
     );
   }
   const projectIds = [...new Set(props.traces.map((trace) => trace.projectId))];

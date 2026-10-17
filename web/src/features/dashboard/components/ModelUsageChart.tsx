@@ -114,7 +114,6 @@ export const ModelUsageChart = ({
     },
   );
 
-
   // Each series is memoized on its raw query result (+ model selection) so the
   // reference stays stable across the scheduler's page re-renders — that's what
   // lets the chart's React.memo bail. (LFE-10549)
@@ -191,7 +190,6 @@ export const ModelUsageChart = ({
       chartMetricLabel: "Tokens",
       chartUnit: "tokens",
     },
-
   ];
   return (
     <DashboardCard

@@ -4,7 +4,7 @@ import path from "path";
 
 /**
  * Unit tests for dashboards.ts after removing cost/usage by-type timeseries.
- * 
+ *
  * We use source-code analysis (instead of runtime import) to avoid triggering
  * the full module graph (env.ts Zod parsing, Prisma client init, etc.).
  * For behavioral tests, we test the function logic in isolation.
@@ -22,14 +22,18 @@ describe("dashboards repository (after removing cost/usage by-type timeseries)",
     });
 
     it("should export extractFromAndToTimestampsFromFilter", () => {
-      expect(dashboardsSource).toContain("export const extractFromAndToTimestampsFromFilter");
+      expect(dashboardsSource).toContain(
+        "export const extractFromAndToTimestampsFromFilter",
+      );
     });
 
     it("getScoreAggregate should use AVG and COUNT on scores", () => {
       expect(dashboardsSource).toContain("avg(s.value)");
       expect(dashboardsSource).toContain("count(*)");
       expect(dashboardsSource).toContain("FROM scores s");
-      expect(dashboardsSource).toContain("GROUP BY s.name, s.source, s.data_type");
+      expect(dashboardsSource).toContain(
+        "GROUP BY s.name, s.source, s.data_type",
+      );
     });
 
     it("extractFromAndToTimestampsFromFilter should handle datetime operators", () => {
@@ -41,11 +45,15 @@ describe("dashboards repository (after removing cost/usage by-type timeseries)",
 
   describe("removed functions must not exist", () => {
     it("should NOT export getObservationCostByTypeByTime", () => {
-      expect(dashboardsSource).not.toContain("export const getObservationCostByTypeByTime");
+      expect(dashboardsSource).not.toContain(
+        "export const getObservationCostByTypeByTime",
+      );
     });
 
     it("should NOT export getObservationUsageByTypeByTime", () => {
-      expect(dashboardsSource).not.toContain("export const getObservationUsageByTypeByTime");
+      expect(dashboardsSource).not.toContain(
+        "export const getObservationUsageByTypeByTime",
+      );
     });
 
     it("should NOT export orderByTimeSeries", () => {
@@ -53,7 +61,9 @@ describe("dashboards repository (after removing cost/usage by-type timeseries)",
     });
 
     it("should NOT export selectTimeseriesColumn", () => {
-      expect(dashboardsSource).not.toContain("export const selectTimeseriesColumn");
+      expect(dashboardsSource).not.toContain(
+        "export const selectTimeseriesColumn",
+      );
     });
   });
 
@@ -85,12 +95,23 @@ describe("dashboards repository (after removing cost/usage by-type timeseries)",
   describe("extractFromAndToTimestampsFromFilter logic", () => {
     // Test the pure function by evaluating it directly
     it("should extract timestamps from valid filter", () => {
-      const extractFn = (filter: Array<{type: string; column: string; operator: string; value: Date}>) => {
+      const extractFn = (
+        filter: Array<{
+          type: string;
+          column: string;
+          operator: string;
+          value: Date;
+        }>,
+      ) => {
         const fromTimestamp = filter.filter(
-          (f) => f.type === "datetime" && (f.operator === ">" || f.operator === ">="),
+          (f) =>
+            f.type === "datetime" &&
+            (f.operator === ">" || f.operator === ">="),
         );
         const toTimestamp = filter.filter(
-          (f) => f.type === "datetime" && (f.operator === "<" || f.operator === "<="),
+          (f) =>
+            f.type === "datetime" &&
+            (f.operator === "<" || f.operator === "<="),
         );
         return [fromTimestamp[0], toTimestamp[0]];
       };
@@ -99,8 +120,18 @@ describe("dashboards repository (after removing cost/usage by-type timeseries)",
       const to = new Date("2024-01-02T00:00:00Z");
 
       const [fromFilter, toFilter] = extractFn([
-        { type: "datetime", column: "timestamp", operator: ">=" as const, value: from },
-        { type: "datetime", column: "timestamp", operator: "<=" as const, value: to },
+        {
+          type: "datetime",
+          column: "timestamp",
+          operator: ">=" as const,
+          value: from,
+        },
+        {
+          type: "datetime",
+          column: "timestamp",
+          operator: "<=" as const,
+          value: to,
+        },
       ]);
 
       expect(fromFilter?.value).toEqual(from);
@@ -109,7 +140,9 @@ describe("dashboards repository (after removing cost/usage by-type timeseries)",
 
     it("should throw on empty filter", () => {
       // The source code throws when filter is empty or undefined
-      expect(dashboardsSource).toContain("throw new Error(\"Time Filter is required");
+      expect(dashboardsSource).toContain(
+        'throw new Error("Time Filter is required',
+      );
     });
   });
 });

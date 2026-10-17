@@ -317,19 +317,17 @@ export const ingestionQueueProcessorBuilder = (
         });
       }
 
-      await new IngestionService(
-        redis,
-        prisma,
-        clickhouseWriter,
-      ).mergeAndWrite({
-        eventType: getClickhouseEntityType(events[0].type),
-        projectId: job.data.payload.authCheck.scope.projectId,
-        entityId: canonicalEntityId,
-        createdAtTimestamp: firstS3WriteTime,
-        events,
-        forwardToEventsTable,
-        attribution,
-      });
+      await new IngestionService(redis, prisma, clickhouseWriter).mergeAndWrite(
+        {
+          eventType: getClickhouseEntityType(events[0].type),
+          projectId: job.data.payload.authCheck.scope.projectId,
+          entityId: canonicalEntityId,
+          createdAtTimestamp: firstS3WriteTime,
+          events,
+          forwardToEventsTable,
+          attribution,
+        },
+      );
     } catch (e) {
       // Check if this is a SlowDown error and mark the project for secondary queue
       if (isS3SlowDownError(e)) {

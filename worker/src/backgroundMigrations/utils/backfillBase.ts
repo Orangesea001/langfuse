@@ -561,7 +561,9 @@ export abstract class ChunkedClickhouseBackfillMigration<
     const tableRows = await queryClickhouse<{ name: string }>({
       query: "SHOW TABLES",
     });
-    const tableNames = tableRows.map((row: any) => ({ name: Object.values(row)[0] as string }));
+    const tableNames = tableRows.map((row: any) => ({
+      name: Object.values(row)[0] as string,
+    }));
     return (
       this.requiredTables.find(
         (required) => !tableNames.some((r) => r.name === required),

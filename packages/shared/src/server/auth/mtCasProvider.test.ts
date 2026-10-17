@@ -21,9 +21,7 @@ describe("MtCasProvider", () => {
 
   it("points the authorization url at the SSO login endpoint", () => {
     const provider = MtCasProvider(baseOptions);
-    const authorization = provider.authorization as
-      | { url: string }
-      | string;
+    const authorization = provider.authorization as { url: string } | string;
 
     expect(
       typeof authorization === "string" ? authorization : authorization.url,
@@ -89,10 +87,7 @@ describe("MtCasProvider", () => {
     expect(auth).toMatch(/^MWS client-id:/);
     const expectedSignature = crypto
       .createHmac("sha1", "client-secret")
-      .update(
-        `GET /sson/oauth2.0/access-token\n${init.headers.Date}`,
-        "utf8",
-      )
+      .update(`GET /sson/oauth2.0/access-token\n${init.headers.Date}`, "utf8")
       .digest("base64");
     expect(auth).toBe(`MWS client-id:${expectedSignature}`);
 

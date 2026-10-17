@@ -1110,8 +1110,8 @@ const buildQualificationPlan = (
       ? filteredCompExperimentIds.length > 0
         ? {
             query: `
-          countIf(e.experiment_id = {baseExperimentId: String}) > 0
-          AND countIf(e.experiment_id IN ({filteredCompExperimentIds: Array(String)})) > 0
+          SUM(IF(e.experiment_id = {baseExperimentId: String}, 1, 0)) > 0
+          AND SUM(IF(e.experiment_id IN ({filteredCompExperimentIds: Array(String, 1, 0))})) > 0
         `,
             params: {
               baseExperimentId,
@@ -1119,7 +1119,7 @@ const buildQualificationPlan = (
             },
           }
         : {
-            query: `countIf(e.experiment_id = {baseExperimentId: String}) > 0`,
+            query: `SUM(IF(e.experiment_id = {baseExperimentId: String}, 1, 0)) > 0`,
             params: {
               baseExperimentId,
             },

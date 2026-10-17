@@ -60,17 +60,45 @@ export type ClickHouseQueryTags = {
   userAgent?: string;
 };
 
+export const CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS = {
+  surface: "langfuse.clickhouse.surface",
+  route: "langfuse.clickhouse.route",
+  projectId: "langfuse.project.id",
+  sdkName: "langfuse.clickhouse.sdk_name",
+  sdkVersion: "langfuse.clickhouse.sdk_version",
+  userAgent: "langfuse.clickhouse.user_agent",
+} as const;
+
 export const normalizeClickHouseQueryTags = (
   tags?: ClickHouseQueryTags,
 ): NormalizedClickHouseQueryTags => {
-  const surface = tags?.surface;
-  const normalizedRoute = tags?.route;
-  const projectId = tags?.projectId;
-
+  const baggage = propagation.getBaggage(context.active());
+  const surface =
+    tags?.surface ??
+    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.surface)?.value;
+  const route =
+    tags?.route ??
+    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.route)?.value;
+  const projectId =
+    tags?.projectId ??
+    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.projectId)?.value;
+  const sdkName =
+    tags?.sdkName ??
+    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkName)?.value;
+  const sdkVersion =
+    tags?.sdkVersion ??
+    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkVersion)?.value;
+  const userAgent =
+    tags?.userAgent ??
+    baggage?.getEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.userAgent)?.value;
+  const normalizedRoute = typeof route === "string" ? route.trim() : "";
   const isPublicApi = surface === "public-api" || surface === "publicapi";
-  const normalizedSdkName = isPublicApi ? tags?.sdkName : undefined;
-  const normalizedSdkVersion = isPublicApi ? tags?.sdkVersion : undefined;
-  const normalizedUserAgent = isPublicApi ? tags?.userAgent : undefined;
+  const normalizedSdkName =
+    sdkName === "python" || sdkName === "javascript" ? sdkName : undefined;
+  const normalizedSdkVersion =
+    typeof sdkVersion === "string" ? sdkVersion.trim() : "";
+  const normalizedUserAgent =
+    typeof userAgent === "string" ? userAgent.trim() : "";
 
   return {
     tag_schema_version: CLICKHOUSE_QUERY_TAG_SCHEMA_VERSION,
@@ -81,8 +109,12 @@ export const normalizeClickHouseQueryTags = (
     ...(projectId ? { projectId } : {}),
     ...(tags?.experimentId ? { experimentId: tags.experimentId } : {}),
     ...(isPublicApi && normalizedSdkName ? { sdkName: normalizedSdkName } : {}),
-    ...(isPublicApi && normalizedSdkVersion ? { sdkVersion: normalizedSdkVersion } : {}),
-    ...(isPublicApi && normalizedUserAgent ? { userAgent: normalizedUserAgent } : {}),
+    ...(isPublicApi && normalizedSdkVersion
+      ? { sdkVersion: normalizedSdkVersion }
+      : {}),
+    ...(isPublicApi && normalizedUserAgent
+      ? { userAgent: normalizedUserAgent }
+      : {}),
   };
 };
 

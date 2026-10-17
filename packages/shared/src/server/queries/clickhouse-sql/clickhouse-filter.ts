@@ -459,7 +459,7 @@ export class StringObjectFilter implements Filter {
       const namesColumn = `${prefix}${this.field}_names`;
       const valuesColumn = `${prefix}${this.field}_values`;
       const valueAccessor = `${valuesColumn}[indexOf(${namesColumn}, {${varKeyName}: String})]`;
-      const hasKey = `has(${namesColumn}, {${varKeyName}: String})`;
+      const hasKey = `JSON_CONTAINS(${namesColumn}, CAST({${varKeyName}: String} AS JSON))`;
       const valueParam = `{${varValueName}: String}`;
       const ngramPrefilterParamName = `stringObjectNgramFilter${clickhouseCompliantRandomCharacters()}`;
       const shouldUseNgramPrefilter =
@@ -754,7 +754,7 @@ export class BooleanObjectFilter implements Filter {
     const varName = `booleanObjectFilter${uid}`;
     const column = `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field}`;
     const value = encodeBooleanScoreEntry(this.key, this.value);
-    const predicate = `has(${column}, {${varName}: String})`;
+    const predicate = `JSON_CONTAINS(${column}, CAST({${varName}: String} AS JSON))`;
 
     return {
       query: this.operator === "<>" ? `NOT ${predicate}` : predicate,

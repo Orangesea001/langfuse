@@ -9,7 +9,7 @@ export const getBlobStorageByProjectAndEntityId = async (
 ): Promise<BlobStorageFileRefRecordReadType[]> => {
   const query = `
     select *
-    from blob_storage_file_log FINAL
+    from blob_storage_file_log 
     where project_id = {projectId: String}
     and entity_type = {entityType: String}
     and entity_id = {entityId: String}
@@ -31,7 +31,7 @@ export const getBlobStorageByProjectId = (
 ): AsyncGenerator<BlobStorageFileRefRecordReadType> => {
   const query = `
     select *
-    from blob_storage_file_log FINAL
+    from blob_storage_file_log 
     where project_id = {projectId: String}
   `;
 
@@ -55,7 +55,7 @@ export const getBlobStorageByProjectIdBeforeDate = (
 ): AsyncGenerator<BlobStorageFileRefRecordReadType> => {
   const query = `
         select *
-        from blob_storage_file_log FINAL
+        from blob_storage_file_log 
         where project_id = {projectId: String}
         and created_at <= {beforeDate: DateTime64(3)}
     `;
@@ -82,7 +82,7 @@ export const getBlobStorageByProjectIdAndEntityIds = (
 ): AsyncGenerator<BlobStorageFileRefRecordReadType> => {
   const query = `
     select *
-    from blob_storage_file_log FINAL
+    from blob_storage_file_log 
     where project_id = {projectId: String}
       and entity_type = {entityType: String}
       and entity_id in ({entityIds: Array(String)})
@@ -167,7 +167,7 @@ export const getBlobStorageByProjectIdAndTraceIds = (
     )
 
     select el.*
-    from blob_storage_file_log el FINAL
+    from blob_storage_file_log el 
     where el.project_id = {projectId: String}
       and (el.entity_type, el.entity_id) in (
         select entity_type, entity_id from filtered_entities

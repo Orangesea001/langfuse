@@ -113,7 +113,7 @@ export const searchExistingAnnotationScore = async (
       ${configId ? `OR s.config_id = {configId: String}` : ""}
     )
     ORDER BY s.event_ts DESC
-    LIMIT 1 BY s.id, s.project_id
+    LIMIT 1 s.project_id
     LIMIT 1
   `;
 
@@ -264,7 +264,7 @@ export const getScoresForSessions = async <
       AND s.session_id IN ({sessionIds: Array(String)})
       AND s.data_type IN ({dataTypes: Array(String)})
       ORDER BY s.event_ts DESC
-      LIMIT 1 BY s.id, s.project_id
+      LIMIT 1 s.project_id
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
@@ -313,7 +313,7 @@ export const getScoresForExperiments = async <
       AND s.dataset_run_id IN ({runIds: Array(String)})
       AND s.data_type IN ({dataTypes: Array(String)})
       ORDER BY s.event_ts DESC
-      LIMIT 1 BY s.id, s.project_id
+      LIMIT 1 s.project_id
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
@@ -372,14 +372,14 @@ export const getTraceScoresForDatasetRuns = async (
       length(mapKeys(s.metadata)) > 0 AS has_metadata,
       dri.dataset_run_id as run_id
     FROM dataset_run_items_rmt dri
-    JOIN scores s FINAL ON dri.trace_id = s.trace_id
+    JOIN scores s  ON dri.trace_id = s.trace_id
       AND dri.project_id = s.project_id
     WHERE dri.project_id = {projectId: String}
       AND dri.dataset_run_id IN {datasetRunIds: Array(String)}
       AND s.project_id = {projectId: String}
       AND s.data_type IN ({dataTypes: Array(String)})
     ORDER BY s.event_ts DESC
-    LIMIT 1 BY s.id, s.project_id, dri.dataset_run_id
+    LIMIT 1 s.project_id, dri.dataset_run_id
   `;
 
   const rows = await queryClickhouse<
@@ -456,12 +456,12 @@ export const getScoresForExperimentItems = async (
       length(mapKeys(s.metadata)) > 0 AS has_metadata,
       e.experiment_id as experiment_id
     FROM (${eventsSubquery.query}) e
-    JOIN scores s FINAL ON e.trace_id = s.trace_id
+    JOIN scores s  ON e.trace_id = s.trace_id
       AND e.project_id = s.project_id
     WHERE s.project_id = {projectId: String}
       AND s.data_type IN ({dataTypes: Array(String)})
     ORDER BY s.event_ts DESC
-    LIMIT 1 BY s.id, s.project_id, e.experiment_id
+    LIMIT 1 s.project_id, e.experiment_id
   `;
 
   const rows = await queryClickhouse<
@@ -532,7 +532,7 @@ const getScoresForTracesInternal = async <
       ${timestamp ? `AND s.timestamp >= {traceTimestamp: DateTime64(3)} - ${SCORE_TO_TRACE_OBSERVATIONS_INTERVAL}` : ""}
       ${levelFilter}
       ORDER BY s.event_ts DESC
-      LIMIT 1 BY s.id, s.project_id
+      LIMIT 1 s.project_id
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
@@ -659,7 +659,7 @@ export const getScoresForObservations = async <
       AND s.data_type IN ({dataTypes: Array(String)})
       ${minTimestamp ? `AND s.timestamp >= {minTimestamp: DateTime64(3)} - ${SCORE_TO_TRACE_OBSERVATIONS_INTERVAL}` : ""}
       ORDER BY s.event_ts DESC
-      LIMIT 1 BY s.id, s.project_id
+      LIMIT 1 s.project_id
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
@@ -799,7 +799,7 @@ export async function queryScoreRecordsForExperimentItems({
             )
           )
         ORDER BY s.event_ts DESC
-        LIMIT 1 BY s.id
+        LIMIT 1
       ) s
       ORDER BY s.event_ts DESC
       LIMIT {scoreLimit: UInt32} BY s.trace_id
@@ -862,7 +862,7 @@ export async function queryScoreRecordsForExperiments({
           AND s.observation_id IS NULL
           AND s.session_id IS NULL
         ORDER BY s.event_ts DESC
-        LIMIT 1 BY s.id
+        LIMIT 1
       ) s
       ORDER BY s.dataset_run_id ASC, s.event_ts DESC
       LIMIT {scoreLimit: UInt32} BY s.dataset_run_id
@@ -1027,7 +1027,7 @@ export const getNumericScoresGroupedByName = async (
         name as name
       from scores s
       WHERE s.project_id = {projectId: String}
-      AND has(['NUMERIC', 'BOOLEAN'], s.data_type)
+      AND JSON_CONTAINS(['NUMERIC', CAST('BOOLEAN'], s.data_type AS JSON))
       ${filterRes?.query ? `AND ${filterRes.query}` : ""}
       GROUP BY name
       ORDER BY count() desc
@@ -1491,7 +1491,7 @@ const buildScoresDatePrune = (
     const varName = `scoresInnerDatePrune${clickhouseCompliantRandomCharacters()}`;
     const column = `${f.tablePrefix ? `${f.tablePrefix}.` : ""}${f.field}`;
     params[varName] = convertDateToClickhouseDateTime(new Date(f.value));
-    return `toDate(${column}) ${dateOp} toDate({${varName}: DateTime64(3, 'UTC')})`;
+    return `DATE(${column}) ${dateOp} DATE({${varName}: DateTime64(3, 'UTC')})`;
   });
 
   return { query: clauses.join(" AND "), params };
@@ -1680,7 +1680,7 @@ const getScoresUiGenericFromEvents = async <T>(props: {
           ).join(",\n          ")}
         FROM scores s
         ${innerScanWhere}
-        GROUP BY s.project_id, toDate(s.timestamp), s.name, s.id
+        GROUP BY s.project_id, DATE(s.timestamp), s.name, s.id
       ) s
       ${eventsJoin}
       ${outerWhereClause}
@@ -1694,7 +1694,7 @@ const getScoresUiGenericFromEvents = async <T>(props: {
         FROM scores s
         ${innerScanWhere}
         ORDER BY s.event_ts DESC
-        LIMIT 1 BY s.project_id, toDate(s.timestamp), s.name, s.id
+        LIMIT 1 DATE(s.timestamp), s.name, s.id
       ) s
       ${eventsJoin}
       ${outerWhereClause}
@@ -2046,7 +2046,7 @@ export const getNumericScoreHistogram = async (
     ${traceFilter ? `AND t.project_id = {projectId: String}` : ""}
     ${chFilterRes?.query ? `AND ${chFilterRes.query}` : ""}
     ORDER BY s.event_ts DESC
-    LIMIT 1 BY s.id, s.project_id
+    LIMIT 1 s.project_id
     ${limit !== undefined ? `limit {limit: Int32}` : ""}
   `;
 
@@ -2086,7 +2086,7 @@ export const getAggregatedScoresForPrompts = async (
       s.comment,
       s.timestamp,
       length(mapKeys(s.metadata)) > 0 AS has_metadata
-    FROM scores s FINAL LEFT JOIN observations o FINAL
+    FROM scores s  LEFT JOIN observations o 
       ON o.trace_id = s.trace_id
       AND o.project_id = s.project_id
       ${fetchScoreRelation === "observation" ? "AND o.id = s.observation_id" : ""}
@@ -2163,7 +2163,7 @@ export const buildAggregatedScoresForPromptsFromEventsQuery = (
         s.comment AS comment,
         s.timestamp AS timestamp,
         s.metadata AS metadata
-      FROM scores s FINAL
+      FROM scores s 
       INNER JOIN prompt_events e
         ON s.project_id = e.project_id
         AND s.trace_id = e.trace_id
@@ -2431,7 +2431,7 @@ const buildScoresForBlobStorageExportQuery = (
       string_value,
       created_at,
       updated_at
-    FROM scores FINAL
+    FROM scores 
     WHERE project_id = {projectId: String}
     AND timestamp >= {minTimestamp: DateTime64(3)}
     AND timestamp < {maxTimestamp: DateTime64(3)}
@@ -2509,7 +2509,7 @@ const buildAnalyticsScoreTraceAttributesCte = (
         t.tags as tags,
         t.metadata['$posthog_session_id'] as posthog_session_id,
         t.metadata['$mixpanel_session_id'] as mixpanel_session_id
-      FROM traces t FINAL
+      FROM traces t 
       WHERE t.project_id = {projectId: String}
       AND t.timestamp >= {minTimestamp: DateTime64(3)} - INTERVAL 7 DAY
       AND t.timestamp <= {maxTimestamp: DateTime64(3)}`,
@@ -2610,7 +2610,7 @@ export const getScoresForAnalyticsIntegrations = async function* (
       s.metadata as metadata,
       t.posthog_session_id as posthog_session_id,
       t.mixpanel_session_id as mixpanel_session_id
-    FROM scores s FINAL
+    FROM scores s 
     LEFT JOIN selected_traces t ON s.trace_id = t.id AND s.project_id = t.project_id
     WHERE s.project_id = {projectId: String}
     AND s.timestamp >= {minTimestamp: DateTime64(3)}
@@ -2724,7 +2724,7 @@ export const getScoreMetadataById = async (
     AND s.id = {id: String}
     ${source ? `AND s.source = {source: String}` : ""}
     ORDER BY s.event_ts DESC
-    LIMIT 1 BY s.id, s.project_id
+    LIMIT 1 s.project_id
     LIMIT 1
   `;
 
@@ -2778,12 +2778,12 @@ export const getScoreCountsByProjectAndDay = async ({
     SELECT
       count(*) as count,
       project_id,
-      toDate(timestamp) as date
+      DATE(timestamp) as date
     FROM scores
     WHERE timestamp >= {startDate: DateTime64(3)}
     AND timestamp < {endDate: DateTime64(3)}
     AND data_type IN ({dataTypes: Array(String)})
-    GROUP BY project_id, toDate(timestamp)
+    GROUP BY project_id, DATE(timestamp)
   `;
 
   const rows = await queryClickhouse<{
@@ -2932,8 +2932,7 @@ export const _handleGenerateScoresForPublicApi = async ({
                 ${scoreScope === "traces_only" ? "AND s.session_id IS NULL AND s.dataset_run_id IS NULL" : ""}
               ORDER BY
                 s.timestamp desc
-              LIMIT
-                1 BY s.id, s.project_id
+              LIMIT 1 s.project_id
                 ))
           )
           ${scoreScope === "traces_only" ? "AND s.session_id IS NULL AND s.dataset_run_id IS NULL" : ""}
@@ -2941,8 +2940,7 @@ export const _handleGenerateScoresForPublicApi = async ({
           ${tracesFilter.length() > 0 ? `AND ${appliedTracesFilter.query}` : ""}
       ORDER BY
           s.timestamp desc, s.event_ts desc
-      LIMIT
-          1 BY s.id, s.project_id
+      LIMIT 1 s.project_id
       ${pagination !== undefined ? `LIMIT {limit: Int32} OFFSET {offset: Int32}` : ""}
       `;
 
@@ -3031,8 +3029,7 @@ export const _handleGetScoresCountForPublicApi = async ({
             ${scoreScope === "traces_only" ? "AND s.session_id IS NULL" : ""}
           ORDER BY
             s.timestamp desc
-          LIMIT
-            1 BY s.id, s.project_id
+          LIMIT 1 s.project_id
         ))
       )
       ${appliedScoresFilter.query ? `AND ${appliedScoresFilter.query}` : ""}
@@ -3299,7 +3296,7 @@ const buildV3ListQuery = (
   }
   ${filterClause ? `AND ${filterClause}` : ""}
   ORDER BY s.timestamp DESC, s.id DESC, s.event_ts DESC
-  LIMIT 1 BY s.id, s.project_id
+  LIMIT 1 s.project_id
   LIMIT {limit: Int32}
 `;
 

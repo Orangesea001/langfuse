@@ -207,11 +207,19 @@ export class ClickhouseWriter {
       return value;
     };
 
-    if ("input" in record && record.input && record.input.length > maxFieldSize) {
+    if (
+      "input" in record &&
+      record.input &&
+      record.input.length > maxFieldSize
+    ) {
       record.input = truncateField(record.input);
     }
 
-    if ("output" in record && record.output && record.output.length > maxFieldSize) {
+    if (
+      "output" in record &&
+      record.output &&
+      record.output.length > maxFieldSize
+    ) {
       record.output = truncateField(record.output);
     }
 
@@ -287,7 +295,9 @@ export class ClickhouseWriter {
           { ...ctx, fieldName: "cost_details" },
         );
         if (r.total_cost != null && typeof r.total_cost === "number") {
-          const [cv, wasClamped] = ClickhouseWriter.clampDecimal64Value(r.total_cost);
+          const [cv, wasClamped] = ClickhouseWriter.clampDecimal64Value(
+            r.total_cost,
+          );
           if (wasClamped) {
             r.total_cost = cv;
             logger.warn("Clamped Decimal64(12) overflow in total_cost", {
@@ -362,10 +372,17 @@ export class ClickhouseWriter {
             } else if (isStringLengthErr) {
               logger.warn(
                 `Writer failed with string length error for ${tableName} (attempt ${attemptNumber}): Splitting batch`,
-                { error: error.message, attemptNumber, batchSize: queueItems.length },
+                {
+                  error: error.message,
+                  attemptNumber,
+                  batchSize: queueItems.length,
+                },
               );
 
-              const { retryItems, requeueItems } = this.handleStringLengthError(tableName, queueItems);
+              const { retryItems, requeueItems } = this.handleStringLengthError(
+                tableName,
+                queueItems,
+              );
               recordsToWrite = retryItems.map((item) => item.data);
               queueItems = retryItems;
 
@@ -398,14 +415,30 @@ export class ClickhouseWriter {
       );
 
       const processingTime = Date.now() - processingStartTime;
-      recordHistogram("langfuse.queue.clickhouse_writer.processing_time", processingTime, { unit: "milliseconds" });
-      recordDistribution("langfuse.queue.clickhouse_writer.time_distribution", processingTime, {
-        entity_type: tableName, type: "processing", unit: "milliseconds",
-      });
+      recordHistogram(
+        "langfuse.queue.clickhouse_writer.processing_time",
+        processingTime,
+        { unit: "milliseconds" },
+      );
+      recordDistribution(
+        "langfuse.queue.clickhouse_writer.time_distribution",
+        processingTime,
+        {
+          entity_type: tableName,
+          type: "processing",
+          unit: "milliseconds",
+        },
+      );
 
-      logger.debug(`Flushed ${queueItems.length} records to MySQL ${tableName}. New queue length: ${entityQueue.length}`);
+      logger.debug(
+        `Flushed ${queueItems.length} records to MySQL ${tableName}. New queue length: ${entityQueue.length}`,
+      );
 
-      recordGauge("ingestion_clickhouse_insert_queue_length", entityQueue.length, { unit: "records", entityType: tableName });
+      recordGauge(
+        "ingestion_clickhouse_insert_queue_length",
+        entityQueue.length,
+        { unit: "records", entityType: tableName },
+      );
     } catch (err) {
       logger.error(`ClickhouseWriter.flush ${tableName}`, err);
 
@@ -420,19 +453,33 @@ export class ClickhouseWriter {
       });
 
       if (droppedCount > 0) {
-        recordIncrement("langfuse.queue.clickhouse_writer.rows_dropped", droppedCount, { entity_type: tableName });
+        recordIncrement(
+          "langfuse.queue.clickhouse_writer.rows_dropped",
+          droppedCount,
+          { entity_type: tableName },
+        );
         const droppedIds = queueItems
           .filter((item) => item.attempts >= this.maxAttempts)
           .map((item) => {
             const r = item.data as Record<string, unknown>;
-            return { project_id: r.project_id, trace_id: r.trace_id ?? r.id, id: r.id };
+            return {
+              project_id: r.project_id,
+              trace_id: r.trace_id ?? r.id,
+              id: r.id,
+            };
           });
-        logger.error(`Max attempts reached, dropped ${droppedCount} ${tableName} record(s)`, { droppedIds });
+        logger.error(
+          `Max attempts reached, dropped ${droppedCount} ${tableName} record(s)`,
+          { droppedIds },
+        );
       }
     }
   }
 
-  public addToQueue<T extends TableName>(tableName: T, data: RecordInsertType<T>) {
+  public addToQueue<T extends TableName>(
+    tableName: T,
+    data: RecordInsertType<T>,
+  ) {
     const entityQueue = this.queue[tableName];
     entityQueue.push({ createdAt: Date.now(), attempts: 1, data });
 

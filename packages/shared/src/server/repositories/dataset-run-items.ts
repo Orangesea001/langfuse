@@ -359,7 +359,7 @@ const getDatasetRunsTableInternal = async <T>(
           data_type,
           string_value,
           avg(value) as avg_value
-        FROM scores s FINAL
+        FROM scores s 
         WHERE ${appliedScoresFilter.query}
         AND s.trace_id IN (
           SELECT dri.trace_id
@@ -416,7 +416,7 @@ const getDatasetRunsTableInternal = async <T>(
       FROM dataset_run_items_rmt dri
       WHERE ${baseFilter.query}
       ORDER BY dri.created_at DESC
-      LIMIT 1 BY dri.project_id, dri.dataset_id, dri.dataset_run_id, dri.dataset_item_id
+      LIMIT 1 dri.dataset_id, dri.dataset_run_id, dri.dataset_item_id
     ),
   `;
 
@@ -670,7 +670,7 @@ const getQualifyingDatasetItems = async <T>(opts: {
          data_type,
          string_value,
          avg(value) as avg_value
-       FROM scores s FINAL
+       FROM scores s 
        WHERE ${appliedScoresFilter.query}
        AND s.trace_id IN (
          SELECT dri.trace_id
@@ -852,7 +852,7 @@ const getDatasetRunItemsTableInternal = async <
          data_type,
          string_value,
          avg(value) as avg_value
-       FROM scores s FINAL
+       FROM scores s 
        WHERE ${appliedScoresFilter.query}
        AND s.trace_id IN (
         SELECT dri.trace_id
@@ -884,7 +884,7 @@ const getDatasetRunItemsTableInternal = async <
       ${hasScoresFilter ? `LEFT JOIN scores_aggregated sa ON dri.dataset_run_id = sa.dataset_run_id AND dri.project_id = sa.project_id AND dri.trace_id = sa.trace_id` : ""}
       WHERE ${appliedFilter.query}
       ${orderByClause}
-      LIMIT 1 BY dri.project_id, dri.dataset_id, dri.dataset_run_id, dri.dataset_item_id
+      LIMIT 1 dri.dataset_id, dri.dataset_run_id, dri.dataset_item_id
     ) AS deduplicated
     ${limit !== undefined && offset !== undefined ? `LIMIT ${limit} OFFSET ${offset}` : ""};`
       : `
@@ -1036,7 +1036,7 @@ export const getDatasetItemIdsByTraceIdCh = async (
     dri.dataset_id as dataset_id
   FROM dataset_run_items_rmt dri 
   WHERE ${appliedFilter.query}
-  LIMIT 1 BY dri.project_id, dri.dataset_id, dri.dataset_run_id, dri.dataset_item_id;`;
+  LIMIT 1 dri.dataset_id, dri.dataset_run_id, dri.dataset_item_id;`;
 
   const res = await queryClickhouse<{
     dataset_item_id: string;

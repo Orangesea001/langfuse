@@ -47,10 +47,9 @@ describe("sqlTranslator", () => {
     });
 
     it("should handle UInt64 parameter type", () => {
-      const result = translateQuery(
-        "WHERE count > {minCount:UInt64}",
-        { minCount: 100 },
-      );
+      const result = translateQuery("WHERE count > {minCount:UInt64}", {
+        minCount: 100,
+      });
       expect(result.sql).toBe("WHERE count > ?");
       expect(result.params).toEqual([100]);
     });
@@ -119,7 +118,9 @@ describe("sqlTranslator", () => {
         "has(e.metadata_names, {metadataKey:String})",
         { metadataKey: "key1" },
       );
-      expect(result.sql).toBe("JSON_CONTAINS(e.metadata_names, CAST(? AS JSON))");
+      expect(result.sql).toBe(
+        "JSON_CONTAINS(e.metadata_names, CAST(? AS JSON))",
+      );
       expect(result.params).toEqual(["key1"]);
     });
 
@@ -134,7 +135,9 @@ describe("sqlTranslator", () => {
         "SELECT * FROM events ORDER BY event_ts DESC LIMIT 1 BY id, project_id",
         {},
       );
-      expect(result.sql).toBe("SELECT * FROM events ORDER BY event_ts DESC LIMIT 1");
+      expect(result.sql).toBe(
+        "SELECT * FROM events ORDER BY event_ts DESC LIMIT 1",
+      );
     });
 
     // ─── JOIN variants ───
@@ -210,7 +213,10 @@ describe("sqlTranslator", () => {
     });
 
     it("should clean up multiple spaces after transformations", () => {
-      const result = translateQuery("SELECT *  FROM  traces  FINAL  WHERE  id = 1", {});
+      const result = translateQuery(
+        "SELECT *  FROM  traces  FINAL  WHERE  id = 1",
+        {},
+      );
       expect(result.sql).not.toContain("  ");
     });
   });

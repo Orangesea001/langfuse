@@ -1,7 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import {
-  type ClickHouseClientConfigOptions,
-} from "../repositories/clickhouse";
+import { type ClickHouseClientConfigOptions } from "../repositories/clickhouse";
 
 import { OrderByState } from "../../interfaces/orderBy";
 import { scoreBooleansAggregation } from "../queries/clickhouse-sql/query-fragments";

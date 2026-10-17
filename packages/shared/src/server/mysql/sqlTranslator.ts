@@ -102,7 +102,7 @@ export function translateQuery(
   // Pattern: "LIMIT 1 BY id, project_id" → "LIMIT 1"  (approximation)
   sql = sql.replace(/\bLIMIT\s+(\d+)\s+BY\s+[^;]+/gi, "LIMIT $1");
 
-  // 6. Remove "ANY LEFT JOIN" → "LEFT JOIN" 
+  // 6. Remove "ANY LEFT JOIN" → "LEFT JOIN"
   sql = sql.replace(/\bANY\s+LEFT\s+JOIN\b/gi, "LEFT JOIN");
   sql = sql.replace(/\bALL\s+LEFT\s+JOIN\b/gi, "LEFT JOIN");
   sql = sql.replace(/\bANY\s+INNER\s+JOIN\b/gi, "INNER JOIN");

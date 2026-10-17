@@ -87,7 +87,7 @@ export const checkObservationExists = async (
     AND id = {id: String}
     ${startTime ? `AND start_time >= {startTime: DateTime64(3)} - ${OBSERVATIONS_TO_TRACE_INTERVAL}` : ""}
     ORDER BY event_ts DESC
-    LIMIT 1 BY id, project_id
+    LIMIT 1 project_id
   `;
 
   const rows = await queryClickhouse<{ id: string; project_id: string }>({
@@ -189,7 +189,7 @@ export const getObservationsForTrace = async <IncludeIO extends boolean>(
   AND project_id = {projectId: String}
    ${timestamp ? `AND start_time >= {traceTimestamp: DateTime64(3)} - ${TRACE_TO_OBSERVATIONS_INTERVAL}` : ""}
   ${skipDedup ? "" : "ORDER BY event_ts DESC"}
-  ${skipDedup ? "" : "LIMIT 1 BY id, project_id"}`;
+  ${skipDedup ? "" : "LIMIT 1 project_id"}`;
   const records = await queryClickhouse<ObservationRecordReadType>({
     query,
     params: {
@@ -305,7 +305,7 @@ export const getObservationForTraceIdByName = async ({
   AND name = {name: String}
    ${timestamp ? `AND start_time >= {traceTimestamp: DateTime64(3)} - ${TRACE_TO_OBSERVATIONS_INTERVAL}` : ""}
   ORDER BY event_ts DESC
-  LIMIT 1 BY id, project_id`;
+  LIMIT 1 project_id`;
   const records = await queryClickhouse<ObservationRecordReadType>({
     query,
     params: {
@@ -812,7 +812,7 @@ const getObservationsTableInternal = async <T>(
         data_type,
         comment
       FROM
-        scores FINAL
+        scores 
       WHERE ${appliedScoresFilter.query}
       GROUP BY
         trace_id,
@@ -842,7 +842,7 @@ const getObservationsTableInternal = async <T>(
       uiTableName: "order_by_date",
       uiTableId: "order_by_date",
       clickhouseTableName: "observation",
-      clickhouseSelect: "toDate(o.start_time)",
+      clickhouseSelect: "DATE(o.start_time)",
     },
   ]);
 
@@ -854,14 +854,14 @@ const getObservationsTableInternal = async <T>(
       SELECT
        ${selectString}
       FROM observations o
-        ${traceTableFilter.length > 0 || orderByTraces || search.query ? "LEFT JOIN __TRACE_TABLE__ t FINAL ON t.id = o.trace_id AND t.project_id = o.project_id" : ""}
+        ${traceTableFilter.length > 0 || orderByTraces || search.query ? "LEFT JOIN __TRACE_TABLE__ t  ON t.id = o.trace_id AND t.project_id = o.project_id" : ""}
         ${hasScoresFilter ? `LEFT JOIN scores_agg AS s ON s.trace_id = o.trace_id and s.observation_id = o.id` : ""}
       WHERE ${appliedObservationsFilter.query}
 
         ${timeFilter && (traceTableFilter.length > 0 || orderByTraces) ? `AND t.timestamp > {tracesTimestampFilter: DateTime64(3)} - ${OBSERVATIONS_TO_TRACE_INTERVAL}` : ""}
         ${search.query}
       ${chOrderBy}
-      ${opts.select === "rows" && !skipDedup ? "LIMIT 1 BY o.id, o.project_id" : ""}
+      ${opts.select === "rows" && !skipDedup ? "LIMIT 1 o.project_id" : ""}
       ${limit !== undefined && offset !== undefined ? `LIMIT ${limit} OFFSET ${offset}` : ""};`;
 
   const input = {
@@ -1204,7 +1204,7 @@ export const getCostForTraces = async (
       AND o.trace_id IN ({traceIds: Array(String)})
       AND o.start_time >= {timestamp: DateTime64(3)} - ${OBSERVATIONS_TO_TRACE_INTERVAL}
       ORDER BY o.event_ts DESC
-      LIMIT 1 BY o.id, o.project_id
+      LIMIT 1 o.project_id
     )
 
     SELECT sum(total_cost) as total_cost
@@ -1431,7 +1431,7 @@ export const getObservationMetricsForPrompts = async (
                   cost_details,
                   dateDiff('millisecond', start_time, end_time) AS latency_ms
               FROM observations
-              FINAL
+              
               WHERE (type = 'GENERATION')
               AND (prompt_name IS NOT NULL)
               AND project_id={projectId: String}
@@ -1503,7 +1503,7 @@ export const getLatencyAndTotalCostForObservations = async (
         id,
         cost_details['total'] AS total_cost,
         dateDiff('millisecond', start_time, end_time) AS latency_ms
-    FROM observations FINAL
+    FROM observations 
     WHERE project_id = {projectId: String}
     AND id IN ({observationIds: Array(String)})
     ${timestamp ? `AND start_time >= {timestamp: DateTime64(3)}` : ""}
@@ -1539,9 +1539,9 @@ export const getLatencyAndTotalCostForObservationsByTraces = async (
   const query = `
     SELECT
         trace_id,
-        sumMap(cost_details)['total'] AS total_cost,
+        cost_details['total'] AS total_cost,
         dateDiff('millisecond', min(start_time), max(end_time)) AS latency_ms
-    FROM observations FINAL
+    FROM observations 
     WHERE project_id = {projectId: String}
     AND trace_id IN ({traceIds: Array(String)})
     ${timestamp ? `AND start_time >= {timestamp: DateTime64(3)}` : ""}
@@ -1599,7 +1599,7 @@ export const getObservationsGroupedByTraceId = async (
   const query = `
     SELECT
         trace_id,
-        groupArray((
+        JSON_ARRAYAGG((
           id,
           parent_observation_id,
           cost_details['total'],
@@ -1607,7 +1607,7 @@ export const getObservationsGroupedByTraceId = async (
           cost_details['output'],
           dateDiff('millisecond', start_time, end_time)
         )) AS observations
-    FROM observations FINAL
+    FROM observations 
     WHERE project_id = {projectId: String}
     AND trace_id IN ({traceIds: Array(String)})
     ${timestamp ? `AND start_time >= {timestamp: DateTime64(3)}` : ""}
@@ -1775,7 +1775,7 @@ const buildObservationsForBlobStorageExportQuery = (
       skipDedup
         ? ""
         : `ORDER BY event_ts DESC
-    LIMIT 1 BY id, project_id, type`
+    LIMIT 1 project_id, type`
     }
   `;
 
@@ -1878,7 +1878,7 @@ export const getGenerationsForAnalyticsIntegrations = async function* (
         t.tags as tags,
         t.metadata['$posthog_session_id'] as posthog_session_id,
         t.metadata['$mixpanel_session_id'] as mixpanel_session_id
-      FROM traces t FINAL
+      FROM traces t 
       WHERE t.project_id = {projectId: String}
       AND t.timestamp >= {minTimestamp: DateTime64(3)} - ${OBSERVATIONS_TO_TRACE_INTERVAL}
       AND t.timestamp <= {maxTimestamp: DateTime64(3)} + ${TRACE_TO_OBSERVATIONS_INTERVAL}
@@ -1907,7 +1907,7 @@ export const getGenerationsForAnalyticsIntegrations = async function* (
       t.tags as trace_tags,
       t.posthog_session_id as posthog_session_id,
       t.mixpanel_session_id as mixpanel_session_id
-    FROM observations o FINAL
+    FROM observations o 
     LEFT JOIN selected_traces t ON o.trace_id = t.id AND o.project_id = t.project_id
     WHERE o.project_id = {projectId: String}
     AND o.start_time >= {minTimestamp: DateTime64(3)}
@@ -2004,11 +2004,11 @@ export const getObservationCountsByProjectAndDay = async ({
     SELECT
       count(*) as count,
       project_id,
-      toDate(start_time) as date
+      DATE(start_time) as date
     FROM observations
     WHERE start_time >= {startDate: DateTime64(3)}
     AND start_time < {endDate: DateTime64(3)}
-    GROUP BY project_id, toDate(start_time)
+    GROUP BY project_id, DATE(start_time)
   `;
 
   const rows = await queryClickhouse<{
@@ -2060,7 +2060,7 @@ const getEvaluatorCostMetricsByIds = async <
       SELECT
         metadata['job_configuration_id'] as evaluator_id,
         ${fields.map((field) => evaluatorCostFields[field].select).join(",\n        ")}
-      FROM observations FINAL
+      FROM observations 
       WHERE project_id = {projectId: String}
         AND metadata['job_configuration_id'] IN ({evaluatorIds: Array(String)})
         AND type = 'GENERATION'
@@ -2123,7 +2123,7 @@ export const generateObservationsForPublicApi = async ({
         trace_id,
         project_id,
         type,
-        toDate(start_time)
+        DATE(start_time)
       FROM observations o
         ${traceFilter ? `LEFT JOIN __TRACE_TABLE__ t ON o.trace_id = t.id AND t.project_id = o.project_id` : ""}
       WHERE o.project_id = {projectId: String}
@@ -2163,9 +2163,9 @@ export const generateObservationsForPublicApi = async ({
       created_at,
       updated_at,
       event_ts
-    FROM observations o ${disableObservationsFinal ? "" : "FINAL"}
+    FROM observations o ${disableObservationsFinal ? "" : ""}
     WHERE o.project_id = {projectId: String}
-      AND (id, trace_id, project_id, type, toDate(start_time)) in (select * from clickhouse_keys)
+      AND (id, trace_id, project_id, type, DATE(start_time)) in (select * from clickhouse_keys)
     ORDER BY start_time DESC
   `;
 

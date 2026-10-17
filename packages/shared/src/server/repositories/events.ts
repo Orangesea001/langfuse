@@ -1133,7 +1133,7 @@ export const getTraceByIdFromEventsTable = async ({
 
   if (timestamp) {
     queryBuilder.whereRaw(
-      `toDate(t.timestamp) = toDate({timestamp: DateTime64(3)})`,
+      `DATE(t.timestamp) = DATE({timestamp: DateTime64(3)})`,
       {
         timestamp: convertDateToClickhouseDateTime(timestamp),
       },
@@ -3121,7 +3121,7 @@ export const getUserMetricsFromEventsTable = async (
       anyLast(e.environment) as environment,
       count(DISTINCT e.span_id) as obs_count,
       count(DISTINCT e.trace_id) as trace_count,
-      sumMap(e.usage_details) as sum_usage_details,
+      e.usage_details as sum_usage_details,
       sum(e.total_cost) as sum_total_cost,
       min(e.start_time) as min_timestamp,
       max(e.start_time) as max_timestamp
@@ -3549,7 +3549,7 @@ const getCostMetricsByIdentifierIds = async <
     projectId: params.projectId,
     identifiers: [{ identifier: params.identifier, alias: "identifier_id" }],
     additionalSelect: [
-      `countIf(${evaluatorTestEventCondition}) as test_event_count`,
+      `SUM(IF(${evaluatorTestEventCondition}, 1, 0)) as test_event_count`,
     ],
   })
     .havingRaw("identifier_id IN ({identifierIds: Array(String)})", {
@@ -3653,7 +3653,7 @@ export const getLatestEvaluatorRunCost = async (
     ],
     additionalSelect: [
       "max(e.start_time) as timestamp",
-      "countIf(e.type = 'GENERATION') as generation_count",
+      "SUM(IF(e.type = 'GENERATION', 1, 0)) as generation_count",
     ],
   })
     .havingRaw("evaluator_id = {evaluatorId: String}", { evaluatorId })
@@ -3684,7 +3684,7 @@ export const getRecentEvaluatorExecutionTraces = async (
     selectExpression: [
       "e.trace_id as id",
       "e.evaluator_id as evaluator_id",
-      "multiIf(countIf(e.level = 'ERROR') > 0, 'ERROR', countIf(e.level = 'WARNING') > 0, 'WARNING', 'DEFAULT') as level",
+      "multiIf(SUM(IF(e.level = 'ERROR', 1, 0)) > 0, 'ERROR', SUM(IF(e.level = 'WARNING', 1, 0)) > 0, 'WARNING', 'DEFAULT') as level",
       "min(e.start_time) as timestamp",
     ].join(", "),
   })
@@ -3692,7 +3692,7 @@ export const getRecentEvaluatorExecutionTraces = async (
     .whereRaw("e.evaluator_id IN ({evaluatorIds: Array(String)})", {
       evaluatorIds,
     })
-    .havingRaw(`countIf(${evaluatorTestEventCondition}) = 0`)
+    .havingRaw(`SUM(IF(${evaluatorTestEventCondition}, 1, 0)) = 0`)
     .orderBy("ORDER BY timestamp DESC, id DESC")
     .limitByCount(5, "evaluator_id");
 
@@ -3729,7 +3729,7 @@ export const getRecentRuleExecutionTraces = async (
     selectExpression: [
       "e.trace_id as id",
       "e.evaluation_rule_id as evaluation_rule_id",
-      "multiIf(countIf(e.level = 'ERROR') > 0, 'ERROR', countIf(e.level = 'WARNING') > 0, 'WARNING', 'DEFAULT') as level",
+      "multiIf(SUM(IF(e.level = 'ERROR', 1, 0)) > 0, 'ERROR', SUM(IF(e.level = 'WARNING', 1, 0)) > 0, 'WARNING', 'DEFAULT') as level",
       "min(e.start_time) as timestamp",
     ].join(", "),
   })
@@ -3842,7 +3842,7 @@ FROM events_core e
 WHERE
   e.project_id = {projectId: String}
   AND e.start_time >= {sevenDaysAgo: DateTime64(3)}
-  AND toDate(e.start_time) >= toDate({sevenDaysAgo: DateTime64(3)})
+  AND DATE(e.start_time) >= DATE({sevenDaysAgo: DateTime64(3)})
   AND startsWith(e.source, 'otel')
   AND e.ingestion_sdk_name NOT IN {internalSdkNames: Array(String)}
   AND e.is_deleted = 0

@@ -11,7 +11,10 @@ import { env } from "../../env";
 /** Stub: no longer a ClickHouse client type */
 export type ClickhouseClientType = ReturnType<typeof getMySqlPool>;
 
-export type PreferredClickhouseService = "ReadWrite" | "ReadOnly" | "EventsReadOnly";
+export type PreferredClickhouseService =
+  | "ReadWrite"
+  | "ReadOnly"
+  | "EventsReadOnly";
 
 /** Stub: ClickHouse settings are not applicable to MySQL */
 
