@@ -3684,7 +3684,7 @@ export const getRecentEvaluatorExecutionTraces = async (
     selectExpression: [
       "e.trace_id as id",
       "e.evaluator_id as evaluator_id",
-      "multiIf(SUM(IF(e.level = 'ERROR', 1, 0)) > 0, 'ERROR', SUM(IF(e.level = 'WARNING', 1, 0)) > 0, 'WARNING', 'DEFAULT') as level",
+      "CASE WHEN SUM(IF(e.level = 'ERROR', 1, 0)) > 0 THEN 'ERROR' WHEN SUM(IF(e.level = 'WARNING', 1, 0)) > 0 THEN 'WARNING' ELSE 'DEFAULT' END as level",
       "min(e.start_time) as timestamp",
     ].join(", "),
   })
@@ -3729,7 +3729,7 @@ export const getRecentRuleExecutionTraces = async (
     selectExpression: [
       "e.trace_id as id",
       "e.evaluation_rule_id as evaluation_rule_id",
-      "multiIf(SUM(IF(e.level = 'ERROR', 1, 0)) > 0, 'ERROR', SUM(IF(e.level = 'WARNING', 1, 0)) > 0, 'WARNING', 'DEFAULT') as level",
+      "CASE WHEN SUM(IF(e.level = 'ERROR', 1, 0)) > 0 THEN 'ERROR' WHEN SUM(IF(e.level = 'WARNING', 1, 0)) > 0 THEN 'WARNING' ELSE 'DEFAULT' END as level",
       "min(e.start_time) as timestamp",
     ].join(", "),
   })

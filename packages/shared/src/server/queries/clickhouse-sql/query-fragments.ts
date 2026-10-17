@@ -455,12 +455,12 @@ export const experimentItemLevelsAggregation = (params: {
     groupByColumn: "e.experiment_id, e.experiment_item_id",
     selectExpression: `e.experiment_id AS experiment_id,
       e.experiment_item_id AS experiment_item_id,
-      multiIf(
-        SUM(IF(e.level = 'ERROR', 1, 0)) > 0, 'ERROR',
-        SUM(IF(e.level = 'WARNING', 1, 0)) > 0, 'WARNING',
-        SUM(IF(e.level = 'DEFAULT', 1, 0)) > 0, 'DEFAULT',
-        'DEBUG'
-      ) AS aggregated_level`,
+      CASE
+        WHEN SUM(IF(e.level = 'ERROR', 1, 0)) > 0 THEN 'ERROR'
+        WHEN SUM(IF(e.level = 'WARNING', 1, 0)) > 0 THEN 'WARNING'
+        WHEN SUM(IF(e.level = 'DEFAULT', 1, 0)) > 0 THEN 'DEFAULT'
+        ELSE 'DEBUG'
+      END AS aggregated_level`,
   })
     .whereRaw("e.experiment_id IN ({itemLevelExperimentIds: Array(String)})", {
       itemLevelExperimentIds: params.experimentIds,

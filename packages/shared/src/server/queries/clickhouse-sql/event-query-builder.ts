@@ -564,7 +564,7 @@ const EVENTS_AGGREGATION_FIELDS = {
   usage_details: "usage_details as usage_details",
   cost_details: "cost_details as cost_details",
   aggregated_level:
-    "multiIf(arrayExists(x -> x = 'ERROR', JSON_ARRAYAGG(level)), 'ERROR', arrayExists(x -> x = 'WARNING', JSON_ARRAYAGG(level)), 'WARNING', arrayExists(x -> x = 'DEFAULT', JSON_ARRAYAGG(level)), 'DEFAULT', 'DEBUG') AS aggregated_level",
+    "CASE WHEN SUM(IF(level = 'ERROR', 1, 0)) > 0 THEN 'ERROR' WHEN SUM(IF(level = 'WARNING', 1, 0)) > 0 THEN 'WARNING' WHEN SUM(IF(level = 'DEFAULT', 1, 0)) > 0 THEN 'DEFAULT' ELSE 'DEBUG' END AS aggregated+level",
   warning_count: "SUM(IF(level = 'WARNING', 1, 0)) as warning_count",
   error_count: "SUM(IF(level = 'ERROR', 1, 0)) as error_count",
   default_count: "SUM(IF(level = 'DEFAULT', 1, 0)) as default_count",

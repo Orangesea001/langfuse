@@ -121,12 +121,12 @@ export const checkTraceExistsAndGetTimestamp = async ({
   const observations_cte = `
     WITH observations_agg AS (
       SELECT
-        multiIf(
-          arrayExists(x -> x = 'ERROR', JSON_ARRAYAGG(level)), 'ERROR',
-          arrayExists(x -> x = 'WARNING', JSON_ARRAYAGG(level)), 'WARNING',
-          arrayExists(x -> x = 'DEFAULT', JSON_ARRAYAGG(level)), 'DEFAULT',
-          'DEBUG'
-        ) AS aggregated_level,
+        CASE
+          WHEN SUM(IF(level = 'ERROR', 1, 0)) > 0 THEN 'ERROR'
+          WHEN SUM(IF(level = 'WARNING', 1, 0)) > 0 THEN 'WARNING'
+          WHEN SUM(IF(level = 'DEFAULT', 1, 0)) > 0 THEN 'DEFAULT'
+          ELSE 'DEBUG'
+        END AS aggregated_level,
         SUM(IF(level = 'ERROR', 1, 0)) as error_count,
         SUM(IF(level = 'WARNING', 1, 0)) as warning_count,
         SUM(IF(level = 'DEFAULT', 1, 0)) as default_count,
@@ -1657,7 +1657,7 @@ async function buildTracesBaseQuery(
         ${includeMetricsInCTE ? "sum(total_cost) as total_cost, TIMESTAMPDIFF(MICROSECOND, least(min(start_time), min(end_time) / 1000), greatest(max(start_time), max(end_time))) as latency_milliseconds, " : ""}
         usage_details as usage_details,
         cost_details as cost_details,
-        multiIf(arrayExists(x -> x = 'ERROR', JSON_ARRAYAGG(level)), 'ERROR', arrayExists(x -> x = 'WARNING', JSON_ARRAYAGG(level)), 'WARNING', arrayExists(x -> x = 'DEFAULT', JSON_ARRAYAGG(level)), 'DEFAULT', 'DEBUG') AS aggregated_level,
+        CASE WHEN SUM(IF(level = 'ERROR', 1, 0)) > 0 THEN 'ERROR' WHEN SUM(IF(level = 'WARNING', 1, 0)) > 0 THEN 'WARNING' WHEN SUM(IF(level = 'DEFAULT', 1, 0)) > 0 THEN 'DEFAULT' ELSE 'DEBUG' END AS aggregated_level,
         SUM(IF(level = 'WARNING', 1, 0)) as warning_count,
         SUM(IF(level = 'ERROR', 1, 0)) as error_count,
         SUM(IF(level = 'DEFAULT', 1, 0)) as default_count,
