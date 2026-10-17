@@ -2543,7 +2543,7 @@ const buildAnalyticsScoreTraceAttributesFromEventsCte = (
         NULLIF(argMaxIf(e.session_id, e.event_ts, e.session_id <> ''), '') as session_id,
         NULLIF(argMaxIf(e.user_id, e.event_ts, e.user_id <> ''), '') as user_id,
         NULLIF(argMax(e.release, e.event_ts), '') as release,
-        arraySort(groupUniqArrayArrayIf(e.tags, (LENGTH(e.tags) > 0))) as tags,
+        (SELECT JSON_ARRAYAGG(DISTINCT jt.tag) FROM JSON_TABLE(e.tags, '$[*]' COLUMNS(tag VARCHAR(255) PATH '$')) jt WHERE jt.tag IS NOT NULL AND JSON_LENGTH(e.tags) > 0) as tags,
         argMax(e.metadata_values[indexOf(e.metadata_names, '$posthog_session_id')], e.event_ts) as posthog_session_id,
         argMax(e.metadata_values[indexOf(e.metadata_names, '$mixpanel_session_id')], e.event_ts) as mixpanel_session_id
       FROM events_core e

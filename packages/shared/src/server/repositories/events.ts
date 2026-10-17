@@ -608,10 +608,10 @@ export const getObservationMetricsForPromptsFromEvents = async (
       "e.prompt_version AS prompt_version",
       "min(e.start_time) AS first_observation",
       "max(e.start_time) AS last_observation",
-      "medianExact(arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, e.usage_details)))) AS median_input_usage",
-      "medianExact(arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, e.usage_details)))) AS median_output_usage",
-      "medianExact(e.cost_details['total']) AS median_total_cost",
-      "medianExact(dateDiff('millisecond', e.start_time, e.end_time)) AS median_latency_ms",
+      "json_map_median_like(e.usage_details, '%input%') AS median_input_usage",
+      "json_map_median_like(e.usage_details, '%output%') AS median_output_usage",
+      "json_median(CAST(JSON_EXTRACT(e.cost_details, '$.total') AS DECIMAL(65,3))) AS median_total_cost",
+      "json_median(TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) / 1000) AS median_latency_ms",
     )
     .whereRaw("e.is_deleted = 0")
     .groupBy("e.prompt_id", "e.prompt_version")
@@ -1030,7 +1030,7 @@ async function getObservationByIdFromEventsTableInternal({
     // start time.
     .when(Boolean(startTime), (b) =>
       b.whereRaw(
-        "toStartOfMinute(start_time) = toStartOfMinute({startTime: DateTime64(3)})",
+        "start_time - INTERVAL SECOND(start_time) SECOND = {startTime: DateTime64(3)} - INTERVAL SECOND({startTime: DateTime64(3)}) SECOND",
         {
           startTime: convertDateToClickhouseDateTime(startTime!),
         },
@@ -1521,7 +1521,7 @@ function orderByForObservationsQuery(
   // project_id and potentially other prefixes are injected in the query builder when necessary
   return [
     { column: `${prefix}.start_time`, direction: "DESC" as const },
-    { column: `xxHash32(${prefix}.trace_id)`, direction: "DESC" as const },
+    { column: `CRC32(${prefix}.trace_id)`, direction: "DESC" as const },
     { column: `${prefix}.${span_id}`, direction: "DESC" as const },
   ];
 }
@@ -1558,7 +1558,7 @@ function applyObservationsCursorFilter(
     }
 
     return b.whereRaw(
-      "e.start_time <= {lastStartTime: DateTime64(6)} AND (e.start_time, xxHash32(e.trace_id), e.span_id) < ({lastStartTime: DateTime64(6)}, xxHash32({lastTraceId: String}), {lastId: String})",
+      "e.start_time <= {lastStartTime: DateTime64(6)} AND (e.start_time, CRC32(e.trace_id), e.span_id) < ({lastStartTime: DateTime64(6)}, CRC32({lastTraceId: String}), {lastId: String})",
       {
         lastStartTime: convertDateToClickhouseDateTime(
           currentCursor.lastStartTimeTo,
@@ -2311,7 +2311,7 @@ export const getEventsNumericStatsByFilterColumn = async (
 
   const queryBuilder = new EventsAggQueryBuilder({
     projectId,
-    groupByColumn: "tuple()",
+    groupByColumn: "",
     selectExpression: `min(${valueExpression}) as min, max(${valueExpression}) as max, avg(${valueExpression}) as avg, count(${valueExpression}) as count`,
   })
     .where(appliedEventsFilter)
@@ -2406,8 +2406,8 @@ export const deleteEventsByTraceIds = async (
     DELETE FROM ${table}
     WHERE project_id = {projectId: String}
     AND trace_id IN ({traceIds: Array(String)})
-    AND start_time >= {minTs: String}::DateTime64(3)
-    AND start_time <= {maxTs: String}::DateTime64(3)
+    AND start_time >= {minTs: String}
+    AND start_time <= {maxTs: String}
   `;
   const deleteOpts = (table: string) => ({
     query: deleteQuery(table),
@@ -2494,8 +2494,8 @@ export async function getAgentGraphDataFromEventsTable(params: {
       e.name as name,
       e.start_time as start_time,
       e.end_time as end_time,
-      mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(e.metadata_values))['langgraph_node'] AS node,
-      mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(e.metadata_values))['langgraph_step'] AS step
+      JSON_UNQUOTE(JSON_EXTRACT(e.metadata, '$.langgraph_node')) AS node,
+      JSON_UNQUOTE(JSON_EXTRACT(e.metadata, '$.langgraph_step')) AS step
     FROM events_core e
     WHERE
       e.project_id = {projectId: String}
@@ -2644,14 +2644,12 @@ export const getObservationsBatchIOFromEventsTable = async <
   const capOnFullRead = (expr: string) =>
     fullReadCharLimit ? `LEFT(${expr}, ${fullReadCharLimit})` : expr;
   const capEachOnFullRead = (expr: string) =>
-    fullReadCharLimit
-      ? `arrayMap(v -> LEFT(v, ${fullReadCharLimit}), ${expr})`
-      : expr;
+    fullReadCharLimit ? `json_array_left(${expr}, ${fullReadCharLimit})` : expr;
   const metadataValues = capEachOnFullRead("e.metadata_values");
   const experimentFieldsSelect = opts.includeExperimentFields
     ? `
       ${capOnFullRead("e.experiment_item_expected_output")} as experiment_item_expected_output,
-      mapFromArrays(arrayReverse(e.experiment_item_metadata_names), arrayReverse(${capEachOnFullRead("e.experiment_item_metadata_values")})) as experiment_item_metadata,
+      ${capEachOnFullRead("e.experiment_item_metadata")} as experiment_item_metadata,
     `
     : "";
   const toolCallFieldsSelect = opts.includeToolCallFields
@@ -2680,7 +2678,7 @@ export const getObservationsBatchIOFromEventsTable = async <
       ${outputSelect},
       ${experimentFieldsSelect}
       ${toolCallFieldsSelect}
-      mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(${metadataValues})) as metadata
+      ${metadataValues} as metadata
     FROM ${tableName} e
     WHERE e.project_id = {projectId: String}
         AND e.span_id IN {observationIds: Array(String)}
@@ -2767,12 +2765,11 @@ export type ObservationIoStreamField =
 const OBSERVATION_IO_FIELD_SELECT: Record<ObservationIoStreamField, string> = {
   input: "e.input",
   output: "e.output",
-  metadata:
-    "toJSONString(mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(e.metadata_values)))",
+  metadata: "e.metadata",
 };
 
 // The ±1s window around `startTime` only prunes the primary key
-// (project_id, toStartOfMinute(start_time), xxHash32(trace_id)); it is a
+// (project_id, toStartOfMinute(start_time), CRC32(trace_id)); it is a
 // performance hint, never an authorization control.
 const OBSERVATION_IO_WHERE = `
     WHERE e.project_id = {projectId: String}
@@ -2901,7 +2898,7 @@ export const getObservationFullIOForSessionFromEventsTable = async (opts: {
   metadata: MetadataDomain;
 } | null> => {
   // ±1s around start_time prunes on the primary key
-  // (project_id, toStartOfMinute(start_time), xxHash32(trace_id)).
+  // (project_id, toStartOfMinute(start_time), CRC32(trace_id)).
   const minTimestamp = new Date(opts.startTime.getTime() - 1000);
   const maxTimestamp = new Date(opts.startTime.getTime() + 1000);
 
@@ -2910,11 +2907,11 @@ export const getObservationFullIOForSessionFromEventsTable = async (opts: {
       e.span_id as id,
       e.input as input,
       e.output as output,
-      mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(e.metadata_values)) as metadata
+      e.metadata as metadata
     FROM events_full e
     WHERE e.project_id = {projectId: String}
       AND e.session_id = {sessionId: String}
-      AND xxHash32(e.trace_id) = xxHash32({traceId: String})
+      AND CRC32(e.trace_id) = CRC32({traceId: String})
       AND e.trace_id = {traceId: String}
       AND e.span_id = {observationId: String}
       AND e.start_time >= {minTimestamp: DateTime64(3)}
@@ -3146,8 +3143,8 @@ export const getUserMetricsFromEventsTable = async (
       sum_total_cost,
       min_timestamp,
       max_timestamp,
-      arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, sum_usage_details))) as input_usage,
-      arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, sum_usage_details))) as output_usage,
+      json_map_sum_like(sum_usage_details, '%input%') as input_usage,
+      json_map_sum_like(sum_usage_details, '%output%') as output_usage,
       sum_usage_details['total'] as total_usage
     FROM stats
   `;
@@ -3365,8 +3362,8 @@ export const getEventsForAnalyticsIntegrations = async function* (
       "e.usage_details['output'] as output_tokens",
       "e.usage_details['total'] as total_tokens",
       // Analytics integration session IDs from metadata (constructed from array columns)
-      "mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(e.metadata_values))['$posthog_session_id'] as posthog_session_id",
-      "mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(e.metadata_values))['$mixpanel_session_id'] as mixpanel_session_id",
+      "JSON_UNQUOTE(JSON_EXTRACT(e.metadata, '$.$posthog_session_id')) as posthog_session_id",
+      "JSON_UNQUOTE(JSON_EXTRACT(e.metadata, '$.$mixpanel_session_id')) as mixpanel_session_id",
     )
     .whereRaw(
       "e.start_time >= {minTimestamp: DateTime64(3)} AND e.start_time < {maxTimestamp: DateTime64(3)}",

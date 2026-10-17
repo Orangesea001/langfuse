@@ -95,7 +95,7 @@ const buildTraceBatchEventQuery = (props: TraceBatchEventStreamProps) => {
     timeGroupParams[minParam] = chunk.map(({ minStart }) => minStart);
     timeGroupParams[maxParam] = chunk.map(({ maxStart }) => maxStart);
     timeGroupPredicates.push(
-      `arrayExists((group_project_id, group_trace_ids, min_ms, max_ms) -> e.project_id = group_project_id AND JSON_CONTAINS(group_trace_ids, CAST(e.trace_id AS JSON)) AND e.start_time BETWEEN fromUnixTimestamp64Milli(min_ms) AND fromUnixTimestamp64Milli(max_ms), {${projectParam}:Array(String)}, {${tracesParam}:Array(Array(String))}, {${minParam}:Array(Int64)}, {${maxParam}:Array(Int64)})`,
+      `EXISTS (SELECT 1 FROM JSON_TABLE(CAST({${projectParam}:Array(String)} AS JSON), '$[*]' COLUMNS(group_project_id VARCHAR(36) PATH '$') ERROR ON ERROR) jt_proj JOIN JSON_TABLE(CAST({${tracesParam}:Array(Array(String))} AS JSON), '$[*]' COLUMNS(group_trace_ids JSON PATH '$') ERROR ON ERROR) jt_traces ON TRUE JOIN JSON_TABLE(CAST({${minParam}:Array(Int64)} AS JSON), '$[*]' COLUMNS(min_ms BIGINT PATH '$') ERROR ON ERROR) jt_min ON TRUE JOIN JSON_TABLE(CAST({${maxParam}:Array(Int64)} AS JSON), '$[*]' COLUMNS(max_ms BIGINT PATH '$') ERROR ON ERROR) jt_max ON TRUE WHERE e.project_id = jt_proj.group_project_id AND JSON_CONTAINS(jt_trace.group_trace_ids, CAST(e.trace_id AS JSON)) AND e.start_time BETWEEN FROM_UNIXTIME(jt_min.min_ms / 1000) AND FROM_UNIXTIME(jt_max.max_ms / 1000))`,
     );
   }
   const projectIds = [...new Set(props.traces.map((trace) => trace.projectId))];
@@ -118,8 +118,7 @@ const buildTraceBatchEventQuery = (props: TraceBatchEventStreamProps) => {
     },
   );
   const hashPredicates = Object.keys(traceIdParams).map(
-    (name) =>
-      `xxHash32(e.trace_id) IN (SELECT arrayJoin(arrayMap(id -> xxHash32(id), {${name}: Array(String)})))`,
+    (name) => `e.trace_id IN ({${name}: Array(String)})`,
   );
   const pairParams: Record<string, unknown> = {};
   const pairPredicates = chunkItems(
@@ -160,7 +159,7 @@ const buildTraceBatchEventQuery = (props: TraceBatchEventStreamProps) => {
     .whereRaw(`(${hashPredicates.join(" OR ")})`)
     // Keep one shared outer window for partition/granule pruning.
     .whereRaw(
-      "e.start_time >= fromUnixTimestamp64Milli({batchMinStart: Int64}) AND e.start_time <= fromUnixTimestamp64Milli({batchMaxStart: Int64})",
+      "e.start_time >= FROM_UNIXTIME({batchMinStart: Int64} / 1000) AND e.start_time <= FROM_UNIXTIME({batchMaxStart: Int64} / 1000)",
       {
         batchMinStart:
           Math.min(...props.traces.map(({ minStart }) => minStart)) -

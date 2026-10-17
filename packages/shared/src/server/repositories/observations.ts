@@ -503,7 +503,7 @@ const getObservationByIdInternal = async ({
   WHERE id = {id: String}
   AND project_id = {projectId: String}
   ${/* Matched at minute resolution: minute is the finest the primary key can prune on, and flooring absorbs sub-minute precision differences in the caller-supplied start time. */ ""}
-  ${startTime ? `AND toStartOfMinute(start_time) = toStartOfMinute({startTime: DateTime64(3)})` : ""}
+  ${startTime ? `AND start_time - INTERVAL SECOND(start_time) SECOND = {startTime: DateTime64(3)} - INTERVAL SECOND({startTime: DateTime64(3)}) SECOND` : ""}
   ${startTimeLowerBound ? `AND start_time >= {startTimeLowerBound: DateTime64(3)} - ${OBSERVATIONS_TO_TRACE_INTERVAL}` : ""}
   ${type ? `AND type = {type: String}` : ""}
   ${traceId ? `AND trace_id = {traceId: String}` : ""}
@@ -791,15 +791,13 @@ const getObservationsTableInternal = async <T>(
     SELECT
       trace_id,
       observation_id,
-      -- For numeric scores, use tuples of (name, avg_value)
-      JSON_ARRAYAGG(CASE WHEN avg_value THEN 
-        tuple(name ELSE NULL END),
-        data_type IN ('NUMERIC', 'BOOLEAN')
+      -- For numeric scores, use JSON objects with name and value
+      JSON_ARRAYAGG(CASE WHEN data_type IN ('NUMERIC', 'BOOLEAN') THEN
+        JSON_OBJECT('name', name, 'value', avg_value) ELSE NULL END
       ) AS scores_avg,
       -- For categorical scores, use name:value format for improved query performance
-      JSON_ARRAYAGG(CASE WHEN ':', string_value THEN 
-        concat(name ELSE NULL END),
-        data_type = 'CATEGORICAL' AND (LENGTH(string_value) > 0)
+      JSON_ARRAYAGG(CASE WHEN data_type = 'CATEGORICAL' AND LENGTH(string_value) > 0 THEN
+        CONCAT(name, ':', string_value) ELSE NULL END
       ) AS score_categories,
       ${scoreBooleansAggregation()} AS score_booleans
     FROM (
@@ -1056,7 +1054,7 @@ export const getObservationsGroupedByToolName = async (
   const appliedObservationsFilter = observationsFilter.apply();
 
   const query = `
-    SELECT arrayJoin(mapKeys(o.tool_definitions)) as toolName
+    SELECT jt.toolName as toolName FROM observations o, JSON_TABLE(o.tool_definitions, '$[*]' COLUMNS(toolName VARCHAR(255) PATH '$.key')) jt
     FROM observations o
     WHERE ${appliedObservationsFilter.query}
     AND length(mapKeys(o.tool_definitions)) > 0
@@ -1101,7 +1099,7 @@ export const getObservationsGroupedByCalledToolName = async (
   const appliedObservationsFilter = observationsFilter.apply();
 
   const query = `
-    SELECT arrayJoin(o.tool_call_names) as calledToolName
+    SELECT jt.calledToolName as calledToolName FROM observations o, JSON_TABLE(o.tool_call_names, '$[*]' COLUMNS(calledToolName VARCHAR(255) PATH '$')) jt
     FROM observations o
     WHERE ${appliedObservationsFilter.query}
     AND length(o.tool_call_names) > 0
@@ -1260,8 +1258,8 @@ export const deleteObservationsByTraceIds = async (
       DELETE FROM observations
       WHERE project_id = {projectId: String}
       AND trace_id IN ({traceIds: Array(String)})
-      AND start_time >= {minTs: String}::DateTime64(3)
-      AND start_time <= {maxTs: String}::DateTime64(3)
+      AND start_time >= {minTs: String}
+      AND start_time <= {maxTs: String}
     `,
     params: {
       projectId,
@@ -1429,7 +1427,7 @@ export const getObservationMetricsForPrompts = async (
                   end_time,
                   usage_details,
                   cost_details,
-                  dateDiff('millisecond', start_time, end_time) AS latency_ms
+                  TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000 AS latency_ms
               FROM observations
               
               WHERE (type = 'GENERATION')
@@ -1445,10 +1443,10 @@ export const getObservationMetricsForPrompts = async (
           prompt_version,
           min(start_time) AS first_observation,
           max(start_time) AS last_observation,
-          medianExact(arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, usage_details)))) AS median_input_usage,
-          medianExact(arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, usage_details)))) AS median_output_usage,
-          medianExact(cost_details['total']) AS median_total_cost,
-          medianExact(latency_ms) AS median_latency_ms
+          json_map_median_like(usage_details, '%input%') AS median_input_usage,
+          json_map_median_like(usage_details, '%output%') AS median_output_usage,
+          json_median(CAST(JSON_EXTRACT(cost_details, '$.total') AS DECIMAL(65,3))) AS median_total_cost,
+          json_median(latency_ms) AS median_latency_ms
       FROM latencies
       GROUP BY
           prompt_id,
@@ -1502,7 +1500,7 @@ export const getLatencyAndTotalCostForObservations = async (
     SELECT
         id,
         cost_details['total'] AS total_cost,
-        dateDiff('millisecond', start_time, end_time) AS latency_ms
+        TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000 AS latency_ms
     FROM observations 
     WHERE project_id = {projectId: String}
     AND id IN ({observationIds: Array(String)})
@@ -1540,7 +1538,7 @@ export const getLatencyAndTotalCostForObservationsByTraces = async (
     SELECT
         trace_id,
         cost_details['total'] AS total_cost,
-        dateDiff('millisecond', min(start_time), max(end_time)) AS latency_ms
+        TIMESTAMPDIFF(MICROSECOND, min(start_time), max(end_time)) / 1000 AS latency_ms
     FROM observations 
     WHERE project_id = {projectId: String}
     AND trace_id IN ({traceIds: Array(String)})
@@ -1605,7 +1603,7 @@ export const getObservationsGroupedByTraceId = async (
           cost_details['total'],
           cost_details['input'],
           cost_details['output'],
-          dateDiff('millisecond', start_time, end_time)
+          TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000
         )) AS observations
     FROM observations 
     WHERE project_id = {projectId: String}

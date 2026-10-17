@@ -142,8 +142,9 @@ export const getBlobStorageByProjectIdAndTraceIds = (
   const query = `
     with filtered_traces as (
       select
-        arrayJoin({traceIds: Array(String)}) as entity_id,
+        jt.entity_id as entity_id,
         'trace' as entity_type
+      from JSON_TABLE(CAST({traceIds: Array(String)} AS JSON), '$[*]' COLUMNS(entity_id VARCHAR(36) PATH '$')) jt
     ), filtered_observations as (
       select
         id as entity_id,

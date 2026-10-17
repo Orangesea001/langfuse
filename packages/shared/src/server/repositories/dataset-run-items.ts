@@ -340,14 +340,12 @@ const getDatasetRunsTableInternal = async <T>(
         dri.dataset_run_id,
         dri.project_id,
         -- For numeric scores, use tuples of (name, avg_value)
-        JSON_ARRAYAGG(CASE WHEN s.avg_value THEN 
-          tuple(s.name ELSE NULL END),
-          s.data_type IN ('NUMERIC', 'BOOLEAN')
+        JSON_ARRAYAGG(CASE WHEN s.data_type IN ('NUMERIC', 'BOOLEAN') THEN
+          JSON_OBJECT('name', s.name, 'value', s.avg_value) ELSE NULL END
         ) AS scores_avg,
         -- For categorical scores, use name:value format for improved query performance
-        JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN 
-          concat(s.name ELSE NULL END),
-          s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)
+        JSON_ARRAYAGG(CASE WHEN s.data_type = 'CATEGORICAL' AND LENGTH(s.string_value) > 0 THEN
+          CONCAT(s.name, ':', s.string_value) ELSE NULL END
         ) AS score_categories,
         ${scoreBooleansAggregation("s.")} AS score_booleans
       FROM dataset_run_items_rmt dri
@@ -428,7 +426,7 @@ const getDatasetRunsTableInternal = async <T>(
         dri.dataset_id,
         dri.dataset_run_id,
         dri.dataset_item_id,
-        dateDiff('millisecond', min(of.start_time), max(of.end_time)) as latency_ms,
+        TIMESTAMPDIFF(MICROSECOND, min(of.start_time), max(of.end_time)) / 1000 as latency_ms,
         sum(of.total_cost) as total_cost
       FROM dataset_run_items_deduped dri
       JOIN observations_filtered of ON dri.trace_id = of.trace_id
@@ -456,7 +454,7 @@ const getDatasetRunsTableInternal = async <T>(
 
         -- Observation-level metrics
         AVG(CASE WHEN dri.observation_id IS NOT NULL THEN
-          dateDiff('millisecond', of.start_time, of.end_time) / 1000.0
+          TIMESTAMPDIFF(MICROSECOND, of.start_time, of.end_time) / 1000000.0
         ELSE NULL END) as obs_avg_latency,
         AVG(CASE WHEN dri.observation_id IS NOT NULL THEN tm.total_cost ELSE NULL END) as obs_avg_cost,
         SUM(CASE WHEN dri.observation_id IS NOT NULL THEN tm.total_cost ELSE NULL END) as obs_total_cost
@@ -651,14 +649,12 @@ const getQualifyingDatasetItems = async <T>(opts: {
        dri.project_id,
        dri.trace_id,
        -- For numeric scores, use tuples of (name, avg_value)
-       JSON_ARRAYAGG(CASE WHEN s.avg_value THEN 
-         tuple(s.name ELSE NULL END),
-         s.data_type IN ('NUMERIC', 'BOOLEAN')
+       JSON_ARRAYAGG(CASE WHEN s.data_type IN ('NUMERIC', 'BOOLEAN') THEN
+         JSON_OBJECT('name', s.name, 'value', s.avg_value) ELSE NULL END
        ) AS scores_avg,
        -- For categorical scores, use name:value format for improved query performance
-       JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN 
-         concat(s.name ELSE NULL END),
-         s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)
+       JSON_ARRAYAGG(CASE WHEN s.data_type = 'CATEGORICAL' AND LENGTH(s.string_value) > 0 THEN
+         CONCAT(s.name, ':', s.string_value) ELSE NULL END
        ) AS score_categories,
         ${scoreBooleansAggregation("s.")} AS score_booleans
      FROM dataset_run_items_rmt dri
@@ -833,14 +829,12 @@ const getDatasetRunItemsTableInternal = async <
        dri.project_id,
        dri.trace_id,
        -- For numeric scores, use tuples of (name, avg_value)
-       JSON_ARRAYAGG(CASE WHEN s.avg_value THEN 
-         tuple(s.name ELSE NULL END),
-         s.data_type IN ('NUMERIC', 'BOOLEAN')
+       JSON_ARRAYAGG(CASE WHEN s.data_type IN ('NUMERIC', 'BOOLEAN') THEN
+         JSON_OBJECT('name', s.name, 'value', s.avg_value) ELSE NULL END
        ) AS scores_avg,
        -- For categorical scores, use name:value format for improved query performance
-       JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN 
-         concat(s.name ELSE NULL END),
-         s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)
+       JSON_ARRAYAGG(CASE WHEN s.data_type = 'CATEGORICAL' AND LENGTH(s.string_value) > 0 THEN
+         CONCAT(s.name, ':', s.string_value) ELSE NULL END
        ) AS score_categories,
         ${scoreBooleansAggregation("s.")} AS score_booleans
      FROM dataset_run_items_rmt dri

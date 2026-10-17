@@ -777,8 +777,9 @@ export const getTracesGroupedByTags = async (props: GroupedTracesQueryProp) => {
   };
 
   const query = `
-    select distinct(arrayJoin(tags)) as value
-    from traces t
+    SELECT DISTINCT jt.value as value
+    FROM traces t
+    JOIN JSON_TABLE(t.tags, '$[*]' COLUMNS(value VARCHAR(255) PATH '$')) jt
     WHERE t.project_id = {projectId: String}
     ${filterRes?.query ? `AND ${filterRes.query}` : ""}
     LIMIT 1000;
@@ -889,8 +890,8 @@ export const deleteTraces = async (projectId: string, traceIds: string[]) => {
       DELETE FROM traces
       WHERE project_id = {projectId: String}
       AND id IN ({traceIds: Array(String)})
-      AND timestamp >= {minTs: String}::DateTime64(3)
-      AND timestamp <= {maxTs: String}::DateTime64(3)
+      AND timestamp >= {minTs: String}
+      AND timestamp <= {maxTs: String}
     `,
     params: {
       ...input.params,
@@ -1134,9 +1135,9 @@ export const getUserMetrics = async (
         group by t.user_id
     )
     SELECT
-        arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, sum_usage_details))) as input_usage,
-        arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, sum_usage_details))) as output_usage,
-        sum_usage_details [ 'total' ] as total_usage,
+        json_map_sum_like(sum_usage_details, '%input%') as input_usage,
+        json_map_sum_like(sum_usage_details, '%output%') as output_usage,
+        CAST(JSON_EXTRACT(sum_usage_details, '$.total') AS DECIMAL(65,3)) as total_usage,
         obs_count,
         trace_count,
         user_id,
@@ -1681,8 +1682,8 @@ async function buildTracesBaseQuery(
         trace_id,
         project_id,
         JSON_ARRAYAGG(DISTINCT id) as score_ids,
-        JSON_ARRAYAGG(CASE WHEN avg_value THEN tuple(name ELSE NULL END), data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg,
-        JSON_ARRAYAGG(CASE WHEN ':', string_value THEN concat(name ELSE NULL END), data_type = 'CATEGORICAL' AND (LENGTH(string_value) > 0)) AS score_categories,
+        JSON_ARRAYAGG(CASE WHEN data_type IN ('NUMERIC', 'BOOLEAN') THEN JSON_OBJECT('name', name, 'value', avg_value) ELSE NULL END) AS scores_avg,
+        JSON_ARRAYAGG(CASE WHEN data_type = 'CATEGORICAL' AND LENGTH(string_value) > 0 THEN CONCAT(name, ':', string_value) ELSE NULL END) AS score_categories,
         ${scoreBooleansAggregation()} AS score_booleans
       FROM (
         SELECT
@@ -1718,8 +1719,8 @@ async function buildTracesBaseQuery(
         trace_id,
         project_id,
         JSON_ARRAYAGG(DISTINCT id) as score_ids,
-        JSON_ARRAYAGG(CASE WHEN value THEN tuple(name ELSE NULL END), data_type IN ('NUMERIC', 'BOOLEAN')) as scores_avg,
-        JSON_ARRAYAGG(CASE WHEN ':', string_value THEN concat(name ELSE NULL END), data_type = 'CATEGORICAL') as score_categories
+        JSON_ARRAYAGG(CASE WHEN data_type IN ('NUMERIC', 'BOOLEAN') THEN JSON_OBJECT('name', name, 'value', value) ELSE NULL END) as scores_avg,
+        JSON_ARRAYAGG(CASE WHEN data_type = 'CATEGORICAL' AND LENGTH(string_value) > 0 THEN CONCAT(name, ':', string_value) ELSE NULL END) as score_categories
       FROM scores
       WHERE project_id = {projectId: String}
       AND session_id IS NULL

@@ -206,8 +206,8 @@ const experimentScoreCTE = (params: {
     .select(
       "s.project_id AS project_id",
       "s.experiment_id AS experiment_id",
-      `JSON_ARRAYAGG(CASE WHEN s.exp_avg, s.data_type, s.string_value THEN tuple(s.name ELSE NULL END), s.data_type IN ('NUMERIC', 'BOOLEAN')) AS ${prefix}scores_avg`,
-      `JSON_ARRAYAGG(CASE WHEN ':', s.string_value THEN concat(s.name ELSE NULL END), s.data_type = 'CATEGORICAL' AND (LENGTH(s.string_value) > 0)) AS ${prefix}score_categories`,
+      `JSON_ARRAYAGG(CASE WHEN s.data_type IN ('NUMERIC', 'BOOLEAN') THEN JSON_OBJECT('name', s.name, 'value', s.exp_avg, 'data_type', s.data_type, 'string_value', s.string_value) ELSE NULL END) AS ${prefix}scores_avg`,
+      `JSON_ARRAYAGG(CASE WHEN s.data_type = 'CATEGORICAL' AND LENGTH(s.string_value) > 0 THEN CONCAT(s.name, ':', s.string_value) ELSE NULL END) AS ${prefix}score_categories`,
       `${scoreBooleansAggregation("s.")} AS ${prefix}score_booleans`,
     )
     .groupBy("s.project_id", "s.experiment_id")
@@ -286,8 +286,8 @@ const experimentItemScoreCTE = (params: {
     .select(
       "sc.project_id AS project_id",
       "sc.root_span_id AS root_span_id",
-      "JSON_ARRAYAGG(CASE WHEN sc.item_avg, sc.data_type, sc.string_value THEN tuple(sc.name ELSE NULL END), sc.data_type IN ('NUMERIC', 'BOOLEAN')) AS scores_avg",
-      "JSON_ARRAYAGG(CASE WHEN ':', sc.string_value THEN concat(sc.name ELSE NULL END), sc.data_type = 'CATEGORICAL' AND (LENGTH(sc.string_value) > 0)) AS score_categories",
+      "JSON_ARRAYAGG(CASE WHEN sc.data_type IN ('NUMERIC', 'BOOLEAN') THEN JSON_OBJECT('name', sc.name, 'value', sc.item_avg, 'data_type', sc.data_type, 'string_value', sc.string_value) ELSE NULL END) AS scores_avg",
+      "JSON_ARRAYAGG(CASE WHEN sc.data_type = 'CATEGORICAL' AND LENGTH(sc.string_value) > 0 THEN CONCAT(sc.name, ':', sc.string_value) ELSE NULL END) AS score_categories",
       `${scoreBooleansAggregation("sc.")} AS score_booleans`,
     )
     .groupBy("sc.project_id", "sc.root_span_id")
