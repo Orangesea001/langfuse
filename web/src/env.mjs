@@ -324,6 +324,8 @@ export const env = createEnv({
       ),
 
     // clickhouse
+    LANGFUSE_MYSQL_URL: z.string().default(""),
+    LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
     CLICKHOUSE_URL: z.url(),
     CLICKHOUSE_CLUSTER_NAME: z.string().default("default"),
     CLICKHOUSE_DB: z.string().default("default"),
@@ -1051,6 +1053,8 @@ export const env = createEnv({
     PLAIN_CARDS_API_TOKEN: process.env.PLAIN_CARDS_API_TOKEN,
     PYLON_API_KEY: process.env.PYLON_API_KEY,
     // clickhouse
+    LANGFUSE_MYSQL_URL: process.env.LANGFUSE_MYSQL_URL,
+    LANGFUSE_MYSQL_CONNECTION_LIMIT: process.env.LANGFUSE_MYSQL_CONNECTION_LIMIT,
     CLICKHOUSE_URL: process.env.CLICKHOUSE_URL,
     CLICKHOUSE_CLUSTER_NAME: process.env.CLICKHOUSE_CLUSTER_NAME,
     CLICKHOUSE_DB: process.env.CLICKHOUSE_DB,

@@ -208,6 +208,7 @@
     "lodash": "^4.18.1",
     "lossless-json": "^4.1.1",
     "lru-cache": "^11.2.7",
+    "mysql2": "^3.24.5",
     "next-auth": "^4.24.14",
     "nodemailer": "^10.0.5",
     "oci-common": "^2.140.0",

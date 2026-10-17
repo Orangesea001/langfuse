@@ -117,6 +117,9 @@ const EnvSchema = z.object({
     .default(20_000),
   LANGFUSE_CACHE_PROMPT_ENABLED: z.enum(["true", "false"]).default("true"),
   LANGFUSE_CACHE_PROMPT_TTL_SECONDS: z.coerce.number().default(3600), // 1h
+  // MySQL connection for analytics store (replacing ClickHouse)
+  LANGFUSE_MYSQL_URL: z.string().default(""),
+  LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
   CLICKHOUSE_URL: z.url(),
   CLICKHOUSE_READ_ONLY_URL: z.url().optional(),
   CLICKHOUSE_EVENTS_READ_ONLY_URL: z.url().optional(),
