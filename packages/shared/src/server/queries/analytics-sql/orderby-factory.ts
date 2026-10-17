@@ -48,7 +48,7 @@ export function orderByToClickhouseSql(
       throw new Error("Invalid order: " + ob.order);
     }
 
-    const column = `${col.queryPrefix ? col.queryPrefix + "." : ""}${col.clickhouseSelect}`;
+    const column = `${col.queryPrefix ? col.queryPrefix + "." : ""}${col.analyticsSelect}`;
 
     // Append the order by clause to the array
     orderByClauses.push(
@@ -98,7 +98,7 @@ export function orderByToEntries(
       throw new Error("Invalid order: " + ob.order);
     }
 
-    const column = `${col.queryPrefix ? col.queryPrefix + "." : ""}${col.clickhouseSelect}`;
+    const column = `${col.queryPrefix ? col.queryPrefix + "." : ""}${col.analyticsSelect}`;
 
     entries.push({
       column,

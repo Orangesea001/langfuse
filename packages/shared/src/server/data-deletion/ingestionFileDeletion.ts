@@ -8,9 +8,9 @@ import {
 import { BlobStorageFileRefRecordReadType } from "../repositories/definitions";
 import { logger } from "../logger";
 import { env } from "../../env";
-import { toClickhouseDateTime } from "../clickhouse/client";
-import { upsertClickhouse } from "../repositories/clickhouse";
-import { buildClickHouseLogComment } from "../clickhouse/queryTags";
+import { toAnalyticsDateTime } from "../analytics-client/client";
+import { upsertAnalytics } from "../repositories/clickhouse";
+import { buildAnalyticsLogComment } from "../analytics-client/queryTags";
 import { getS3EventStorageClient, S3_DELETE_OBJECTS_CHUNK_SIZE } from "../s3";
 
 // Derive the default from the S3 DeleteObjects chunk size so a full chunk is
@@ -224,10 +224,10 @@ async function softDeleteInClickhouse(
   const records = blobStorageRefs.map((e) => ({
     ...e,
     is_deleted: "1",
-    event_ts: toClickhouseDateTime(),
-    updated_at: toClickhouseDateTime(),
+    event_ts: toAnalyticsDateTime(),
+    updated_at: toAnalyticsDateTime(),
   }));
-  await upsertClickhouse({
+  await upsertAnalytics({
     table: "blob_storage_file_log",
     records: records as Record<string, unknown>[],
   });

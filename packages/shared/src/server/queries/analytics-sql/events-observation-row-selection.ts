@@ -12,7 +12,7 @@ import {
   FilterList,
   filtersRequireEventsFull,
   NumberObjectFilter,
-} from "./clickhouse-filter";
+} from "./analytics-filter";
 import { EventsQueryBuilder } from "./event-query-builder";
 import {
   createFilterFromFilterState,
@@ -27,7 +27,7 @@ import {
   planScoreFilterPushdown,
   resolveScoreDataRequirement,
 } from "./score-filter-pushdown";
-import { clickhouseSearchCondition } from "./search";
+import { analyticsSearchCondition } from "./search";
 
 const EVENT_SEARCH_COLUMNS = [
   "span_id",
@@ -42,7 +42,7 @@ export const eventSearchCondition = (opts: {
   query?: string;
   searchType?: TracingSearchType[];
 }) =>
-  clickhouseSearchCondition({
+  analyticsSearchCondition({
     query: opts.query,
     searchType: opts.searchType,
     tablePrefix: "e",
@@ -99,7 +99,7 @@ const OBSERVATION_SCORE_FIELDS = {
 
 /** A Filter whose predicate combines its children with a single junction. */
 const unionFilter = (filters: Filter[], junction: "AND" | "OR"): Filter => ({
-  clickhouseTable: filters[0].clickhouseTable,
+  analyticsTable: filters[0].analyticsTable,
   field: filters[0].field,
   operator: filters[0].operator,
   tablePrefix: filters[0].tablePrefix,
@@ -125,7 +125,7 @@ const unionFilter = (filters: Filter[], junction: "AND" | "OR"): Filter => ({
 export const toLevelAgnosticScoreFilter = (filter: Filter): Filter => {
   if (filter instanceof NumberObjectFilter && filter.field === "s.scores_avg") {
     const traceFilter = new NumberObjectFilter({
-      clickhouseTable: filter.clickhouseTable,
+      analyticsTable: filter.analyticsTable,
       field: OBSERVATION_SCORE_FIELDS["s.scores_avg"],
       key: filter.key,
       operator: filter.operator,
@@ -140,7 +140,7 @@ export const toLevelAgnosticScoreFilter = (filter: Filter): Filter => {
     filter.field === "s.score_categories"
   ) {
     const traceFilter = new CategoryOptionsFilter({
-      clickhouseTable: filter.clickhouseTable,
+      analyticsTable: filter.analyticsTable,
       field: OBSERVATION_SCORE_FIELDS["s.score_categories"],
       key: filter.key,
       operator: filter.operator,
@@ -158,7 +158,7 @@ export const toLevelAgnosticScoreFilter = (filter: Filter): Filter => {
     filter.field === "s.score_booleans"
   ) {
     const traceFilter = new BooleanObjectFilter({
-      clickhouseTable: filter.clickhouseTable,
+      analyticsTable: filter.analyticsTable,
       field: OBSERVATION_SCORE_FIELDS["s.score_booleans"],
       key: filter.key,
       operator: filter.operator,
@@ -184,15 +184,15 @@ const classifyFilter = (filter: FilterCondition): EventFilterGroup => {
     filterColumn,
   );
 
-  if (columnDefinition?.clickhouseTableName === "comments") {
+  if (columnDefinition?.analyticsTableName === "comments") {
     return "comments";
   }
 
-  if (columnDefinition?.clickhouseSelect.startsWith("ts.")) {
+  if (columnDefinition?.analyticsSelect.startsWith("ts.")) {
     return "traceScores";
   }
 
-  if (columnDefinition?.clickhouseSelect.startsWith("s.")) {
+  if (columnDefinition?.analyticsSelect.startsWith("s.")) {
     return "observationScores";
   }
 
@@ -235,7 +235,7 @@ const buildEventsObservationRowSelectionInternal = (
 
   if (filterGroups.comments.length > 0) {
     throw new InvalidRequestError(
-      "Event comment filters must be resolved before building the ClickHouse row selection.",
+      "Event comment filters must be resolved before building the Analytics row selection.",
     );
   }
 
@@ -253,8 +253,8 @@ const buildEventsObservationRowSelectionInternal = (
     orderBy?.column,
   );
   const scoreOrderField =
-    orderByColumn?.clickhouseTableName === "scores"
-      ? orderByColumn.clickhouseSelect
+    orderByColumn?.analyticsTableName === "scores"
+      ? orderByColumn.analyticsSelect
       : undefined;
   const ordersByTraceScore = scoreOrderField?.startsWith("ts.") ?? false;
   const ordersByObservationScore =

@@ -65,7 +65,7 @@ export type ClickhouseSearchConditionOptions = {
   useEventsTablePath?: boolean;
 };
 
-export const clickhouseSearchCondition = ({
+export const analyticsSearchCondition = ({
   query,
   searchType,
   tablePrefix,

@@ -16,38 +16,38 @@ export const experimentPreAggCols: UiColumnMappings = [
   {
     uiTableName: "ID",
     uiTableId: "id",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "e.experiment_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "e.experiment_id",
   },
   {
     uiTableName: "Name",
     uiTableId: "name",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "e.experiment_name",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "e.experiment_name",
   },
   {
     uiTableName: "Description",
     uiTableId: "description",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "e.experiment_description",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "e.experiment_description",
   },
   {
     uiTableName: "Dataset ID",
     uiTableId: "experimentDatasetId",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "e.experiment_dataset_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "e.experiment_dataset_id",
   },
   {
     uiTableName: "Start Time",
     uiTableId: "startTime",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "e.start_time",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "e.start_time",
   },
   {
     uiTableName: "Metadata",
     uiTableId: "metadata",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_metadata",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_metadata",
     queryPrefix: "e", // StringObjectFilter uses {prefix}.{field}_names/{field}_values for array access
   },
 ];
@@ -64,22 +64,22 @@ export const experimentScoreAggCols: UiColumnMappings = [
   {
     uiTableName: "Scores (numeric)",
     uiTableId: "scores_avg",
-    clickhouseTableName: "scores",
-    clickhouseSelect: "scores_avg",
+    analyticsTableName: "scores",
+    analyticsSelect: "scores_avg",
     aliases: ["obs_scores_avg"],
   },
   {
     uiTableName: "Scores (categorical)",
     uiTableId: "score_categories",
-    clickhouseTableName: "scores",
-    clickhouseSelect: "score_categories",
+    analyticsTableName: "scores",
+    analyticsSelect: "score_categories",
     aliases: ["obs_score_categories"],
   },
   {
     uiTableName: "Scores (boolean)",
     uiTableId: "score_booleans",
-    clickhouseTableName: "scores",
-    clickhouseSelect: "score_booleans",
+    analyticsTableName: "scores",
+    analyticsSelect: "score_booleans",
     aliases: ["obs_score_booleans"],
   },
   // Trace-only, kept resolving for saved views that deliberately scoped to the
@@ -88,20 +88,20 @@ export const experimentScoreAggCols: UiColumnMappings = [
   {
     uiTableName: "Trace Scores (numeric)",
     uiTableId: "trace_scores_avg",
-    clickhouseTableName: "scores",
-    clickhouseSelect: "trace_scores_avg",
+    analyticsTableName: "scores",
+    analyticsSelect: "trace_scores_avg",
   },
   {
     uiTableName: "Trace Scores (categorical)",
     uiTableId: "trace_score_categories",
-    clickhouseTableName: "scores",
-    clickhouseSelect: "trace_score_categories",
+    analyticsTableName: "scores",
+    analyticsSelect: "trace_score_categories",
   },
   {
     uiTableName: "Trace Scores (boolean)",
     uiTableId: "trace_score_booleans",
-    clickhouseTableName: "scores",
-    clickhouseSelect: "trace_score_booleans",
+    analyticsTableName: "scores",
+    analyticsSelect: "trace_score_booleans",
   },
 ];
 
@@ -109,8 +109,8 @@ export const experimentOrderByCols: UiColumnMappings = [
   {
     uiTableName: "Start Time",
     uiTableId: "startTime",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "start_time",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "start_time",
   },
 ];
 
@@ -127,22 +127,22 @@ const publicApiExperimentFilterColumns = [
   {
     id: "id",
     uiTableName: "ID",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_id",
     nullable: false,
   },
   {
     id: "name",
     uiTableName: "Name",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_name",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_name",
     nullable: true,
   },
   {
     id: "datasetId",
     uiTableName: "Dataset ID",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_dataset_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_dataset_id",
     nullable: true,
   },
 ] as const;
@@ -150,18 +150,18 @@ const publicApiExperimentFilterColumns = [
 export const publicApiExperimentSimpleFilterMappings: ApiColumnMapping[] =
   publicApiExperimentFilterColumns.map((column) => ({
     id: column.id,
-    clickhouseSelect: column.clickhouseSelect,
-    clickhouseTable: column.clickhouseTableName,
+    analyticsSelect: column.analyticsSelect,
+    analyticsTable: column.analyticsTableName,
     filterType: "StringOptionsFilter",
-    clickhousePrefix: "e",
+    analyticsPrefix: "e",
   }));
 
 export const publicApiExperimentColumnMappings: UiColumnMappings =
   publicApiExperimentFilterColumns.map((column) => ({
     uiTableName: column.uiTableName,
     uiTableId: column.id,
-    clickhouseTableName: column.clickhouseTableName,
-    clickhouseSelect: column.clickhouseSelect,
+    analyticsTableName: column.analyticsTableName,
+    analyticsSelect: column.analyticsSelect,
     queryPrefix: "e",
   }));
 
@@ -170,7 +170,7 @@ export const publicApiExperimentColumnDefinitions: ColumnDefinition[] =
     name: column.uiTableName,
     id: column.id,
     type: "stringOptions",
-    internal: column.clickhouseSelect,
+    internal: column.analyticsSelect,
     options: [],
     ...(column.nullable ? { nullable: true } : {}),
   }));
@@ -179,29 +179,29 @@ const publicApiExperimentItemFilterColumns = [
   {
     id: "experimentId",
     uiTableName: "ID",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_id",
     nullable: false,
   },
   {
     id: "experimentName",
     uiTableName: "Name",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_name",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_name",
     nullable: true,
   },
   {
     id: "experimentItemId",
     uiTableName: "Experiment Item ID",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_item_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_item_id",
     nullable: false,
   },
   {
     id: "datasetId",
     uiTableName: "Dataset ID",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_dataset_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_dataset_id",
     nullable: true,
   },
 ] as const;
@@ -209,18 +209,18 @@ const publicApiExperimentItemFilterColumns = [
 export const publicApiExperimentItemSimpleFilterMappings: ApiColumnMapping[] =
   publicApiExperimentItemFilterColumns.map((column) => ({
     id: column.id,
-    clickhouseSelect: column.clickhouseSelect,
-    clickhouseTable: column.clickhouseTableName,
+    analyticsSelect: column.analyticsSelect,
+    analyticsTable: column.analyticsTableName,
     filterType: "StringOptionsFilter",
-    clickhousePrefix: "e",
+    analyticsPrefix: "e",
   }));
 
 export const publicApiExperimentItemColumnMappings: UiColumnMappings =
   publicApiExperimentItemFilterColumns.map((column) => ({
     uiTableName: column.uiTableName,
     uiTableId: column.id,
-    clickhouseTableName: column.clickhouseTableName,
-    clickhouseSelect: column.clickhouseSelect,
+    analyticsTableName: column.analyticsTableName,
+    analyticsSelect: column.analyticsSelect,
     queryPrefix: "e",
   }));
 
@@ -229,7 +229,7 @@ export const publicApiExperimentItemColumnDefinitions: ColumnDefinition[] =
     name: column.uiTableName,
     id: column.id,
     type: "stringOptions",
-    internal: column.clickhouseSelect,
+    internal: column.analyticsSelect,
     options: [],
     ...(column.nullable ? { nullable: true } : {}),
   }));

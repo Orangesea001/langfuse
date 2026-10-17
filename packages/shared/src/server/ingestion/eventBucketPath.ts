@@ -1,5 +1,5 @@
 import { env } from "../../env";
-import { type IngestionEntityTypes } from "../clickhouse/schemaUtils";
+import { type IngestionEntityTypes } from "../analytics-client/schemaUtils";
 import { safeBlobKeySegment } from "../services/safeBlobKeySegment";
 
 /**
@@ -76,7 +76,7 @@ export function parseEventKey(key: string): ParsedEventKey | null {
  *
  * Use this when the caller has the ORIGINAL entity ID — e.g. the producer at
  * write time, populating `bucketPrefix` on the IngestionQueue payload, or the
- * `clickhouse.ts` upsert path turning a record id into a path. Centralizing
+ * `analytics.ts` upsert path turning a record id into a path. Centralizing
  * the formula here is what makes producer/consumer drift structurally
  * impossible: every producer that writes an event file goes through this
  * exact function.

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../repositories", () => ({
-  clickhouseCompliantRandomCharacters: () => "test",
+  analyticsCompliantRandomCharacters: () => "test",
 }));
 
-import { type Filter, FilterList } from "./clickhouse-filter";
+import { type Filter, FilterList } from "./analytics-filter";
 import {
   planScoreFilterPushdown,
   resolveScoreDataRequirement,
@@ -16,13 +16,13 @@ type TestFilter = Filter & { key?: string };
 const makeFilter = ({
   field,
   key,
-  clickhouseTable = "scores",
+  analyticsTable = "scores",
 }: {
   field: string;
   key?: string;
-  clickhouseTable?: string;
+  analyticsTable?: string;
 }): TestFilter => ({
-  clickhouseTable,
+  analyticsTable,
   field,
   key,
   operator: "=",
@@ -45,7 +45,7 @@ describe("planScoreFilterPushdown", () => {
       makeFilter({ field: "s.score_categories", key: "sentiment" }),
       makeFilter({ field: "s.score_booleans", key: "approved" }),
       makeFilter({ field: "ts.scores_avg", key: "quality" }),
-      makeFilter({ clickhouseTable: "traces", field: "name" }),
+      makeFilter({ analyticsTable: "traces", field: "name" }),
     ]);
 
     expect(pushdown).toEqual({

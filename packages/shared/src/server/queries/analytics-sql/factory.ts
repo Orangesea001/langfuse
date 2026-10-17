@@ -1,7 +1,7 @@
 import { FTS_MATCH_OPERATOR } from "../../../interfaces/filters";
 import { type EventsTableFilterState } from "../../../types";
 import { InvalidRequestError } from "../../../errors";
-import { isValidTableName } from "../../clickhouse/schemaUtils";
+import { isValidTableName } from "../../analytics-client/schemaUtils";
 import { logger } from "../../logger";
 import {
   findUiColumnMapping,
@@ -22,7 +22,7 @@ import {
   NumberObjectFilter,
   StringObjectFilter,
   NullFilter,
-} from "./clickhouse-filter";
+} from "./analytics-filter";
 import { assertValidFtsMatchFilter } from "./fts";
 
 class QueryBuilderError extends Error {
@@ -68,7 +68,7 @@ export const resolveLegacyScoreFilterColumn = (
   return typedColumn;
 };
 
-// This function ensures that the user only selects valid columns from the clickhouse schema.
+// This function ensures that the user only selects valid columns from the analytics schema.
 // The filter property in this column needs to be zod verified.
 // User input for values (e.g. project_id = <value>) are sent to Clickhouse as parameters to prevent SQL injection
 export const createFilterFromFilterState = (
@@ -85,7 +85,7 @@ export const createFilterFromFilterState = (
       frontEndFilter,
       columnMapping,
     );
-    // checks if the column exists in the clickhouse schema
+    // checks if the column exists in the analytics schema
     const column = matchAndVerifyTracesUiColumn(
       frontEndFilter,
       columnMapping,
@@ -109,8 +109,8 @@ export const createFilterFromFilterState = (
     switch (frontEndFilter.type) {
       case "string":
         return new StringFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           value: frontEndFilter.value,
           tablePrefix: column.queryPrefix,
@@ -118,16 +118,16 @@ export const createFilterFromFilterState = (
         });
       case "datetime":
         return new DateTimeFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           value: frontEndFilter.value,
           tablePrefix: column.queryPrefix,
         });
       case "stringOptions":
         return new StringOptionsFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           values: frontEndFilter.value,
           tablePrefix: column.queryPrefix,
@@ -135,8 +135,8 @@ export const createFilterFromFilterState = (
         });
       case "categoryOptions":
         return new CategoryOptionsFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           key: frontEndFilter.key,
           values: frontEndFilter.value,
@@ -144,33 +144,33 @@ export const createFilterFromFilterState = (
         });
       case "number":
         return new NumberFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           value: frontEndFilter.value,
           tablePrefix: column.queryPrefix,
-          clickhouseTypeOverwrite: column.clickhouseTypeOverwrite,
+          analyticsTypeOverwrite: column.analyticsTypeOverwrite,
         });
       case "arrayOptions":
         return new ArrayOptionsFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           values: frontEndFilter.value,
           tablePrefix: column.queryPrefix,
         });
       case "boolean":
         return new BooleanFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           value: frontEndFilter.value,
           operator: frontEndFilter.operator,
           tablePrefix: column.queryPrefix,
         });
       case "numberObject":
         return new NumberObjectFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           key: frontEndFilter.key,
           operator: frontEndFilter.operator,
           value: frontEndFilter.value,
@@ -178,8 +178,8 @@ export const createFilterFromFilterState = (
         });
       case "booleanObject":
         return new BooleanObjectFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           key: frontEndFilter.key,
           operator: frontEndFilter.operator,
           value: frontEndFilter.value,
@@ -187,8 +187,8 @@ export const createFilterFromFilterState = (
         });
       case "stringObject":
         return new StringObjectFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           key: frontEndFilter.key,
           value: frontEndFilter.value,
@@ -196,8 +196,8 @@ export const createFilterFromFilterState = (
         });
       case "null":
         return new NullFilter({
-          clickhouseTable: column.clickhouseTableName,
-          field: column.clickhouseSelect,
+          analyticsTable: column.analyticsTableName,
+          field: column.analyticsSelect,
           operator: frontEndFilter.operator,
           tablePrefix: column.queryPrefix,
           emptyEqualsNull: column.emptyEqualsNull,
@@ -222,16 +222,16 @@ const validateEventsTableMatchesFilter = (
   if (filter.type === "string") {
     assertValidFtsMatchFilter({
       filterType: "string",
-      clickhouseTable: column.clickhouseTableName,
-      field: column.clickhouseSelect,
+      analyticsTable: column.analyticsTableName,
+      field: column.analyticsSelect,
       value: filter.value,
     });
     return;
   } else if (filter.type === "stringObject") {
     assertValidFtsMatchFilter({
       filterType: "stringObject",
-      clickhouseTable: column.clickhouseTableName,
-      field: column.clickhouseSelect,
+      analyticsTable: column.analyticsTableName,
+      field: column.analyticsSelect,
       value: filter.value,
     });
     return;
@@ -245,7 +245,7 @@ const matchAndVerifyTracesUiColumn = (
   uiTableDefinitions: UiColumnMappings,
   filterColumn = filter.column,
 ) => {
-  // tries to match the column name to the clickhouse table name
+  // tries to match the column name to the analytics table name
   const uiTable = findUiColumnMapping(uiTableDefinitions, filterColumn);
 
   if (!uiTable) {
@@ -260,9 +260,9 @@ const matchAndVerifyTracesUiColumn = (
     throw new InvalidRequestError(errorMessage);
   }
 
-  if (!isValidTableName(uiTable.clickhouseTableName)) {
+  if (!isValidTableName(uiTable.analyticsTableName)) {
     throw new QueryBuilderError(
-      `Invalid clickhouse table name: ${uiTable.clickhouseTableName}`,
+      `Invalid analytics table name: ${uiTable.analyticsTableName}`,
     );
   }
 
@@ -280,7 +280,7 @@ export function getProjectIdDefaultFilter(
   return {
     tracesFilter: new FilterList([
       new StringFilter({
-        clickhouseTable: "traces",
+        analyticsTable: "traces",
         field: "project_id",
         operator: "=",
         value: projectId,
@@ -289,7 +289,7 @@ export function getProjectIdDefaultFilter(
     ]),
     scoresFilter: new FilterList([
       new StringFilter({
-        clickhouseTable: "scores",
+        analyticsTable: "scores",
         field: "project_id",
         operator: "=",
         value: projectId,
@@ -297,7 +297,7 @@ export function getProjectIdDefaultFilter(
     ]),
     observationsFilter: new FilterList([
       new StringFilter({
-        clickhouseTable: "observations",
+        analyticsTable: "observations",
         field: "project_id",
         operator: "=",
         value: projectId,

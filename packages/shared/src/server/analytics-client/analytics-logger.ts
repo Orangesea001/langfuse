@@ -4,8 +4,8 @@
  */
 import { logger as winstonLogger } from "../logger";
 
-/** No-op logger class that satisfies the @clickhouse/client Logger interface */
-export class ClickHouseLogger {
+/** No-op logger class that satisfies the @analytics/client Logger interface */
+export class AnalyticsLogger {
   trace(_message: string) {}
   debug(_message: string) {}
   info(_message: string) {}

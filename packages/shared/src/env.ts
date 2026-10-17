@@ -120,52 +120,52 @@ const EnvSchema = z.object({
   // MySQL connection for analytics store (replacing ClickHouse)
   LANGFUSE_MYSQL_URL: z.string().default(""),
   LANGFUSE_MYSQL_CONNECTION_LIMIT: z.coerce.number().int().default(25),
-  CLICKHOUSE_URL: z.string().default(""),
-  CLICKHOUSE_READ_ONLY_URL: z.url().optional(),
-  CLICKHOUSE_EVENTS_READ_ONLY_URL: z.url().optional(),
-  CLICKHOUSE_CLUSTER_ENABLED: z.enum(["true", "false"]).default("true"),
-  CLICKHOUSE_CLUSTER_NAME: z.string().default("default"),
-  CLICKHOUSE_DB: z.string().default("default"),
-  CLICKHOUSE_USER: z.string().default(""),
-  CLICKHOUSE_PASSWORD: z.string().default(""),
-  CLICKHOUSE_KEEP_ALIVE_IDLE_SOCKET_TTL: z.coerce.number().int().default(9000),
-  CLICKHOUSE_MAX_OPEN_CONNECTIONS: z.coerce.number().int().default(25),
+  ANALYTICS_URL: z.string().default(""),
+  ANALYTICS_READ_ONLY_URL: z.url().optional(),
+  ANALYTICS_EVENTS_READ_ONLY_URL: z.url().optional(),
+  ANALYTICS_CLUSTER_ENABLED: z.enum(["true", "false"]).default("true"),
+  ANALYTICS_CLUSTER_NAME: z.string().default("default"),
+  ANALYTICS_DB: z.string().default("default"),
+  ANALYTICS_USER: z.string().default(""),
+  ANALYTICS_PASSWORD: z.string().default(""),
+  ANALYTICS_KEEP_ALIVE_IDLE_SOCKET_TTL: z.coerce.number().int().default(9000),
+  ANALYTICS_MAX_OPEN_CONNECTIONS: z.coerce.number().int().default(25),
   LANGFUSE_JSON_BAD_UNICODE_ESCAPE: z
     .enum(["auto", "no_throw", "sanitize"])
     .optional(),
   // Optional to allow for server-setting fallbacks
-  CLICKHOUSE_ASYNC_INSERT_MAX_DATA_SIZE: z.string().optional(),
-  CLICKHOUSE_ASYNC_INSERT_BUSY_TIMEOUT_MS: z.coerce.number().int().optional(),
-  CLICKHOUSE_ASYNC_INSERT_BUSY_TIMEOUT_MIN_MS: z.coerce
+  ANALYTICS_ASYNC_INSERT_MAX_DATA_SIZE: z.string().optional(),
+  ANALYTICS_ASYNC_INSERT_BUSY_TIMEOUT_MS: z.coerce.number().int().optional(),
+  ANALYTICS_ASYNC_INSERT_BUSY_TIMEOUT_MIN_MS: z.coerce
     .number()
     .int()
     .min(50)
     .optional(),
-  CLICKHOUSE_LIGHTWEIGHT_DELETE_MODE: z
+  ANALYTICS_LIGHTWEIGHT_DELETE_MODE: z
     .enum(["alter_update", "lightweight_update", "lightweight_update_force"])
     .default("alter_update"),
-  CLICKHOUSE_USE_LIGHTWEIGHT_UPDATE: z.enum(["true", "false"]).default("false"),
-  CLICKHOUSE_UPDATE_PARALLEL_MODE: z
+  ANALYTICS_USE_LIGHTWEIGHT_UPDATE: z.enum(["true", "false"]).default("false"),
+  ANALYTICS_UPDATE_PARALLEL_MODE: z
     .enum(["sync", "async", "auto"])
     .default("auto"),
   // Workarounds for ClickHouse version-specific parser and analyzer bugs. In
   // "auto", Langfuse detects the ClickHouse version on startup and applies
   // known compatibility settings for affected version bands.
-  CLICKHOUSE_DISABLE_LAZY_MATERIALIZATION: z
+  ANALYTICS_DISABLE_LAZY_MATERIALIZATION: z
     .enum(["auto", "true", "false"])
     .default("auto"),
-  CLICKHOUSE_DISABLE_TOP_K_THROUGH_JOIN: z
+  ANALYTICS_DISABLE_TOP_K_THROUGH_JOIN: z
     .enum(["auto", "true", "false"])
     .default("auto"),
   // Read-time skip-index evaluation, applied only from the version that fixes
   // the patch-part read bug. See the compatibility rule for details.
-  CLICKHOUSE_ENABLE_SKIP_INDEXES_ON_DATA_READ: z
+  ANALYTICS_ENABLE_SKIP_INDEXES_ON_DATA_READ: z
     .enum(["auto", "true", "false"])
     .default("auto"),
-  CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_GROUP_BY: z.coerce
+  ANALYTICS_MAX_BYTES_BEFORE_EXTERNAL_GROUP_BY: z.coerce
     .number()
     .default(32_000_000_000), // ~32GB
-  CLICKHOUSE_USE_QUERY_CONDITION_CACHE: z
+  ANALYTICS_USE_QUERY_CONDITION_CACHE: z
     .enum(["true", "false"])
     .default("false"),
   LANGFUSE_ENABLE_SINGLE_LEVEL_QUERY_OPTIMIZATION: z
@@ -391,8 +391,8 @@ const EnvSchema = z.object({
     .int()
     .positive()
     .default(20_000),
-  LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS: z.coerce.number().default(600_000), // 10 minutes
-  LANGFUSE_CLICKHOUSE_QUERY_MAX_ATTEMPTS: z.coerce.number().default(3), // Maximum attempts for socket hang up errors
+  LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS: z.coerce.number().default(600_000), // 10 minutes
+  LANGFUSE_ANALYTICS_QUERY_MAX_ATTEMPTS: z.coerce.number().default(3), // Maximum attempts for socket hang up errors
   LANGFUSE_SKIP_S3_LIST_FOR_OBSERVATIONS_PROJECT_IDS: z.string().optional(),
   LANGFUSE_INGESTION_PROCESSING_SAMPLED_PROJECTS: z
     .string()
@@ -523,7 +523,7 @@ const EnvSchema = z.object({
     .positive()
     .default(1_000),
 
-  LANGFUSE_CLICKHOUSE_DATA_EXPORT_REQUEST_TIMEOUT_MS: z.coerce
+  LANGFUSE_ANALYTICS_DATA_EXPORT_REQUEST_TIMEOUT_MS: z.coerce
     .number()
     .int()
     .positive()
@@ -582,7 +582,7 @@ const EnvSchema = z.object({
   // API Performance Flags
   // Whether to add a `FINAL` modifier to the observations CTE in GET /api/public/traces.
   // Can be used to improve performance for self-hosters that are fully on the new OTel SDKs.
-  LANGFUSE_API_CLICKHOUSE_DISABLE_OBSERVATIONS_FINAL: z
+  LANGFUSE_API_ANALYTICS_DISABLE_OBSERVATIONS_FINAL: z
     .enum(["true", "false"])
     .default("false"),
   // Enable Redis-based tracking of projects using OTEL API to optimize ClickHouse queries.
@@ -606,7 +606,7 @@ const EnvSchema = z.object({
     .default("true"),
 
   // API ClickHouse query options
-  LANGFUSE_API_CLICKHOUSE_PROPAGATE_OBSERVATIONS_TIME_BOUNDS: z
+  LANGFUSE_API_ANALYTICS_PROPAGATE_OBSERVATIONS_TIME_BOUNDS: z
     .enum(["true", "false"])
     .default("false"),
 

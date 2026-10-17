@@ -21,15 +21,15 @@ import type { APIScoreV3 } from "../../features/scores/interfaces/api/v3/schemas
 import type { ScoreFieldGroupV3 } from "../../features/scores/interfaces/api/v3/endpoints";
 import { filterAndValidateV3GetScoreList } from "../../features/scores/interfaces/api/v3/validation";
 import {
-  commandClickhouse,
-  queryClickhouse,
-  queryClickhouseStream,
-  queryClickhouseExecRaw,
-  BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS,
-  upsertClickhouse,
+  commandAnalytics,
+  queryAnalytics,
+  queryAnalyticsStream,
+  queryAnalyticsExecRaw,
+  BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS,
+  upsertAnalytics,
   parseClickhouseUTCDateTimeFormat,
-  clickhouseCompliantRandomCharacters,
-  type ClickHouseClientConfigOptions,
+  analyticsCompliantRandomCharacters,
+  type AnalyticsClientConfigOptions,
 } from "./clickhouse";
 import {
   FilterList,
@@ -43,7 +43,7 @@ import { FilterCondition, FilterState, TimeFilter } from "../../types";
 import {
   createFilterFromFilterState,
   getProjectIdDefaultFilter,
-} from "../queries/clickhouse-sql/factory";
+} from "../queries/analytics-sql/factory";
 import { OrderByState } from "../../interfaces/orderBy";
 import {
   dashboardColumnDefinitions,
@@ -57,15 +57,15 @@ import {
 } from "./scores_converters";
 import { SCORE_TO_TRACE_OBSERVATIONS_INTERVAL } from "./constants";
 import {
-  convertDateToClickhouseDateTime,
-  PreferredClickhouseService,
-} from "../clickhouse/client";
+  convertDateToAnalyticsDateTime,
+  PreferredAnalyticsService,
+} from "../analytics-client/client";
 import { ScoreRecordReadType } from "./definitions";
 import { env } from "../../env";
 import { _handleGetScoreById, _handleGetScoresByIds } from "./scores-utils";
 import { parseMetadataCHRecordToDomain } from "../utils/metadata_conversion";
 import type { AnalyticsScoreEvent } from "../analytics-integrations/types";
-// ClickHouseClientConfigOptions no longer needed (MySQL backend)
+// AnalyticsClientConfigOptions no longer needed (MySQL backend)
 import { recordDistribution } from "../instrumentation";
 import { logger } from "../logger";
 import { prisma } from "../../db";
@@ -75,7 +75,7 @@ import {
   eventsExperimentTraceIds,
   eventsExperiments,
   promptEventsForMetrics,
-} from "../queries/clickhouse-sql/query-fragments";
+} from "../queries/analytics-sql/query-fragments";
 import { scoresTableCols } from "../../tableDefinitions/scoresTable";
 import {
   findUiColumnMapping,
@@ -117,7 +117,7 @@ export const searchExistingAnnotationScore = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<ScoreRecordReadType>({
+  const rows = await queryAnalytics<ScoreRecordReadType>({
     query,
     params: {
       projectId,
@@ -172,7 +172,7 @@ export const upsertScore = async (score: Partial<ScoreRecordReadType>) => {
   if (!["id", "project_id", "name", "timestamp"].every((key) => key in score)) {
     throw new Error("Identifier fields must be provided to upsert Score.");
   }
-  await upsertClickhouse({
+  await upsertAnalytics({
     table: "scores",
     records: [score as ScoreRecordReadType],
     eventBodyMapper: convertClickhouseScoreToDomain,
@@ -190,10 +190,10 @@ export type GetScoresForTracesProps<
   timestamp?: Date;
   limit?: number;
   offset?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   excludeMetadata?: ExcludeMetadata;
   includeHasMetadata?: IncludeHasMetadata;
-  preferredClickhouseService?: PreferredClickhouseService;
+  preferredClickhouseService?: PreferredAnalyticsService;
 };
 
 type GetScoresForSessionsProps<
@@ -204,7 +204,7 @@ type GetScoresForSessionsProps<
   sessionIds: string[];
   limit?: number;
   offset?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   excludeMetadata?: ExcludeMetadata;
   includeHasMetadata?: IncludeHasMetadata;
 };
@@ -217,7 +217,7 @@ type GetScoresForExperimentsProps<
   runIds: string[];
   limit?: number;
   offset?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   excludeMetadata?: ExcludeMetadata;
   includeHasMetadata?: IncludeHasMetadata;
 };
@@ -249,7 +249,7 @@ export const getScoresForSessions = async <
     sessionIds,
     limit,
     offset,
-    clickhouseConfigs,
+    analyticsConfigs,
     excludeMetadata = false,
     includeHasMetadata = false,
   } = props;
@@ -268,7 +268,7 @@ export const getScoresForSessions = async <
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
-  const rows = await queryClickhouse<ScoreRecordReadType>({
+  const rows = await queryAnalytics<ScoreRecordReadType>({
     query: query,
     params: {
       projectId,
@@ -278,7 +278,7 @@ export const getScoresForSessions = async <
       dataTypes: LISTABLE_SCORE_TYPES,
     },
     tags: { projectId },
-    clickhouseConfigs,
+    analyticsConfigs,
   });
 
   const includeMetadataPayload = !excludeMetadata;
@@ -298,7 +298,7 @@ export const getScoresForExperiments = async <
     runIds,
     limit,
     offset,
-    clickhouseConfigs,
+    analyticsConfigs,
     excludeMetadata = false,
     includeHasMetadata = false,
   } = props;
@@ -317,7 +317,7 @@ export const getScoresForExperiments = async <
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
-  const rows = await queryClickhouse<ScoreRecordReadType>({
+  const rows = await queryAnalytics<ScoreRecordReadType>({
     query: query,
     params: {
       projectId,
@@ -327,7 +327,7 @@ export const getScoresForExperiments = async <
       offset,
     },
     tags: { projectId },
-    clickhouseConfigs,
+    analyticsConfigs,
   });
 
   const includeMetadataPayload = !excludeMetadata;
@@ -382,7 +382,7 @@ export const getTraceScoresForDatasetRuns = async (
     LIMIT 1 s.project_id, dri.dataset_run_id
   `;
 
-  const rows = await queryClickhouse<
+  const rows = await queryAnalytics<
     Omit<ScoreRecordReadType, "metadata"> & {
       has_metadata: 0 | 1;
       run_id: string;
@@ -464,7 +464,7 @@ export const getScoresForExperimentItems = async (
     LIMIT 1 s.project_id, e.experiment_id
   `;
 
-  const rows = await queryClickhouse<
+  const rows = await queryAnalytics<
     Omit<ScoreRecordReadType, "metadata"> & {
       has_metadata: 0 | 1;
       experiment_id: string;
@@ -508,7 +508,7 @@ const getScoresForTracesInternal = async <
     dataTypes,
     limit,
     offset,
-    clickhouseConfigs,
+    analyticsConfigs,
     excludeMetadata = false,
     includeHasMetadata = false,
     preferredClickhouseService,
@@ -536,7 +536,7 @@ const getScoresForTracesInternal = async <
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
-  const rows = await queryClickhouse<
+  const rows = await queryAnalytics<
     ScoreRecordReadType & {
       metadata: ExcludeMetadata extends true
         ? never
@@ -553,11 +553,11 @@ const getScoresForTracesInternal = async <
       offset,
       ...(dataTypes ? { dataTypes: dataTypes.map((d) => d.toString()) } : {}),
       ...(timestamp
-        ? { traceTimestamp: convertDateToClickhouseDateTime(timestamp) }
+        ? { traceTimestamp: convertDateToAnalyticsDateTime(timestamp) }
         : {}),
     },
     tags: { projectId },
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
   });
 
@@ -625,7 +625,7 @@ export type GetScoresForObservationsProps<
   minTimestamp?: Date;
   limit?: number;
   offset?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   excludeMetadata?: ExcludeMetadata;
   includeHasMetadata?: IncludeHasMetadata;
 };
@@ -643,7 +643,7 @@ export const getScoresForObservations = async <
     minTimestamp,
     limit,
     offset,
-    clickhouseConfigs,
+    analyticsConfigs,
     excludeMetadata = false,
     includeHasMetadata = false,
   } = props;
@@ -663,7 +663,7 @@ export const getScoresForObservations = async <
       ${limit !== undefined && offset !== undefined ? `limit {limit: Int32} offset {offset: Int32}` : ""}
     `;
 
-  const rows = await queryClickhouse<
+  const rows = await queryAnalytics<
     ScoreRecordReadType & {
       metadata: ExcludeMetadata extends true
         ? never
@@ -680,11 +680,11 @@ export const getScoresForObservations = async <
       limit: limit,
       offset: offset,
       ...(minTimestamp
-        ? { minTimestamp: convertDateToClickhouseDateTime(minTimestamp) }
+        ? { minTimestamp: convertDateToAnalyticsDateTime(minTimestamp) }
         : {}),
     },
     tags: { projectId },
-    clickhouseConfigs,
+    analyticsConfigs,
   });
 
   const includeMetadataPayload = !excludeMetadata;
@@ -765,9 +765,9 @@ export async function queryScoreRecordsForExperimentItems({
       projectId,
       traceIds: uniqueTraceIds,
       observationIds: uniqueObservationIds,
-      minStartTime: convertDateToClickhouseDateTime(min),
+      minStartTime: convertDateToAnalyticsDateTime(min),
       ...(toTimestamp
-        ? { maxStartTime: convertDateToClickhouseDateTime(toTimestamp) }
+        ? { maxStartTime: convertDateToAnalyticsDateTime(toTimestamp) }
         : {}),
       scoreLimit,
       dataTypes: LISTABLE_SCORE_TYPES.map((type) => type.toString()),
@@ -777,7 +777,7 @@ export async function queryScoreRecordsForExperimentItems({
       operation_name: "queryScoreRecordsForExperimentItems",
     },
   };
-  return await queryClickhouse<ScoreRecordReadType>({
+  return await queryAnalytics<ScoreRecordReadType>({
     query: `
       SELECT
         ${scoreRecordReadSelect}
@@ -833,9 +833,9 @@ export async function queryScoreRecordsForExperiments({
     params: {
       projectId,
       experimentIds: uniqueExperimentIds,
-      startTimeFrom: convertDateToClickhouseDateTime(fromTimestamp),
+      startTimeFrom: convertDateToAnalyticsDateTime(fromTimestamp),
       ...(toTimestamp
-        ? { startTimeTo: convertDateToClickhouseDateTime(toTimestamp) }
+        ? { startTimeTo: convertDateToAnalyticsDateTime(toTimestamp) }
         : {}),
       scoreLimit,
       dataTypes: LISTABLE_SCORE_TYPES.map((type) => type.toString()),
@@ -845,7 +845,7 @@ export async function queryScoreRecordsForExperiments({
       operation_name: "queryScoreRecordsForExperiments",
     },
   };
-  return await queryClickhouse<ScoreRecordReadType>({
+  return await queryAnalytics<ScoreRecordReadType>({
     query: `
       SELECT
         ${scoreRecordReadSelect}
@@ -881,8 +881,8 @@ const scoresEventsFilterMapping = [
   {
     uiTableName: "Experiment IDs",
     uiTableId: "experimentIds",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: "experiment_id",
+    analyticsTableName: "events_proto",
+    analyticsSelect: "experiment_id",
     queryPrefix: "e",
   },
 ];
@@ -909,14 +909,14 @@ export const getScoresGroupedByNameSourceType = async ({
 
   // Separate scores-only filters from event/experiment filters
   const nonEventFilters = scoresFilter.filter(
-    (f) => !f.clickhouseTable.startsWith("events_"),
+    (f) => !f.analyticsTable.startsWith("events_"),
   );
 
   const scoresFilterRes = nonEventFilters.apply();
 
   // Only join dataset run items if there is a dataset run items filter
   const performDatasetRunItemsJoin = scoresFilter.some(
-    (f) => f.clickhouseTable === "dataset_run_items_rmt",
+    (f) => f.analyticsTable === "dataset_run_items_rmt",
   );
 
   // Extract event-level filter entries from the frontend filter state
@@ -971,7 +971,7 @@ export const getScoresGroupedByNameSourceType = async ({
     LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
   `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     name: string;
     source: string;
     data_type: string;
@@ -981,10 +981,10 @@ export const getScoresGroupedByNameSourceType = async ({
       projectId: projectId,
       dataTypes: LISTABLE_SCORE_TYPES,
       ...(fromTimestamp
-        ? { fromTimestamp: convertDateToClickhouseDateTime(fromTimestamp) }
+        ? { fromTimestamp: convertDateToAnalyticsDateTime(fromTimestamp) }
         : {}),
       ...(toTimestamp
-        ? { toTimestamp: convertDateToClickhouseDateTime(toTimestamp) }
+        ? { toTimestamp: convertDateToAnalyticsDateTime(toTimestamp) }
         : {}),
       ...(scoresFilterRes ? scoresFilterRes.params : {}),
       ...(eventsFilterRes ? eventsFilterRes.params : {}),
@@ -1034,7 +1034,7 @@ export const getNumericScoresGroupedByName = async (
       LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
     `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     name: string;
   }>({
     query: query,
@@ -1077,7 +1077,7 @@ export const getBooleanScoresGroupedByName = async (
       LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
     `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     name: string;
   }>({
     query: query,
@@ -1121,7 +1121,7 @@ export const getCategoricalScoresGroupedByName = async (
     LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
   `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     label: string;
     values: string[];
   }>({
@@ -1219,15 +1219,15 @@ export async function getScoresUiTable<
   orderBy: OrderByState;
   limit?: number;
   offset?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   excludeMetadata?: ExcludeMetadata;
   includeHasMetadataFlag?: IncludeHasMetadata;
-  preferredClickhouseService?: PreferredClickhouseService;
+  preferredClickhouseService?: PreferredAnalyticsService;
 }) {
   const {
     excludeMetadata = false,
     includeHasMetadataFlag = false,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
     ...rest
   } = props;
@@ -1271,7 +1271,7 @@ export async function getScoresUiTable<
     select: "rows",
     excludeMetadata,
     includeHasMetadataFlag,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
     ...rest,
   });
@@ -1307,10 +1307,10 @@ const getScoresUiGeneric = async <T>(props: {
   limit?: number;
   offset?: number;
   tags?: Record<string, string>;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   excludeMetadata?: boolean;
   includeHasMetadataFlag?: boolean;
-  preferredClickhouseService?: PreferredClickhouseService;
+  preferredClickhouseService?: PreferredAnalyticsService;
 }): Promise<T[]> => {
   const {
     projectId,
@@ -1318,7 +1318,7 @@ const getScoresUiGeneric = async <T>(props: {
     orderBy,
     limit,
     offset,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
     excludeMetadata = false,
     includeHasMetadataFlag = false,
@@ -1379,7 +1379,7 @@ const getScoresUiGeneric = async <T>(props: {
   // Only join traces for rows or if there is a trace filter on counts
   const performTracesJoin =
     props.select === "rows" ||
-    scoresFilter.some((f) => f.clickhouseTable === "traces");
+    scoresFilter.some((f) => f.analyticsTable === "traces");
 
   const query = `
       SELECT
@@ -1403,11 +1403,11 @@ const getScoresUiGeneric = async <T>(props: {
     },
     tags: { ...(props.tags ?? {}), projectId },
   };
-  return queryClickhouse<T>({
+  return queryAnalytics<T>({
     query,
     params: input.params,
     tags: input.tags,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
   });
 };
@@ -1421,21 +1421,21 @@ const scoresTraceFilterEventsMapping = [
   {
     uiTableName: "Trace Name",
     uiTableId: "traceName",
-    clickhouseTableName: "traces",
-    clickhouseSelect: eventsTableTraceNameSql,
+    analyticsTableName: "traces",
+    analyticsSelect: eventsTableTraceNameSql,
   },
   {
     uiTableName: "User ID",
     uiTableId: "userId",
-    clickhouseTableName: "traces",
-    clickhouseSelect: "user_id",
+    analyticsTableName: "traces",
+    analyticsSelect: "user_id",
     queryPrefix: "e",
   },
   {
     uiTableName: "Trace Tags",
     uiTableId: "trace_tags",
-    clickhouseTableName: "traces",
-    clickhouseSelect: "tags",
+    analyticsTableName: "traces",
+    analyticsSelect: "tags",
     queryPrefix: "e",
   },
 ];
@@ -1488,9 +1488,9 @@ const buildScoresDatePrune = (
   const params: Record<string, unknown> = {};
   const clauses = timestampFilters.map((f) => {
     const dateOp = f.operator.startsWith(">") ? ">=" : "<=";
-    const varName = `scoresInnerDatePrune${clickhouseCompliantRandomCharacters()}`;
+    const varName = `scoresInnerDatePrune${analyticsCompliantRandomCharacters()}`;
     const column = `${f.tablePrefix ? `${f.tablePrefix}.` : ""}${f.field}`;
-    params[varName] = convertDateToClickhouseDateTime(new Date(f.value));
+    params[varName] = convertDateToAnalyticsDateTime(new Date(f.value));
     return `DATE(${column}) ${dateOp} DATE({${varName}: DateTime64(3, 'UTC')})`;
   });
 
@@ -1511,7 +1511,7 @@ const getScoresUiGenericFromEvents = async <T>(props: {
   limit?: number;
   offset?: number;
   tags?: Record<string, string>;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   excludeMetadata?: boolean;
   includeHasMetadataFlag?: boolean;
 }): Promise<T[]> => {
@@ -1521,7 +1521,7 @@ const getScoresUiGenericFromEvents = async <T>(props: {
     orderBy,
     limit,
     offset,
-    clickhouseConfigs,
+    analyticsConfigs,
     excludeMetadata = false,
     includeHasMetadataFlag = false,
   } = props;
@@ -1540,7 +1540,7 @@ const getScoresUiGenericFromEvents = async <T>(props: {
   );
 
   const scoreOnlyFilters = scoresFilter.filter(
-    (f) => f.clickhouseTable !== "traces",
+    (f) => f.analyticsTable !== "traces",
   );
   const scoreOnlyFilterRes = scoreOnlyFilters.apply();
 
@@ -1563,7 +1563,7 @@ const getScoresUiGenericFromEvents = async <T>(props: {
       )
     : null;
   const orderByColumn =
-    matchedOrderByColumn?.clickhouseTableName === "traces"
+    matchedOrderByColumn?.analyticsTableName === "traces"
       ? matchedOrderByColumn
       : null;
 
@@ -1714,11 +1714,11 @@ const getScoresUiGenericFromEvents = async <T>(props: {
     },
     tags: { ...(props.tags ?? {}), projectId },
   };
-  return queryClickhouse<T>({
+  return queryAnalytics<T>({
     query,
     params: input.params,
     tags: input.tags,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService: needsTracesCTE ? "EventsReadOnly" : "ReadOnly",
   });
 };
@@ -1750,12 +1750,12 @@ export async function getScoresUiTableFromEvents(props: {
   orderBy: OrderByState;
   limit?: number;
   offset?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
   // Defaults to true: the scores UI table only needs the hasMetadata flag.
   // Batch exports pass false to include the full metadata payload.
   excludeMetadata?: boolean;
 }) {
-  const { clickhouseConfigs, excludeMetadata = true, ...rest } = props;
+  const { analyticsConfigs, excludeMetadata = true, ...rest } = props;
 
   const rows = await getScoresUiGenericFromEvents<{
     id: string;
@@ -1790,7 +1790,7 @@ export async function getScoresUiTableFromEvents(props: {
     select: "rows",
     excludeMetadata,
     includeHasMetadataFlag: true,
-    clickhouseConfigs,
+    analyticsConfigs,
     ...rest,
   });
 
@@ -1839,7 +1839,7 @@ export const getScoreNames = async (
       LIMIT 1000;
     `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     name: string;
     count: string;
   }>({
@@ -1888,7 +1888,7 @@ export const getScoreStringValues = async (
       LIMIT 1000;
     `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     string_value: string;
     count: string;
   }>({
@@ -1912,14 +1912,14 @@ export const deleteScores = async (projectId: string, scoreIds: string[]) => {
     WHERE project_id = {projectId: String}
     AND id in ({scoreIds: Array(String)});
   `;
-  await commandClickhouse({
+  await commandAnalytics({
     query: query,
     params: {
       projectId,
       scoreIds,
     },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
@@ -1934,13 +1934,13 @@ export const deleteScoresByTraceIds = async (
     WHERE project_id = {projectId: String}
     AND trace_id IN ({traceIds: Array(String)});
   `;
-  await commandClickhouse({
+  await commandAnalytics({
     query: query,
     params: {
       projectId,
       traceIds,
     },
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 120_000, // 2 minutes
     },
     tags: { projectId },
@@ -1961,11 +1961,11 @@ export const deleteScoresByProjectId = async (
   `;
   const tags = { projectId };
 
-  await commandClickhouse({
+  await commandAnalytics({
     query,
     params: { projectId },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags,
   });
@@ -1985,11 +1985,11 @@ export const hasAnyScoreOlderThan = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: {
       projectId,
-      cutoffDate: convertDateToClickhouseDateTime(beforeDate),
+      cutoffDate: convertDateToAnalyticsDateTime(beforeDate),
     },
     tags: { projectId },
   });
@@ -2011,14 +2011,14 @@ export const deleteScoresOlderThanDays = async (
     WHERE project_id = {projectId: String}
     AND timestamp < {cutoffDate: DateTime64(3)};
   `;
-  await commandClickhouse({
+  await commandAnalytics({
     query: query,
     params: {
       projectId,
-      cutoffDate: convertDateToClickhouseDateTime(beforeDate),
+      cutoffDate: convertDateToAnalyticsDateTime(beforeDate),
     },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
@@ -2036,7 +2036,7 @@ export const getNumericScoreHistogram = async (
   );
   const chFilterRes = chFilter.apply();
 
-  const traceFilter = chFilter.find((f) => f.clickhouseTable === "traces");
+  const traceFilter = chFilter.find((f) => f.analyticsTable === "traces");
 
   const query = `
     select s.value
@@ -2058,7 +2058,7 @@ export const getNumericScoreHistogram = async (
     },
     tags: { projectId },
   };
-  return queryClickhouse<{ value: number }>({
+  return queryAnalytics<{ value: number }>({
     query,
     params: input.params,
     tags: input.tags,
@@ -2101,7 +2101,7 @@ export const getAggregatedScoresForPrompts = async (
     AND s.data_type IN ({dataTypes: Array(String)})
   `;
 
-  const rows = await queryClickhouse<
+  const rows = await queryAnalytics<
     ScoreAggregation & {
       prompt_id: string;
       // has_metadata is 0 or 1 from ClickHouse, later converted to a boolean
@@ -2114,10 +2114,10 @@ export const getAggregatedScoresForPrompts = async (
       promptIds,
       dataTypes: LISTABLE_SCORE_TYPES,
       ...(fromTimestamp
-        ? { fromTimestamp: convertDateToClickhouseDateTime(fromTimestamp) }
+        ? { fromTimestamp: convertDateToAnalyticsDateTime(fromTimestamp) }
         : {}),
       ...(toTimestamp
-        ? { toTimestamp: convertDateToClickhouseDateTime(toTimestamp) }
+        ? { toTimestamp: convertDateToAnalyticsDateTime(toTimestamp) }
         : {}),
     },
     tags: { projectId },
@@ -2143,10 +2143,10 @@ export const buildAggregatedScoresForPromptsFromEventsQuery = (
     projectId,
     promptIds,
     ...(fromTimestamp
-      ? { fromTimestamp: convertDateToClickhouseDateTime(fromTimestamp) }
+      ? { fromTimestamp: convertDateToAnalyticsDateTime(fromTimestamp) }
       : {}),
     ...(toTimestamp
-      ? { toTimestamp: convertDateToClickhouseDateTime(toTimestamp) }
+      ? { toTimestamp: convertDateToAnalyticsDateTime(toTimestamp) }
       : {}),
   });
 
@@ -2242,7 +2242,7 @@ export const getAggregatedScoresForPromptsFromEvents = async (
     timeWindow,
   );
 
-  const rows = await queryClickhouse<
+  const rows = await queryAnalytics<
     ScoreAggregation & {
       prompt_id: string;
       has_metadata: 0 | 1;
@@ -2282,15 +2282,15 @@ export const getScoreCountsByProjectInCreationInterval = async ({
     GROUP BY project_id
   `;
 
-  const rows = await queryClickhouse<{ project_id: string; count: string }>({
+  const rows = await queryAnalytics<{ project_id: string; count: string }>({
     query,
     params: {
-      start: convertDateToClickhouseDateTime(start),
-      end: convertDateToClickhouseDateTime(end),
+      start: convertDateToAnalyticsDateTime(start),
+      end: convertDateToAnalyticsDateTime(end),
       dataTypes: LISTABLE_SCORE_TYPES,
       ...(projectId ? { projectId } : {}),
     },
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 300000, // 5 minutes timeout
     },
   });
@@ -2316,11 +2316,11 @@ export const getScoreCountOfProjectsSinceCreationDate = async ({
     AND created_at >= {start: DateTime64(3)}
   `;
 
-  const rows = await queryClickhouse<{ count: string }>({
+  const rows = await queryAnalytics<{ count: string }>({
     query,
     params: {
       projectIds,
-      start: convertDateToClickhouseDateTime(start),
+      start: convertDateToAnalyticsDateTime(start),
     },
   });
 
@@ -2357,7 +2357,7 @@ const getDistinctScoreNamesStartTimeFrom = (
   );
 
   return scoreTimestampFilter
-    ? convertDateToClickhouseDateTime(scoreTimestampFilter.value)
+    ? convertDateToAnalyticsDateTime(scoreTimestampFilter.value)
     : null;
 };
 
@@ -2365,14 +2365,14 @@ export const getDistinctScoreNames = async (
   p: {
     projectId: string;
     cutoffCreatedAt: Date;
-    clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
-    preferredClickhouseService?: PreferredClickhouseService;
+    analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
+    preferredClickhouseService?: PreferredAnalyticsService;
   } & DistinctScoreNamesTimestampSource,
 ) => {
   const {
     projectId,
     cutoffCreatedAt,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
   } = p;
   const startTimeFrom = getDistinctScoreNamesStartTimeFrom(p);
@@ -2386,11 +2386,11 @@ export const getDistinctScoreNames = async (
     AND s.data_type IN ({dataTypes: Array(String)})
   `;
 
-  const rows = await queryClickhouse<{ name: string }>({
+  const rows = await queryAnalytics<{ name: string }>({
     query,
     params: {
       projectId,
-      cutoffCreatedAt: convertDateToClickhouseDateTime(cutoffCreatedAt),
+      cutoffCreatedAt: convertDateToAnalyticsDateTime(cutoffCreatedAt),
       dataTypes: LISTABLE_SCORE_TYPES,
       ...(startTimeFrom
         ? {
@@ -2399,7 +2399,7 @@ export const getDistinctScoreNames = async (
         : {}),
     },
     tags: { projectId },
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
   });
 
@@ -2442,14 +2442,14 @@ const buildScoresForBlobStorageExportQuery = (
     query,
     params: {
       projectId,
-      minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-      maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+      minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+      maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
       dataTypes: LISTABLE_SCORE_TYPES,
     },
     // Tagged explicitly: worker baggage isn't active during the deferred stream send.
     tags: { projectId, surface: "worker", route: "blob_export" },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DATA_EXPORT_REQUEST_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DATA_EXPORT_REQUEST_TIMEOUT_MS,
     },
   };
 };
@@ -2459,7 +2459,7 @@ export const getScoresForBlobStorageExport = function (
   minTimestamp: Date,
   maxTimestamp: Date,
 ) {
-  return queryClickhouseStream<Record<string, unknown>>(
+  return queryAnalyticsStream<Record<string, unknown>>(
     buildScoresForBlobStorageExportQuery(projectId, minTimestamp, maxTimestamp),
   );
 };
@@ -2471,14 +2471,14 @@ export const getScoresForBlobStorageExportParquet = function (
   minTimestamp: Date,
   maxTimestamp: Date,
 ) {
-  return queryClickhouseExecRaw({
+  return queryAnalyticsExecRaw({
     ...buildScoresForBlobStorageExportQuery(
       projectId,
       minTimestamp,
       maxTimestamp,
     ),
     format: "Parquet",
-    clickhouseSettings: BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS,
+    analyticsSettings: BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS,
   });
 };
 
@@ -2515,8 +2515,8 @@ const buildAnalyticsScoreTraceAttributesCte = (
       AND t.timestamp <= {maxTimestamp: DateTime64(3)}`,
   params: {
     projectId,
-    minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-    maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+    minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+    maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
   },
 });
 
@@ -2555,8 +2555,8 @@ const buildAnalyticsScoreTraceAttributesFromEventsCte = (
       GROUP BY e.project_id, e.trace_id`,
   params: {
     projectId,
-    minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-    maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+    minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+    maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
   },
 });
 
@@ -2623,12 +2623,12 @@ export const getScoresForAnalyticsIntegrations = async function* (
     )
   `;
 
-  const records = queryClickhouseStream<Record<string, unknown>>({
+  const records = queryAnalyticsStream<Record<string, unknown>>({
     query,
     params: {
       projectId,
-      minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-      maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+      minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+      maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
       dataTypes: LISTABLE_SCORE_TYPES,
     },
     // Tagged explicitly: worker baggage isn't active during the deferred stream send.
@@ -2636,11 +2636,11 @@ export const getScoresForAnalyticsIntegrations = async function* (
     ...(traceAttributesSource === "events"
       ? { preferredClickhouseService: "EventsReadOnly" as const }
       : {}),
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DATA_EXPORT_REQUEST_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DATA_EXPORT_REQUEST_TIMEOUT_MS,
       ...(options.useGraceHash
         ? {
-            clickhouse_settings: {
+            analytics_settings: {
               join_algorithm: "grace_hash",
               grace_hash_join_initial_buckets: "32",
             },
@@ -2701,7 +2701,7 @@ export const hasAnyScore = async (projectId: string) => {
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: {
       projectId,
@@ -2728,7 +2728,7 @@ export const getScoreMetadataById = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<Pick<ScoreRecordReadType, "metadata">>({
+  const rows = await queryAnalytics<Pick<ScoreRecordReadType, "metadata">>({
     query,
     params: {
       projectId,
@@ -2763,7 +2763,7 @@ export const getScoreMetadataById = async (
  * });
  *
  * Note: Skips using FINAL (double counting risk) for faster and cheaper
- * queries against clickhouse. Generous 4x overcompensation before blocking allows
+ * queries against analytics. Generous 4x overcompensation before blocking allows
  * for usage aggregation to be meaningful.
  *
  */
@@ -2786,18 +2786,18 @@ export const getScoreCountsByProjectAndDay = async ({
     GROUP BY project_id, DATE(timestamp)
   `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     count: string;
     project_id: string;
     date: string;
   }>({
     query,
     params: {
-      startDate: convertDateToClickhouseDateTime(startDate),
-      endDate: convertDateToClickhouseDateTime(endDate),
+      startDate: convertDateToAnalyticsDateTime(startDate),
+      endDate: convertDateToAnalyticsDateTime(endDate),
       dataTypes: LISTABLE_SCORE_TYPES,
     },
-    clickhouseConfigs: { request_timeout: 120_000 },
+    analyticsConfigs: { request_timeout: 120_000 },
   });
 
   return rows.map((row) => ({
@@ -2958,7 +2958,7 @@ export const _handleGenerateScoresForPublicApi = async ({
     },
     tags: { projectId, ...(apiVersion ? { api_version: apiVersion } : {}) },
   };
-  const records = await queryClickhouse<
+  const records = await queryAnalytics<
     ScoreRecordReadType & {
       tags?: string[];
       user_id?: string;
@@ -3044,7 +3044,7 @@ export const _handleGetScoresCountForPublicApi = async ({
     },
     tags: { projectId, ...(apiVersion ? { api_version: apiVersion } : {}) },
   };
-  const records = await queryClickhouse<{ count: string }>({
+  const records = await queryAnalytics<{ count: string }>({
     query: query.replace("__TRACE_TABLE__", "traces"),
     params: input.params,
     tags: input.tags,
@@ -3167,7 +3167,7 @@ function buildDynamicFilters(params: ListFilterParams): {
     if (values?.length) {
       filterList.push(
         new StringOptionsFilter({
-          clickhouseTable: "scores",
+          analyticsTable: "scores",
           field,
           operator: "any of",
           values,
@@ -3179,7 +3179,7 @@ function buildDynamicFilters(params: ListFilterParams): {
   if (params.fromTimestamp !== undefined)
     filterList.push(
       new DateTimeFilter({
-        clickhouseTable: "scores",
+        analyticsTable: "scores",
         field: "timestamp",
         operator: ">=",
         value: params.fromTimestamp,
@@ -3189,7 +3189,7 @@ function buildDynamicFilters(params: ListFilterParams): {
   if (params.toTimestamp !== undefined)
     filterList.push(
       new DateTimeFilter({
-        clickhouseTable: "scores",
+        analyticsTable: "scores",
         field: "timestamp",
         operator: "<",
         value: params.toTimestamp,
@@ -3199,23 +3199,23 @@ function buildDynamicFilters(params: ListFilterParams): {
   if (params.valueMin !== undefined)
     filterList.push(
       new NumberFilter({
-        clickhouseTable: "scores",
+        analyticsTable: "scores",
         field: "value",
         operator: ">=",
         value: params.valueMin,
         tablePrefix: "s",
-        clickhouseTypeOverwrite: "Float64",
+        analyticsTypeOverwrite: "Float64",
       }),
     );
   if (params.valueMax !== undefined)
     filterList.push(
       new NumberFilter({
-        clickhouseTable: "scores",
+        analyticsTable: "scores",
         field: "value",
         operator: "<=",
         value: params.valueMax,
         tablePrefix: "s",
-        clickhouseTypeOverwrite: "Float64",
+        analyticsTypeOverwrite: "Float64",
       }),
     );
 
@@ -3226,7 +3226,7 @@ function buildDynamicFilters(params: ListFilterParams): {
 
   if (params.value?.length && params.dataType?.length === 1) {
     const dt = params.dataType[0] as ScoreDataTypeType;
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `valueFilter${uid}`;
 
     switch (dt) {
@@ -3416,7 +3416,7 @@ export async function listScoresV3ForPublicApi(
       projectId: params.projectId,
       limit: params.limit + 1,
       ...(params.cursor && {
-        lastTimestamp: convertDateToClickhouseDateTime(
+        lastTimestamp: convertDateToAnalyticsDateTime(
           params.cursor.lastTimestamp,
         ),
         lastId: params.cursor.lastId,
@@ -3425,7 +3425,7 @@ export async function listScoresV3ForPublicApi(
     },
     tags: { projectId: params.projectId },
   };
-  const records = await queryClickhouse<ScoreRecordReadType>({
+  const records = await queryAnalytics<ScoreRecordReadType>({
     query: buildV3ListQuery(
       Boolean(params.cursor),
       params.fields,

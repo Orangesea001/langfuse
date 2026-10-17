@@ -1,6 +1,6 @@
 import { ScoreDataTypeType, ScoreDomain, ScoreSourceType } from "../../domain";
-import { PreferredClickhouseService } from "../clickhouse/client";
-import { queryClickhouse } from "./clickhouse";
+import { PreferredAnalyticsService } from "../analytics-client/client";
+import { queryAnalytics } from "./clickhouse";
 import { ScoreRecordReadType } from "./definitions";
 import { convertClickhouseScoreToDomain } from "./scores_converters";
 
@@ -23,7 +23,7 @@ export const _handleGetScoreById = async ({
   source?: ScoreSourceType;
   scoreScope: "traces_only" | "all";
   scoreDataTypes?: readonly ScoreDataTypeType[];
-  preferredClickhouseService?: PreferredClickhouseService;
+  preferredClickhouseService?: PreferredAnalyticsService;
   apiVersion?: "v1" | "v2";
 }): Promise<ScoreDomain | undefined> => {
   const query = `
@@ -39,7 +39,7 @@ export const _handleGetScoreById = async ({
   LIMIT 1
 `;
 
-  const rows = await queryClickhouse<ScoreRecordReadType>({
+  const rows = await queryAnalytics<ScoreRecordReadType>({
     query,
     params: {
       projectId,
@@ -85,7 +85,7 @@ export const _handleGetScoresByIds = async ({
   LIMIT 1 s.project_id
 `;
 
-  const rows = await queryClickhouse<ScoreRecordReadType>({
+  const rows = await queryAnalytics<ScoreRecordReadType>({
     query,
     params: {
       projectId,

@@ -4,7 +4,7 @@ import {
   filterOperators,
 } from "../../../interfaces/filters";
 import { InvalidRequestError } from "../../../errors";
-import { EVENTS_TABLE_NAMES } from "../../clickhouse/schema";
+import { EVENTS_TABLE_NAMES } from "../../analytics-client/schema";
 
 export { FTS_MATCH_OPERATOR } from "../../../interfaces/filters";
 
@@ -52,10 +52,8 @@ export const bareFtsField = (field: string): string => {
   return tail.replace(/^"(.*)"$/, "$1");
 };
 
-export const isFtsEventsTable = (
-  clickhouseTable: string | undefined,
-): boolean =>
-  clickhouseTable !== undefined && FTS_EVENTS_TABLES.has(clickhouseTable);
+export const isFtsEventsTable = (analyticsTable: string | undefined): boolean =>
+  analyticsTable !== undefined && FTS_EVENTS_TABLES.has(analyticsTable);
 
 export const isFtsMatchOperator = (
   operator: string | undefined,
@@ -68,18 +66,18 @@ export const isFtsMetadataField = (field: string): boolean =>
   bareFtsField(field) === FTS_METADATA_FIELD;
 
 export const isFtsTextTarget = (
-  clickhouseTable: string,
+  analyticsTable: string,
   field: string,
   operator: FtsStringOperator,
 ): boolean =>
-  isFtsEventsTable(clickhouseTable) &&
+  isFtsEventsTable(analyticsTable) &&
   isFtsTextField(field) &&
   FTS_TEXT_OPERATORS.has(operator);
 
 export const isFtsMetadataTarget = (
-  clickhouseTable: string,
+  analyticsTable: string,
   field: string,
-): boolean => isFtsEventsTable(clickhouseTable) && isFtsMetadataField(field);
+): boolean => isFtsEventsTable(analyticsTable) && isFtsMetadataField(field);
 
 const isNgramSubstringField = (field: string): boolean =>
   FTS_NGRAM_SUBSTRING_FIELDS.has(bareFtsField(field));
@@ -90,9 +88,9 @@ const isNgramSubstringField = (field: string): boolean =>
 // events_core the emitted lower() conjunct is simply an unindexed, correct, and
 // cheap extra comparison on these small columns.
 export const isNgramSubstringTarget = (
-  clickhouseTable: string,
+  analyticsTable: string,
   field: string,
-): boolean => isFtsEventsTable(clickhouseTable) && isNgramSubstringField(field);
+): boolean => isFtsEventsTable(analyticsTable) && isNgramSubstringField(field);
 
 export const isFtsAcceleratedIoOperator = (operator: string): boolean =>
   FTS_TEXT_OPERATORS.has(operator as FtsStringOperator);
@@ -210,7 +208,7 @@ export const FTS_TEXT_OPERATORS: ReadonlySet<FtsStringOperator> = new Set(
 
 export const assertValidFtsMatchFilter = (opts: {
   filterType: "string" | "stringObject";
-  clickhouseTable: string;
+  analyticsTable: string;
   field: string;
   value: string;
 }) => {
@@ -220,9 +218,9 @@ export const assertValidFtsMatchFilter = (opts: {
 
   if (
     (opts.filterType === "string" &&
-      isFtsTextTarget(opts.clickhouseTable, opts.field, FTS_MATCH_OPERATOR)) ||
+      isFtsTextTarget(opts.analyticsTable, opts.field, FTS_MATCH_OPERATOR)) ||
     (opts.filterType === "stringObject" &&
-      isFtsMetadataTarget(opts.clickhouseTable, opts.field))
+      isFtsMetadataTarget(opts.analyticsTable, opts.field))
   ) {
     return;
   }

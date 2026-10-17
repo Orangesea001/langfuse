@@ -4,17 +4,17 @@ const mockQueryClickhouse = vi.hoisted(() => vi.fn());
 const mockShouldSkipObservationsFinal = vi.hoisted(() => vi.fn());
 let charCounter = 0;
 
-vi.mock("./clickhouse", () => ({
-  queryClickhouse: mockQueryClickhouse,
-  commandClickhouse: vi.fn(),
-  queryClickhouseStream: vi.fn(),
-  upsertClickhouse: vi.fn(),
+vi.mock("./analytics", () => ({
+  queryAnalytics: mockQueryClickhouse,
+  commandAnalytics: vi.fn(),
+  queryAnalyticsStream: vi.fn(),
+  upsertAnalytics: vi.fn(),
   parseClickhouseUTCDateTimeFormat: vi.fn(),
   // Return unique names per call so filter parameter variables don't collide
-  clickhouseCompliantRandomCharacters: vi.fn(() => `x${++charCounter}`),
+  analyticsCompliantRandomCharacters: vi.fn(() => `x${++charCounter}`),
 }));
 
-vi.mock("../queries/clickhouse-sql/query-options", () => ({
+vi.mock("../queries/analytics-sql/query-options", () => ({
   shouldSkipObservationsFinal: mockShouldSkipObservationsFinal,
 }));
 
@@ -26,12 +26,12 @@ import {
   FilterList,
   NumberObjectFilter,
   StringFilter,
-} from "../queries/clickhouse-sql/clickhouse-filter";
+} from "../queries/analytics-sql/analytics-filter";
 
 const makeScoreFilter = () =>
   new FilterList([
     new NumberObjectFilter({
-      clickhouseTable: "scores",
+      analyticsTable: "scores",
       field: "s.scores_avg",
       key: "quality",
       operator: ">",
@@ -50,7 +50,7 @@ describe("public trace query construction", () => {
   it("uses FINAL for a non-skip-index trace filter", async () => {
     const filter = new FilterList([
       new StringFilter({
-        clickhouseTable: "traces",
+        analyticsTable: "traces",
         field: "name",
         operator: "=",
         value: "my-trace",
@@ -67,7 +67,7 @@ describe("public trace query construction", () => {
   it("does not use FINAL for skip-index trace filters (user_id / session_id / metadata)", async () => {
     const filter = new FilterList([
       new StringFilter({
-        clickhouseTable: "traces",
+        analyticsTable: "traces",
         field: "user_id",
         operator: "=",
         value: "user-abc",
@@ -84,7 +84,7 @@ describe("public trace query construction", () => {
   it("uses FINAL when an observations-table filter is present", async () => {
     const filter = new FilterList([
       new StringFilter({
-        clickhouseTable: "observations",
+        analyticsTable: "observations",
         field: "name",
         operator: "=",
         value: "obs-span",

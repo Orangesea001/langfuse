@@ -5,7 +5,7 @@
  * (23+ repository files) continue to work without changes. Under the hood,
  * every function delegates to the MySQL executor + SQL translator.
  *
- * The ClickHouse-specific types (ClickHouseSettings, TupleParam, etc.) are
+ * The ClickHouse-specific types (AnalyticsSettings, TupleParam, etc.) are
  * kept as no-ops or stubs for API compatibility.
  */
 import {
@@ -26,15 +26,15 @@ import { randomUUID } from "crypto";
 
 /** Stub: ClickHouse settings are not applicable to MySQL */
 /** Stub: ClickHouse client config options (not needed for MySQL) */
-export type ClickHouseClientConfigOptions = Record<string, unknown>;
+export type AnalyticsClientConfigOptions = Record<string, unknown>;
 
-export type ClickHouseSettings = Record<string, unknown>;
+export type AnalyticsSettings = Record<string, unknown>;
 
 /** Stub: TupleParam is not needed for MySQL (arrays handled as JSON) */
 export const TupleParam = Array;
 
 /** Error class preserved for compatibility; MySQL errors are wrapped in it */
-export class ClickHouseResourceError extends Error {
+export class AnalyticsResourceError extends Error {
   static ERROR_ADVICE_MESSAGE =
     "An error occurred while querying the analytics store. Please try again later.";
   public readonly errorType: string = "UNKNOWN";
@@ -46,14 +46,14 @@ export class ClickHouseResourceError extends Error {
     tags?: Record<string, unknown>,
   ) {
     super(originalError.message, { cause: originalError });
-    this.name = "ClickHouseResourceError";
+    this.name = "AnalyticsResourceError";
     this.errorType = errType;
     this.tags = tags;
     if (originalError.stack) this.stack = originalError.stack;
   }
 
-  static is(error: unknown): error is ClickHouseResourceError {
-    return error instanceof ClickHouseResourceError;
+  static is(error: unknown): error is AnalyticsResourceError {
+    return error instanceof AnalyticsResourceError;
   }
 
   static wrapIfResourceError(
@@ -71,10 +71,10 @@ export type ClickhouseQueryOpts = {
   query: string;
   params?: Record<string, unknown>;
   useMultipartParamsAuto?: boolean;
-  clickhouseConfigs?: unknown;
+  analyticsConfigs?: unknown;
   tags?: Record<string, string | undefined>;
   preferredClickhouseService?: unknown;
-  clickhouseSettings?: ClickHouseSettings;
+  analyticsSettings?: AnalyticsSettings;
   allowLegacyEventsRead?: boolean;
   format?: string;
   queryId?: string;
@@ -86,7 +86,7 @@ export type ClickhouseQueryOpts = {
  * Execute a query and return typed results.
  * Replaces the ClickHouse implementation with MySQL.
  */
-export async function queryClickhouse<T>(
+export async function queryAnalytics<T>(
   opts: ClickhouseQueryOpts,
 ): Promise<T[]> {
   try {
@@ -97,7 +97,7 @@ export async function queryClickhouse<T>(
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("MySQL query error (queryClickhouse)", err, {
+    logger.error("MySQL query error (queryAnalytics)", err, {
       query: opts.query?.substring(0, 200),
     });
     throw err;
@@ -107,14 +107,14 @@ export async function queryClickhouse<T>(
 /**
  * Execute a raw SQL command (DDL, etc.).
  */
-export async function queryClickhouseExecRaw(opts: {
+export async function queryAnalyticsExecRaw(opts: {
   query: string;
   params?: Record<string, unknown>;
   tags?: Record<string, string | undefined>;
-  clickhouseConfigs?: unknown;
+  analyticsConfigs?: unknown;
   preferredClickhouseService?: unknown;
   format?: string;
-  clickhouseSettings?: Record<string, unknown>;
+  analyticsSettings?: Record<string, unknown>;
 }): Promise<ClickhouseExecRawResult> {
   const { sql, params } = translateQuery(opts.query, opts.params);
   try {
@@ -128,7 +128,7 @@ export async function queryClickhouseExecRaw(opts: {
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("MySQL exec error (queryClickhouseExecRaw)", err);
+    logger.error("MySQL exec error (queryAnalyticsExecRaw)", err);
     throw err;
   }
 }
@@ -144,15 +144,13 @@ export type ClickhouseExecRawResult = {
  * Upsert records into MySQL.
  * Replaces the ClickHouse bulk insert.
  */
-export async function upsertClickhouse<
-  T extends Record<string, unknown>,
->(opts: {
+export async function upsertAnalytics<T extends Record<string, unknown>>(opts: {
   table: string;
   records: T[];
   tags?: Record<string, string | undefined>;
   format?: string;
   eventBodyMapper?: (record: T) => T;
-  clickhouseSettings?: ClickHouseSettings;
+  analyticsSettings?: AnalyticsSettings;
   log_comment?: string;
 }): Promise<void> {
   if (opts.records.length === 0) return;
@@ -198,7 +196,7 @@ export async function upsertClickhouse<
 /**
  * Stream query results with pagination.
  */
-export async function* queryClickhouseStream<T>(
+export async function* queryAnalyticsStream<T>(
   opts: ClickhouseQueryOpts,
 ): AsyncGenerator<T> {
   yield* streamMySql<T>({
@@ -211,7 +209,7 @@ export async function* queryClickhouseStream<T>(
 /**
  * Stream raw text results (for exports).
  */
-export async function* queryClickhouseStreamRawText(
+export async function* queryAnalyticsStreamRawText(
   opts: ClickhouseQueryOpts,
 ): AsyncGenerator<string> {
   for await (const row of streamMySql<Record<string, unknown>>({
@@ -226,7 +224,7 @@ export async function* queryClickhouseStreamRawText(
 /**
  * Stream with progress (simplified for MySQL — no progress tracking).
  */
-export async function* queryClickhouseWithProgress<T>(
+export async function* queryAnalyticsWithProgress<T>(
   opts: ClickhouseQueryOpts,
 ): AsyncGenerator<T> {
   yield* streamMySql<T>({
@@ -239,12 +237,12 @@ export async function* queryClickhouseWithProgress<T>(
 /**
  * Execute a DDL command.
  */
-export async function commandClickhouse(opts: {
+export async function commandAnalytics(opts: {
   query: string;
   params?: Record<string, unknown>;
   tags?: Record<string, string | undefined>;
-  clickhouseConfigs?: unknown;
-  clickhouseSettings?: Record<string, unknown>;
+  analyticsConfigs?: unknown;
+  analyticsSettings?: Record<string, unknown>;
   queryId?: string;
   preferredClickhouseService?: unknown;
   abortSignal?: AbortSignal;
@@ -254,7 +252,7 @@ export async function commandClickhouse(opts: {
 }
 
 /** Stub: blob export settings not applicable to MySQL */
-export const BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS: ClickHouseSettings = {};
+export const BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS: AnalyticsSettings = {};
 
 /**
  * Parse datetime string to Date.
@@ -266,7 +264,7 @@ export { parseDate as parseClickhouseUTCDateTimeFormat };
  * Generate random characters (for unique IDs, etc.).
  * Preserved for compatibility.
  */
-export function clickhouseCompliantRandomCharacters(): string {
+export function analyticsCompliantRandomCharacters(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   let result = "";
   const randomArray = new Uint8Array(5);
@@ -277,7 +275,7 @@ export function clickhouseCompliantRandomCharacters(): string {
   return result;
 }
 
-// ─── Re-exported types from @clickhouse/client (stubs) ───
+// ─── Re-exported types from @analytics/client (stubs) ───
 
 export type RowOrProgress = Record<string, unknown>;
 

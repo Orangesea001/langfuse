@@ -1,5 +1,5 @@
-import { convertDateToClickhouseDateTime } from "../../clickhouse/client";
-import { DateTimeFilter, type FilterList } from "./clickhouse-filter";
+import { convertDateToAnalyticsDateTime } from "../../analytics-client/client";
+import { DateTimeFilter, type FilterList } from "./analytics-filter";
 
 /**
  * Internal helper: extract and convert time filter from FilterList
@@ -18,8 +18,8 @@ export function extractTimeFilter(
 
     return (
       (tableName === "events_proto"
-        ? filterItem.clickhouseTable.startsWith("events_")
-        : filterItem.clickhouseTable === tableName) &&
+        ? filterItem.analyticsTable.startsWith("events_")
+        : filterItem.analyticsTable === tableName) &&
       (normalizedField === expectedField ||
         (!prefix && normalizedField.endsWith(`.${fieldName}`))) &&
       (filterItem.operator === ">=" || filterItem.operator === ">")
@@ -27,6 +27,6 @@ export function extractTimeFilter(
   });
 
   return timeFilter
-    ? convertDateToClickhouseDateTime((timeFilter as DateTimeFilter).value)
+    ? convertDateToAnalyticsDateTime((timeFilter as DateTimeFilter).value)
     : null;
 }

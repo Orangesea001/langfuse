@@ -1,8 +1,8 @@
 import {
   EventsQueryBuilder,
   NoProjectId,
-} from "../queries/clickhouse-sql/event-query-builder";
-import { queryClickhouseStream, TupleParam } from "./clickhouse";
+} from "../queries/analytics-sql/event-query-builder";
+import { queryAnalyticsStream, TupleParam } from "./clickhouse";
 
 type TraceBatchEventRow = {
   project_id: string;
@@ -201,7 +201,7 @@ export async function* getTraceBatchEventStream(
   if (props.traces.length === 0) return;
 
   const { query, params, projectIds } = buildTraceBatchEventQuery(props);
-  yield* queryClickhouseStream<TraceBatchEventRow>({
+  yield* queryAnalyticsStream<TraceBatchEventRow>({
     query,
     queryId: options.queryId,
     params,
@@ -211,11 +211,11 @@ export async function* getTraceBatchEventStream(
       ...(options.experimentId ? { experimentId: options.experimentId } : {}),
     },
     preferredClickhouseService: "EventsReadOnly",
-    clickhouseConfigs: {
+    analyticsConfigs: {
       compression: { response: true },
     },
     // Bound background-read CPU/time; timeouts fail instead of returning partial results.
-    clickhouseSettings: {
+    analyticsSettings: {
       max_threads: options.maxThreads ?? 2,
       ...(options.maxBlockSize === undefined
         ? {}

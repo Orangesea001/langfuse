@@ -1,5 +1,5 @@
-// ClickHouseClientConfigOptions no longer needed (MySQL backend)
-import { type ClickHouseClientConfigOptions } from "../repositories/clickhouse";
+// AnalyticsClientConfigOptions no longer needed (MySQL backend)
+import { type AnalyticsClientConfigOptions } from "../repositories/clickhouse";
 
 import { OrderByState } from "../../interfaces/orderBy";
 import { sessionCols } from "../tableMappings/mapSessionTable";
@@ -7,18 +7,18 @@ import { FilterState } from "../../types";
 import { sessionsViewCols } from "../../tableDefinitions/sessionsView";
 import { findUiColumnMapping } from "../../tableDefinitions";
 import {
-  convertDateToClickhouseDateTime,
-  type PreferredClickhouseService,
-} from "../clickhouse/client";
-import { scoreBooleansAggregation } from "../queries/clickhouse-sql/query-fragments";
+  convertDateToAnalyticsDateTime,
+  type PreferredAnalyticsService,
+} from "../analytics-client/client";
+import { scoreBooleansAggregation } from "../queries/analytics-sql/query-fragments";
 import { DateTimeFilter, FilterList, orderByToClickhouseSql } from "../queries";
 import {
   getProjectIdDefaultFilter,
   createFilterFromFilterState,
-} from "../queries/clickhouse-sql/factory";
+} from "../queries/analytics-sql/factory";
 import {
   TRACE_TO_OBSERVATIONS_INTERVAL,
-  queryClickhouse,
+  queryAnalytics,
 } from "../repositories";
 
 export type SessionDataReturnType = {
@@ -95,8 +95,8 @@ export const getSessionsWithMetrics = async (props: {
   orderBy?: OrderByState;
   limit?: number;
   page?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
-  preferredClickhouseService?: PreferredClickhouseService;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
+  preferredClickhouseService?: PreferredAnalyticsService;
 }) => {
   const rows = await getSessionsTableGeneric<SessionWithMetricsReturnType>({
     select: "metrics",
@@ -105,7 +105,7 @@ export const getSessionsWithMetrics = async (props: {
     orderBy: props.orderBy,
     limit: props.limit,
     page: props.page,
-    clickhouseConfigs: props.clickhouseConfigs,
+    analyticsConfigs: props.analyticsConfigs,
     preferredClickhouseService: props.preferredClickhouseService,
   });
 
@@ -125,8 +125,8 @@ export type FetchSessionsTableProps = {
   limit?: number;
   page?: number;
   tags?: Record<string, string>;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
-  preferredClickhouseService?: PreferredClickhouseService;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
+  preferredClickhouseService?: PreferredAnalyticsService;
 };
 
 const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
@@ -137,7 +137,7 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
     orderBy,
     limit,
     page,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
   } = props;
 
@@ -210,7 +210,7 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
   if (traceTimestampFilter) {
     filters.push(
       new DateTimeFilter({
-        clickhouseTable: "traces",
+        analyticsTable: "traces",
         field: "timestamp",
         operator: traceTimestampFilter.operator,
         value: traceTimestampFilter.value,
@@ -231,8 +231,8 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
     filters.length > 0 ? new FilterList(filters).apply() : undefined;
 
   const requiresScoresJoin =
-    tracesFilter.find((f) => f.clickhouseTable === "scores") !== undefined ||
-    findUiColumnMapping(sessionCols, orderBy?.column)?.clickhouseTableName ===
+    tracesFilter.find((f) => f.analyticsTable === "scores") !== undefined ||
+    findUiColumnMapping(sessionCols, orderBy?.column)?.analyticsTableName ===
       "scores";
 
   const hasMetricsFilter =
@@ -354,9 +354,9 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
                   selectMetrics
                     ? `,
                       sum(o.obs_count) as total_observations,
-                      -- Use minIf, because ClickHouse fills 1970-01-01 on left joins. We assume that no
+                      -- Use MIN, because the analytics store fills 1970-01-01 on left joins. We assume that no
                       -- LLM session started on that date so this behaviour should yield better results.
-                      date_diff('second', minIf(min_start_time, min_start_time > '1970-01-01'), max(max_end_time)) as duration,
+                      date_diff('second', MIN(min_start_time, min_start_time > '1970-01-01'), max(max_end_time)) as duration,
                       sumMap(o.sum_usage_details) as session_usage_details,
                       sumMap(o.sum_cost_details) as session_cost_details,
                       ${
@@ -404,7 +404,7 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
       ...scoresFilterRes.params,
       ...(traceTimestampFilter
         ? {
-            observationsStartTime: convertDateToClickhouseDateTime(
+            observationsStartTime: convertDateToAnalyticsDateTime(
               traceTimestampFilter.value,
             ),
           }
@@ -413,11 +413,11 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
     tags: { ...(props.tags ?? {}), projectId },
   };
 
-  return queryClickhouse<T>({
+  return queryAnalytics<T>({
     query: query.replace("__TRACE_TABLE__", "traces"),
     params: input.params,
     tags: input.tags,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
   });
 };

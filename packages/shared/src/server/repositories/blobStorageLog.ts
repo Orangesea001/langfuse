@@ -1,6 +1,6 @@
-import { queryClickhouse, queryClickhouseStream } from "./clickhouse";
+import { queryAnalytics, queryAnalyticsStream } from "./clickhouse";
 import { BlobStorageFileRefRecordReadType } from "./definitions";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 
 export const getBlobStorageByProjectAndEntityId = async (
   projectId: string,
@@ -15,7 +15,7 @@ export const getBlobStorageByProjectAndEntityId = async (
     and entity_id = {entityId: String}
   `;
 
-  return queryClickhouse<BlobStorageFileRefRecordReadType>({
+  return queryAnalytics<BlobStorageFileRefRecordReadType>({
     query,
     params: {
       projectId,
@@ -35,13 +35,13 @@ export const getBlobStorageByProjectId = (
     where project_id = {projectId: String}
   `;
 
-  return queryClickhouseStream<BlobStorageFileRefRecordReadType>({
+  return queryAnalyticsStream<BlobStorageFileRefRecordReadType>({
     query,
     params: {
       projectId,
     },
-    clickhouseConfigs: {
-      clickhouse_settings: {
+    analyticsConfigs: {
+      analytics_settings: {
         max_execution_time: 0,
       },
     },
@@ -60,14 +60,14 @@ export const getBlobStorageByProjectIdBeforeDate = (
         and created_at <= {beforeDate: DateTime64(3)}
     `;
 
-  return queryClickhouseStream<BlobStorageFileRefRecordReadType>({
+  return queryAnalyticsStream<BlobStorageFileRefRecordReadType>({
     query,
     params: {
       projectId,
-      beforeDate: convertDateToClickhouseDateTime(beforeDate),
+      beforeDate: convertDateToAnalyticsDateTime(beforeDate),
     },
-    clickhouseConfigs: {
-      clickhouse_settings: {
+    analyticsConfigs: {
+      analytics_settings: {
         max_execution_time: 0,
       },
     },
@@ -88,14 +88,14 @@ export const getBlobStorageByProjectIdAndEntityIds = (
       and entity_id in ({entityIds: Array(String)})
   `;
 
-  return queryClickhouseStream<BlobStorageFileRefRecordReadType>({
+  return queryAnalyticsStream<BlobStorageFileRefRecordReadType>({
     query,
     params: {
       projectId,
       entityType,
       entityIds,
     },
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 120_000, // 2 minutes
     },
     tags: { projectId },
@@ -112,7 +112,7 @@ export const getBlobStorageByProjectIdAndTraceIds = (
   // In v4 events_only write mode spans live only in events_core, not in the
   // observations table. Include an events_core branch so their blob refs are
   // cleaned up too. Gated behind a flag because events_core is a dev/v4-only
-  // table (created by clickhouse/scripts/dev-tables.sh, not by migrations) and
+  // table (created by analytics/scripts/dev-tables.sh, not by migrations) and
   // self-hosters on legacy write mode may not have it. When disabled the query
   // must not reference events_core at all.
   const filteredEventsCoreCte = includeEventsTable
@@ -175,13 +175,13 @@ export const getBlobStorageByProjectIdAndTraceIds = (
       )
   `;
 
-  return queryClickhouseStream<BlobStorageFileRefRecordReadType>({
+  return queryAnalyticsStream<BlobStorageFileRefRecordReadType>({
     query,
     params: {
       projectId,
       traceIds,
     },
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 120_000, // 2 minutes
     },
     tags: { projectId },

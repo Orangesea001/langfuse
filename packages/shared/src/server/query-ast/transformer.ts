@@ -9,7 +9,7 @@ import {
   ArrayJoinNode,
   ArrayIndexNode,
   LimitByNode,
-  type ClickHouseSelectQueryNode,
+  type AnalyticsSelectQueryNode,
 } from "./nodes";
 
 /**
@@ -20,7 +20,7 @@ import {
  * so without this override, ARRAY JOIN / LIMIT BY / the tenancy stamp would
  * vanish the moment any plugin walked the tree.
  */
-export class ClickHouseOperationNodeTransformer extends OperationNodeTransformer {
+export class AnalyticsOperationNodeTransformer extends OperationNodeTransformer {
   protected override transformNodeImpl<T extends OperationNode>(
     node: T,
     queryId?: QueryId,
@@ -50,8 +50,8 @@ export class ClickHouseOperationNodeTransformer extends OperationNodeTransformer
     const transformed = super.transformSelectQuery(
       node,
       queryId,
-    ) as ClickHouseSelectQueryNode;
-    const extra = node as ClickHouseSelectQueryNode;
+    ) as AnalyticsSelectQueryNode;
+    const extra = node as AnalyticsSelectQueryNode;
     return {
       ...transformed,
       ...(extra.arrayJoins
@@ -62,7 +62,7 @@ export class ClickHouseOperationNodeTransformer extends OperationNodeTransformer
       ...(extra.limitBy
         ? { limitBy: this.transformLimitBy(extra.limitBy) }
         : {}),
-    } as ClickHouseSelectQueryNode;
+    } as AnalyticsSelectQueryNode;
   }
 
   protected transformArrayJoin(node: ArrayJoinNode): ArrayJoinNode {

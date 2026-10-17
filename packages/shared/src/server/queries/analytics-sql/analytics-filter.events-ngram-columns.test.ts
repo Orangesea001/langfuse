@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { StringFilter, StringOptionsFilter } from "./clickhouse-filter";
+import { StringFilter, StringOptionsFilter } from "./analytics-filter";
 
 // events_full carries ngrambf_v1 skip indexes on lower(name)/lower(user_id)/
 // lower(session_id). These tests pin that the filter classes emit an
@@ -11,10 +11,10 @@ const stringFilter = (
   field: string,
   operator: StringFilter["operator"],
   value: string,
-  clickhouseTable = "events_proto",
+  analyticsTable = "events_proto",
 ) =>
   new StringFilter({
-    clickhouseTable,
+    analyticsTable,
     field,
     operator,
     value,
@@ -76,7 +76,7 @@ describe("StringFilter ngram column acceleration (events_full)", () => {
 describe("StringOptionsFilter ngram column acceleration (events_full)", () => {
   it("adds a lowered IN prefilter for `any of`", () => {
     const { query, params } = new StringOptionsFilter({
-      clickhouseTable: "events_proto",
+      analyticsTable: "events_proto",
       field: "name",
       operator: "any of",
       values: ["Foo", "BAR"],
@@ -89,7 +89,7 @@ describe("StringOptionsFilter ngram column acceleration (events_full)", () => {
 
   it("does not accelerate `none of` (NOT IN cannot be pruned)", () => {
     const { query } = new StringOptionsFilter({
-      clickhouseTable: "events_proto",
+      analyticsTable: "events_proto",
       field: "name",
       operator: "none of",
       values: ["Foo"],
@@ -100,7 +100,7 @@ describe("StringOptionsFilter ngram column acceleration (events_full)", () => {
 
   it("leaves non-events tables untouched", () => {
     const { query } = new StringOptionsFilter({
-      clickhouseTable: "traces",
+      analyticsTable: "traces",
       field: "name",
       operator: "any of",
       values: ["Foo"],

@@ -28,13 +28,13 @@ describe("getBillingProvider", () => {
     });
   });
 
-  describe("orgs with CHB state resolve to clickhouse", () => {
+  describe("orgs with CHB state resolve to analytics", () => {
     it("with no cutoff (sticky decision)", () => {
       expect(
         getBillingProvider(
-          orgWith({ clickhouse: { organizationId: CHB_ORG_ID } }),
+          orgWith({ analytics: { organizationId: CHB_ORG_ID } }),
         ),
-      ).toBe("clickhouse");
+      ).toBe("analytics");
     });
 
     it("on both-state conflict, explicit CHB state wins", () => {
@@ -44,10 +44,10 @@ describe("getBillingProvider", () => {
         getBillingProvider(
           orgWith({
             stripe: { customerId: "cus_123" },
-            clickhouse: { organizationId: CHB_ORG_ID },
+            analytics: { organizationId: CHB_ORG_ID },
           }),
         ),
-      ).toBe("clickhouse");
+      ).toBe("analytics");
     });
   });
 
@@ -61,16 +61,16 @@ describe("getBillingProvider", () => {
     });
 
     // `now` omitted on purpose: covers the real-clock default.
-    it("cutoff in the past resolves to clickhouse", () => {
+    it("cutoff in the past resolves to analytics", () => {
       expect(getBillingProvider(orgWith({}), { cutoff: PAST })).toBe(
-        "clickhouse",
+        "analytics",
       );
     });
 
-    it("cutoff boundary: now exactly at the cutoff resolves to clickhouse", () => {
+    it("cutoff boundary: now exactly at the cutoff resolves to analytics", () => {
       const cutoff = new Date("2026-01-01");
       expect(getBillingProvider(orgWith({}), { cutoff, now: cutoff })).toBe(
-        "clickhouse",
+        "analytics",
       );
       expect(
         getBillingProvider(orgWith({}), {
@@ -92,7 +92,7 @@ describe("hasPaidBillingState", () => {
     ["manual plan override", { plan: "Team" }, true],
     [
       "CHB attached plan",
-      { clickhouse: { organizationId: CHB_ORG_ID, attachedPlanId: "ap_123" } },
+      { analytics: { organizationId: CHB_ORG_ID, attachedPlanId: "ap_123" } },
       true,
     ],
     [
@@ -102,7 +102,7 @@ describe("hasPaidBillingState", () => {
     ],
     [
       "CHB org id without bundle (checkout started, never completed)",
-      { clickhouse: { organizationId: CHB_ORG_ID } },
+      { analytics: { organizationId: CHB_ORG_ID } },
       false,
     ],
     ["empty cloudConfig", {}, false],

@@ -17,7 +17,7 @@ import {
   OBSERVATIONS_TO_TRACE_INTERVAL,
   SCORE_TO_TRACE_OBSERVATIONS_INTERVAL,
 } from "../../repositories/constants";
-import type { ClickhouseFilter } from "./clickhouse-filter";
+import type { ClickhouseFilter } from "./analytics-filter";
 import { eventsTableTraceNameSql } from "../../../eventsTable";
 
 /**

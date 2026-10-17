@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getTraceBatchEventStream } from "./trace-batch";
-import { queryClickhouseStream } from "./clickhouse";
+import { queryAnalyticsStream } from "./clickhouse";
 
 // Exercise the real query builder, intercepting execution before any client loads.
-vi.mock("./clickhouse", async () => ({
+vi.mock("./analytics", async () => ({
   TupleParam: Array, // MySQL uses Array instead of CH TupleParam
-  queryClickhouseStream: vi.fn(),
+  queryAnalyticsStream: vi.fn(),
 }));
-vi.mock("./index", () => ({ clickhouseCompliantRandomCharacters: vi.fn() }));
-vi.mock("../clickhouse/client", () => ({
-  convertDateToClickhouseDateTime: vi.fn(),
+vi.mock("./index", () => ({ analyticsCompliantRandomCharacters: vi.fn() }));
+vi.mock("../analytics/client", () => ({
+  convertDateToAnalyticsDateTime: vi.fn(),
 }));
 
 afterEach(() => vi.clearAllMocks());
@@ -24,7 +24,7 @@ describe("trace batch query controls", () => {
   }));
 
   it("bounds 10,000-trace HTTP parameters for distinct projects and identical windows", async () => {
-    vi.mocked(queryClickhouseStream).mockImplementation(async function* () {});
+    vi.mocked(queryAnalyticsStream).mockImplementation(async function* () {});
     for (const sharedWindow of [false, true]) {
       const projectId = randomUUID();
       const members = Array.from({ length: 10_000 }, (_, index) => ({
@@ -36,9 +36,9 @@ describe("trace batch query controls", () => {
       for await (const _ of getTraceBatchEventStream({ traces: members })) {
         throw new Error("Unexpected row");
       }
-      const sent = vi.mocked(queryClickhouseStream).mock.lastCall![0];
+      const sent = vi.mocked(queryAnalyticsStream).mock.lastCall![0];
       expect(sent.useMultipartParamsAuto).toBe(true);
-      expect(sent.clickhouseConfigs).toEqual({
+      expect(sent.analyticsConfigs).toEqual({
         compression: { response: true },
       });
       expect(Buffer.byteLength(sent.query)).toBeLessThan(262_144);
@@ -67,7 +67,7 @@ describe("trace batch query controls", () => {
     const row = { project_id: "one", trace_id: "trace-1" };
     const failure = new Error("stream failed");
     let requestedSecondRow = false;
-    vi.mocked(queryClickhouseStream).mockImplementation(async function* () {
+    vi.mocked(queryAnalyticsStream).mockImplementation(async function* () {
       yield row;
       requestedSecondRow = true;
       throw failure;
@@ -76,7 +76,7 @@ describe("trace batch query controls", () => {
     for (const members of [traces.slice(1, 2), traces]) {
       const baselineStream = getTraceBatchEventStream({ traces: members });
       await baselineStream.next();
-      const baseline = vi.mocked(queryClickhouseStream).mock.lastCall![0];
+      const baseline = vi.mocked(queryAnalyticsStream).mock.lastCall![0];
       await baselineStream.return(undefined);
       for (const maxBlockSize of [undefined, 512]) {
         requestedSecondRow = false;
@@ -91,13 +91,13 @@ describe("trace batch query controls", () => {
         );
         expect(await stream.next()).toEqual({ value: row, done: false });
         expect(requestedSecondRow).toBe(false);
-        const sent = vi.mocked(queryClickhouseStream).mock.lastCall![0];
+        const sent = vi.mocked(queryAnalyticsStream).mock.lastCall![0];
         expect(sent).toEqual({
           ...baseline,
           queryId: "read-attempt",
           tags: { ...baseline.tags, experimentId: "arm-b" },
-          clickhouseSettings: {
-            ...baseline.clickhouseSettings,
+          analyticsSettings: {
+            ...baseline.analyticsSettings,
             max_threads: 1,
             ...(maxBlockSize === undefined
               ? {}
@@ -105,7 +105,7 @@ describe("trace batch query controls", () => {
           },
         });
         if (maxBlockSize === undefined) {
-          expect(sent.clickhouseSettings).not.toHaveProperty("max_block_size");
+          expect(sent.analyticsSettings).not.toHaveProperty("max_block_size");
         }
         await expect(stream.next()).rejects.toBe(failure);
       }

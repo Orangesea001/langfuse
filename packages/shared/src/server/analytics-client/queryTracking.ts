@@ -3,7 +3,7 @@
  *
  * Preserved for compatibility: exports the same interface.
  */
-import { queryClickhouse } from "../repositories";
+import { queryAnalytics } from "../repositories";
 
 /**
  * Check if query tracking is enabled.

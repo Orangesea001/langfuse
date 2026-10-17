@@ -32,7 +32,7 @@ import { env } from "../../../env";
 import type { EventFilterOptionColumn } from "./event-filter-options";
 import {
   capturedQueries,
-  clickhouseFormatAvailable,
+  analyticsFormatAvailable,
   normalizeCapturedQueries,
   resetCaptures,
 } from "../../repositories/goldenHarness";
@@ -65,15 +65,15 @@ const COLUMNS: readonly EventFilterOptionColumn[] = [
   "isRootObservation",
 ];
 
-// clickhouse format is the normalizer; without it a comparison would be
+// analytics format is the normalizer; without it a comparison would be
 // unnormalized and could pass on cosmetic-only differences. Skip loudly.
-const describeWithClickhouse = clickhouseFormatAvailable()
+const describeWithClickhouse = analyticsFormatAvailable()
   ? describe
   : describe.skip;
 
-if (!clickhouseFormatAvailable()) {
+if (!analyticsFormatAvailable()) {
   console.warn(
-    "[golden-harness] `clickhouse format` unavailable — skipping golden SQL tests. Install clickhouse-local to run them.",
+    "[golden-harness] `analytics format` unavailable — skipping golden SQL tests. Install analytics-local to run them.",
   );
 }
 

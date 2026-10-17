@@ -1,5 +1,5 @@
 import { DatasetRunItemDomain } from "../../domain/dataset-run-items";
-import { scoreBooleansAggregation } from "../queries/clickhouse-sql/query-fragments";
+import { scoreBooleansAggregation } from "../queries/analytics-sql/query-fragments";
 import { type OrderByState } from "../../interfaces/orderBy";
 import { datasetRunItemsTableUiColumnDefinitions } from "../tableMappings";
 import { datasetRunsTableUiColumnDefinitions } from "../../tableDefinitions/mapDatasetRunsTable";
@@ -15,19 +15,19 @@ import {
 } from "../queries";
 import {
   parseClickhouseUTCDateTimeFormat,
-  queryClickhouse,
-  type ClickHouseClientConfigOptions,
+  queryAnalytics,
+  type AnalyticsClientConfigOptions,
 } from "./clickhouse";
 import { convertDatasetRunItemClickhouseToDomain } from "./dataset-run-items-converters";
 import { DatasetRunItemRecord } from "./definitions";
 import { env } from "../../env";
-import { commandClickhouse } from "./clickhouse";
+import { commandAnalytics } from "./clickhouse";
 import Decimal from "decimal.js";
-// ClickHouseClientConfigOptions no longer needed (MySQL backend)
+// AnalyticsClientConfigOptions no longer needed (MySQL backend)
 import {
-  convertDateToClickhouseDateTime,
-  type PreferredClickhouseService,
-} from "../clickhouse/client";
+  convertDateToAnalyticsDateTime,
+  type PreferredAnalyticsService,
+} from "../analytics-client/client";
 import { ScoreAggregate } from "../../features/scores";
 
 type DatasetItemIdsByTraceIdQuery = {
@@ -44,7 +44,7 @@ type DatasetRunItemsTableQuery = {
   orderBy?: OrderByState | OrderByState[];
   limit?: number;
   offset?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
 };
 
 type BaseDatasetItemWithRunDataQuery = {
@@ -207,7 +207,7 @@ const getProjectDatasetIdDefaultFilter = (
   return {
     datasetRunItemsFilter: new FilterList([
       new StringFilter({
-        clickhouseTable: "dataset_run_items_rmt",
+        analyticsTable: "dataset_run_items_rmt",
         field: "project_id",
         operator: "=",
         value: projectId,
@@ -215,7 +215,7 @@ const getProjectDatasetIdDefaultFilter = (
       ...(datasetId
         ? [
             new StringFilter({
-              clickhouseTable: "dataset_run_items_rmt",
+              analyticsTable: "dataset_run_items_rmt",
               field: "dataset_id",
               operator: "=",
               value: datasetId,
@@ -225,7 +225,7 @@ const getProjectDatasetIdDefaultFilter = (
       ...(runIds && runIds.length > 0
         ? [
             new StringOptionsFilter({
-              clickhouseTable: "dataset_run_items_rmt",
+              analyticsTable: "dataset_run_items_rmt",
               field: "dataset_run_id",
               operator: "any of",
               values: runIds,
@@ -298,7 +298,7 @@ const getDatasetRunsTableInternal = async <T>(
 
   const scoresFilter = new FilterList([
     new StringFilter({
-      clickhouseTable: "scores",
+      analyticsTable: "scores",
       field: "project_id",
       operator: "=",
       value: projectId,
@@ -488,7 +488,7 @@ const getDatasetRunsTableInternal = async <T>(
     ${orderByClause}
     ${limit !== undefined && offset !== undefined ? `LIMIT ${limit} OFFSET ${offset}` : ""};`;
 
-  const res = await queryClickhouse<T>({
+  const res = await queryAnalytics<T>({
     query,
     params: {
       projectId,
@@ -543,7 +543,7 @@ type GetDatasetRunItemsTableOpts<IncludeIO extends boolean> =
   DatasetRunItemsTableQuery & {
     select: "count" | "rows";
     includeIO?: IncludeIO;
-    preferredClickhouseService?: PreferredClickhouseService;
+    preferredClickhouseService?: PreferredAnalyticsService;
   };
 
 // Phase 1: Find dataset item IDs or count that satisfy conditions across ALL runs
@@ -577,7 +577,7 @@ const getQualifyingDatasetItems = async <T>(opts: {
 
     // Create run ID condition
     const runConditionFilter = new StringFilter({
-      clickhouseTable: "dataset_run_items_rmt",
+      analyticsTable: "dataset_run_items_rmt",
       field: "dataset_run_id",
       operator: "=",
       value: runId,
@@ -603,7 +603,7 @@ const getQualifyingDatasetItems = async <T>(opts: {
     // Create run ID condition
     const runConditionFilter = new FilterList([
       new StringFilter({
-        clickhouseTable: "dataset_run_items_rmt",
+        analyticsTable: "dataset_run_items_rmt",
         field: "dataset_run_id",
         operator: "=",
         value: runId,
@@ -627,7 +627,7 @@ const getQualifyingDatasetItems = async <T>(opts: {
   // Build scores filter
   const scoresFilter = new FilterList([
     new StringFilter({
-      clickhouseTable: "scores",
+      analyticsTable: "scores",
       field: "project_id",
       operator: "=",
       value: projectId,
@@ -707,7 +707,7 @@ const getQualifyingDatasetItems = async <T>(opts: {
     ${select === "count" ? "" : "ORDER BY dataset_item_id -- for consistent pagination"}
     ${limit !== undefined && offset !== undefined ? `LIMIT ${limit} OFFSET ${offset}` : ""};`;
 
-  const res = await queryClickhouse<T>({
+  const res = await queryAnalytics<T>({
     query,
     params: {
       ...baseFilter.params,
@@ -784,7 +784,7 @@ const getDatasetRunItemsTableInternal = async <
 
   const scoresFilter = new FilterList([
     new StringFilter({
-      clickhouseTable: "scores",
+      analyticsTable: "scores",
       field: "project_id",
       operator: "=",
       value: projectId,
@@ -889,7 +889,7 @@ const getDatasetRunItemsTableInternal = async <
     ${hasScoresFilter ? `LEFT JOIN scores_aggregated sa ON dri.dataset_run_id = sa.dataset_run_id AND dri.project_id = sa.project_id AND dri.trace_id = sa.trace_id` : ""}
     WHERE ${appliedFilter.query};`;
 
-  const res = await queryClickhouse<T>({
+  const res = await queryAnalytics<T>({
     query,
     params: {
       ...baseFilter.params,
@@ -900,7 +900,7 @@ const getDatasetRunItemsTableInternal = async <
       projectId,
     },
     tags: { projectId },
-    clickhouseConfigs: opts.clickhouseConfigs,
+    analyticsConfigs: opts.analyticsConfigs,
     preferredClickhouseService: opts.preferredClickhouseService,
   });
 
@@ -909,7 +909,7 @@ const getDatasetRunItemsTableInternal = async <
 
 export const getDatasetRunItemsCh = async (
   opts: DatasetRunItemsTableQuery & {
-    preferredClickhouseService?: PreferredClickhouseService;
+    preferredClickhouseService?: PreferredAnalyticsService;
   },
 ): Promise<DatasetRunItemDomain[]> => {
   const rows = await getDatasetRunItemsTableInternal<DatasetRunItemRecord>({
@@ -1001,13 +1001,13 @@ export const getDatasetItemIdsByTraceIdCh = async (
 
   const datasetRunItemsFilter = new FilterList([
     new StringFilter({
-      clickhouseTable: "dataset_run_items_rmt",
+      analyticsTable: "dataset_run_items_rmt",
       field: "project_id",
       operator: "=",
       value: projectId,
     }),
     new StringFilter({
-      clickhouseTable: "dataset_run_items_rmt",
+      analyticsTable: "dataset_run_items_rmt",
       field: "trace_id",
       operator: "=",
       value: traceId,
@@ -1032,7 +1032,7 @@ export const getDatasetItemIdsByTraceIdCh = async (
   WHERE ${appliedFilter.query}
   LIMIT 1 dri.dataset_id, dri.dataset_run_id, dri.dataset_item_id;`;
 
-  const res = await queryClickhouse<{
+  const res = await queryAnalytics<{
     dataset_item_id: string;
     observation_id: string | null;
     dataset_id: string;
@@ -1085,7 +1085,7 @@ export const hasAnyDatasetRunItem = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: { projectId },
     tags: { projectId },
@@ -1106,11 +1106,11 @@ export const deleteDatasetRunItemsByProjectId = async (
     DELETE FROM dataset_run_items_rmt
     WHERE project_id = {projectId: String};
   `;
-  await commandClickhouse({
+  await commandAnalytics({
     query,
     params: { projectId },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
@@ -1131,14 +1131,14 @@ export const deleteDatasetRunItemsByDatasetId = async ({
   AND dataset_id = {datasetId: String}
 `;
 
-  await commandClickhouse({
+  await commandAnalytics({
     query,
     params: {
       projectId,
       datasetId,
     },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
@@ -1160,15 +1160,15 @@ export const deleteDatasetRunItemsByDatasetRunIds = async ({
     AND dataset_run_id IN ({datasetRunIds: Array(String)})
   `;
 
-  await commandClickhouse({
+  await commandAnalytics({
     query,
     params: {
       projectId,
       datasetRunIds,
       datasetId,
     },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
@@ -1191,11 +1191,11 @@ export const getDatasetRunItemCountsByProjectInCreationInterval = async ({
   GROUP BY project_id
 `;
 
-  const rows = await queryClickhouse<{ project_id: string; count: string }>({
+  const rows = await queryAnalytics<{ project_id: string; count: string }>({
     query,
     params: {
-      start: convertDateToClickhouseDateTime(start),
-      end: convertDateToClickhouseDateTime(end),
+      start: convertDateToAnalyticsDateTime(start),
+      end: convertDateToAnalyticsDateTime(end),
     },
   });
 

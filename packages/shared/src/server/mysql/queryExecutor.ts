@@ -1,5 +1,5 @@
 /**
- * MySQL query executor that replaces ClickHouse queryClickhouse.
+ * MySQL query executor that replaces ClickHouse queryAnalytics.
  */
 import { getMySqlPool } from "./client";
 import { translateQuery } from "./sqlTranslator";
@@ -13,15 +13,15 @@ export type MySqlQueryOpts = {
   query: string;
   params?: Record<string, unknown>;
   tags?: Record<string, string | undefined>;
-  clickhouseConfigs?: unknown;
-  clickhouseSettings?: unknown;
+  analyticsConfigs?: unknown;
+  analyticsSettings?: unknown;
   preferredClickhouseService?: unknown;
   useMultipartParamsAuto?: boolean;
   allowLegacyEventsRead?: boolean;
 };
 
 /**
- * Execute a query against MySQL, replacing queryClickhouse.
+ * Execute a query against MySQL, replacing queryAnalytics.
  */
 export async function queryMySql<T>(opts: MySqlQueryOpts): Promise<T[]> {
   return await instrumentAsync(

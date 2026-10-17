@@ -1,13 +1,13 @@
 import { randomUUID } from "crypto";
 import { type z } from "zod";
-import { shouldSkipObservationsFinal } from "../../../server/queries/clickhouse-sql/query-options";
+import { shouldSkipObservationsFinal } from "../../../server/queries/analytics-sql/query-options";
 import {
   bindUtcDateTimeParam,
   FilterList,
   filtersRequireEventsFull,
   type Filter,
-} from "../../../server/queries/clickhouse-sql/clickhouse-filter";
-import { createFilterFromFilterState } from "../../../server/queries/clickhouse-sql/factory";
+} from "../../../server/queries/analytics-sql/analytics-filter";
+import { createFilterFromFilterState } from "../../../server/queries/analytics-sql/factory";
 import type {
   QueryType,
   ViewDeclarationType,
@@ -30,7 +30,7 @@ import {
   isFilterColumnType,
   type CompatibleFilterType,
   type FilterColumnType,
-} from "../../../server/queries/clickhouse-sql/filterTypeCompatibility";
+} from "../../../server/queries/analytics-sql/filterTypeCompatibility";
 
 type AppliedDimensionType = {
   table: string;
@@ -428,8 +428,8 @@ export class QueryBuilder {
     // e.g., "events_core events_traces" -> "events_traces"
     //       "traces FINAL"              -> "traces"  (FINAL is a modifier, not an alias)
     const parts = view.baseCte.split(/\s+/);
-    const clickhouseModifiers = new Set(["FINAL", "SAMPLE", "PREWHERE"]);
-    if (parts.length >= 2 && !clickhouseModifiers.has(parts[1].toUpperCase())) {
+    const analyticsModifiers = new Set(["FINAL", "SAMPLE", "PREWHERE"]);
+    if (parts.length >= 2 && !analyticsModifiers.has(parts[1].toUpperCase())) {
       return parts[1];
     }
     return parts[0];
@@ -468,12 +468,12 @@ export class QueryBuilder {
   }): RawSqlPart {
     const { filter, whereCols, dimensionSql, tableName } = params;
 
-    const syntheticMapping = (clickhouseSelect: string) => [
+    const syntheticMapping = (analyticsSelect: string) => [
       {
         uiTableName: filter.column,
         uiTableId: filter.column,
-        clickhouseTableName: tableName,
-        clickhouseSelect,
+        analyticsTableName: tableName,
+        analyticsSelect,
         queryPrefix: "",
       },
     ];
@@ -524,8 +524,8 @@ export class QueryBuilder {
     const normalMappings: Array<{
       uiTableName: string;
       uiTableId: string;
-      clickhouseTableName: string;
-      clickhouseSelect: string;
+      analyticsTableName: string;
+      analyticsSelect: string;
       queryPrefix: string;
       type: string;
       emptyEqualsNull?: boolean;
@@ -548,9 +548,9 @@ export class QueryBuilder {
       }
 
       // Normal dimension or special-case filter: build column mapping
-      let clickhouseSelect: string;
+      let analyticsSelect: string;
       let queryPrefix = "";
-      let clickhouseTableName: string = actualTableName;
+      let analyticsTableName: string = actualTableName;
       let type: string;
       let emptyEqualsNull: boolean | undefined;
 
@@ -559,37 +559,37 @@ export class QueryBuilder {
         // flag for index-friendly filtering while preserving '' ≡ NULL semantic.
         const nullIfMatch = NULL_IF_EMPTY_RE.exec(dimension.sql);
         if (nullIfMatch) {
-          clickhouseSelect = nullIfMatch[1];
+          analyticsSelect = nullIfMatch[1];
           emptyEqualsNull = true;
         } else {
-          clickhouseSelect = dimension.sql;
+          analyticsSelect = dimension.sql;
         }
         type = dimension.type ?? "string";
         if (dimension.relationTable) {
-          clickhouseTableName = dimension.relationTable;
+          analyticsTableName = dimension.relationTable;
         }
         // Filters on measures are underdefined and not allowed in the initial version
         // } else if (filter.column in view.measures) {
         //   const measure = view.measures[filter.column];
-        //   clickhouseSelect = measure.sql;
+        //   analyticsSelect = measure.sql;
         //   type = measure.type;
         //   if (measure.relationTable) {
-        //     clickhouseTableName = measure.relationTable;
+        //     analyticsTableName = measure.relationTable;
         //   }
       } else if (filter.column === view.timeDimension) {
-        clickhouseSelect = view.timeDimension;
-        queryPrefix = clickhouseTableName;
+        analyticsSelect = view.timeDimension;
+        queryPrefix = analyticsTableName;
         type = "datetime";
       } else if (filter.column === "metadata") {
-        clickhouseSelect = "metadata";
-        queryPrefix = clickhouseTableName;
+        analyticsSelect = "metadata";
+        queryPrefix = analyticsTableName;
         type = "stringObject";
       } else if (filter.column.endsWith("Name")) {
         // Sometimes, the filter does not update correctly and sends us scoreName instead of name for scores, etc.
         // If this happens, none of the conditions above apply, and we use this fallback to avoid raising an error.
         // As this is hard to catch, we include this workaround. (LFE-4838).
-        clickhouseSelect = "name";
-        queryPrefix = clickhouseTableName;
+        analyticsSelect = "name";
+        queryPrefix = analyticsTableName;
         type = "string";
       } else {
         throw new InvalidRequestError(
@@ -601,8 +601,8 @@ export class QueryBuilder {
       normalMappings.push({
         uiTableName: filter.column,
         uiTableId: filter.column,
-        clickhouseTableName,
-        clickhouseSelect,
+        analyticsTableName,
+        analyticsSelect,
         queryPrefix,
         type,
         emptyEqualsNull,
@@ -630,8 +630,8 @@ export class QueryBuilder {
     const projectIdMapping = {
       uiTableName: "project_id",
       uiTableId: "project_id",
-      clickhouseTableName: actualTableName,
-      clickhouseSelect: "project_id",
+      analyticsTableName: actualTableName,
+      analyticsSelect: "project_id",
       queryPrefix: actualTableName,
       type: "string",
     };
@@ -639,8 +639,8 @@ export class QueryBuilder {
     const timeDimensionMapping = {
       uiTableName: view.timeDimension,
       uiTableId: view.timeDimension,
-      clickhouseTableName: actualTableName,
-      clickhouseSelect: view.timeDimension,
+      analyticsTableName: actualTableName,
+      analyticsSelect: view.timeDimension,
       queryPrefix: actualTableName,
       type: "datetime",
     };
@@ -693,8 +693,8 @@ export class QueryBuilder {
       const segmentsMappings = view.segments.map((segment) => ({
         uiTableName: segment.column,
         uiTableId: segment.column,
-        clickhouseTableName: view.name,
-        clickhouseSelect: segment.column,
+        analyticsTableName: view.name,
+        analyticsSelect: segment.column,
         queryPrefix: view.name,
         type: segment.type,
       }));
@@ -741,10 +741,10 @@ export class QueryBuilder {
     filters.forEach((filter) => {
       // Only add as relation table if it's not the base table
       if (
-        filter.clickhouseTable !== view.name &&
-        filter.clickhouseTable !== actualTableName
+        filter.analyticsTable !== view.name &&
+        filter.analyticsTable !== actualTableName
       ) {
-        relationTables.add(filter.clickhouseTable);
+        relationTables.add(filter.analyticsTable);
       }
     });
     return relationTables;
@@ -818,8 +818,8 @@ export class QueryBuilder {
       const relationTimeDimensionMapping = {
         uiTableName: relation.timeDimension,
         uiTableId: relation.timeDimension,
-        clickhouseTableName: relation.name,
-        clickhouseSelect: relation.timeDimension,
+        analyticsTableName: relation.name,
+        analyticsSelect: relation.timeDimension,
         queryPrefix: relationTableName,
         type: "datetime",
       };

@@ -1,8 +1,8 @@
 /* eslint-disable no-nested-ternary */
-import { type ClickHouseClientConfigOptions } from "../repositories/clickhouse";
+import { type AnalyticsClientConfigOptions } from "../repositories/clickhouse";
 
 import { OrderByState } from "../../interfaces/orderBy";
-import { scoreBooleansAggregation } from "../queries/clickhouse-sql/query-fragments";
+import { scoreBooleansAggregation } from "../queries/analytics-sql/query-fragments";
 import { tracesTableUiColumnDefinitions } from "../tableMappings";
 import { tracesTableCols } from "../../tableDefinitions/tracesTable";
 import { findUiColumnMapping } from "../../tableDefinitions";
@@ -11,13 +11,13 @@ import {
   StringFilter,
   StringOptionsFilter,
   DateTimeFilter,
-} from "../queries/clickhouse-sql/clickhouse-filter";
+} from "../queries/analytics-sql/analytics-filter";
 import {
   getProjectIdDefaultFilter,
   createFilterFromFilterState,
-} from "../queries/clickhouse-sql/factory";
-import { orderByToClickhouseSql } from "../queries/clickhouse-sql/orderby-factory";
-import { clickhouseSearchCondition } from "../queries/clickhouse-sql/search";
+} from "../queries/analytics-sql/factory";
+import { orderByToClickhouseSql } from "../queries/analytics-sql/orderby-factory";
+import { analyticsSearchCondition } from "../queries/analytics-sql/search";
 import { TraceRecordReadType } from "../repositories/definitions";
 import Decimal from "decimal.js";
 import { ScoreAggregate } from "../../features/scores";
@@ -25,19 +25,19 @@ import {
   OBSERVATIONS_TO_TRACE_INTERVAL,
   SCORE_TO_TRACE_OBSERVATIONS_INTERVAL,
   parseClickhouseUTCDateTimeFormat,
-  queryClickhouse,
+  queryAnalytics,
   reduceUsageOrCostDetails,
 } from "../repositories";
 import { TracingSearchType } from "../../interfaces/search";
 import { ObservationLevelType, TraceDomain } from "../../domain";
-// ClickHouseClientConfigOptions no longer needed (MySQL backend)
-import { shouldSkipObservationsFinal } from "../queries/clickhouse-sql/query-options";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+// AnalyticsClientConfigOptions no longer needed (MySQL backend)
+import { shouldSkipObservationsFinal } from "../queries/analytics-sql/query-options";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import type { TraceDeleteBatchActionCursor } from "../../features/batchAction/types";
 import {
   planScoreFilterPushdown,
   resolveScoreDataRequirement,
-} from "../queries/clickhouse-sql/score-filter-pushdown";
+} from "../queries/analytics-sql/score-filter-pushdown";
 
 export type TracesTableReturnType = Pick<
   TraceRecordReadType,
@@ -181,7 +181,7 @@ export type FetchTracesTableProps = {
   orderBy?: OrderByState;
   limit?: number;
   page?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
   tags?: Record<string, string>;
   traceDeleteCursor?: TraceDeleteBatchActionCursor | null;
   traceDeleteCursorOrder?: boolean;
@@ -227,7 +227,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
     page,
     searchQuery,
     searchType,
-    clickhouseConfigs,
+    analyticsConfigs,
     traceDeleteCursor,
     traceDeleteCursorOrder,
   } = props;
@@ -247,13 +247,13 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
   );
 
   const traceIdFilter = tracesFilter.find(
-    (f) => f.clickhouseTable === "traces" && f.field === "id",
+    (f) => f.analyticsTable === "traces" && f.field === "id",
   ) as StringFilter | StringOptionsFilter | undefined;
 
   traceIdFilter
     ? scoresFilter.push(
         new StringOptionsFilter({
-          clickhouseTable: "scores",
+          analyticsTable: "scores",
           field: "trace_id",
           operator: "any of",
           values:
@@ -266,7 +266,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
   traceIdFilter
     ? observationsFilter.push(
         new StringOptionsFilter({
-          clickhouseTable: "observations",
+          analyticsTable: "observations",
           field: "trace_id",
           operator: "any of",
           values:
@@ -286,16 +286,16 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
 
   const ordersByScoreData =
     findUiColumnMapping(tracesTableUiColumnDefinitions, orderBy?.column)
-      ?.clickhouseTableName === "scores";
+      ?.analyticsTableName === "scores";
   const requiresScoresJoin =
-    tracesFilter.find((f) => f.clickhouseTable === "scores") !== undefined ||
+    tracesFilter.find((f) => f.analyticsTable === "scores") !== undefined ||
     ordersByScoreData;
 
   const requiresObservationsJoin =
-    tracesFilter.find((f) => f.clickhouseTable === "observations") !==
+    tracesFilter.find((f) => f.analyticsTable === "observations") !==
       undefined ||
     findUiColumnMapping(tracesTableUiColumnDefinitions, orderBy?.column)
-      ?.clickhouseTableName === "observations";
+      ?.analyticsTableName === "observations";
 
   const tracesFilterRes = tracesFilter.apply();
   const scoresFilterRes = scoresFilter.apply();
@@ -423,7 +423,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
       throw new Error(`Unknown select type: ${select}`);
   }
 
-  const search = clickhouseSearchCondition({
+  const search = analyticsSearchCondition({
     query: searchQuery,
     searchType,
     tablePrefix: "t",
@@ -433,16 +433,16 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
   const orderByCols = [
     ...tracesTableUiColumnDefinitions,
     {
-      clickhouseSelect: "toDate(t.timestamp)",
+      analyticsSelect: "toDate(t.timestamp)",
       uiTableName: "timestamp_to_date",
       uiTableId: "timestamp_to_date",
-      clickhouseTableName: "traces",
+      analyticsTableName: "traces",
     },
     {
-      clickhouseSelect: "t.event_ts",
+      analyticsSelect: "t.event_ts",
       uiTableName: "event_ts",
       uiTableId: "event_ts",
-      clickhouseTableName: "traces",
+      analyticsTableName: "traces",
     },
   ];
   const chOrderBy = orderByToClickhouseSql(
@@ -518,7 +518,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
     ${limitClause}
   `;
 
-  const res = await queryClickhouse<
+  const res = await queryAnalytics<
     SelectReturnTypeMap[keyof SelectReturnTypeMap]
   >({
     query: query,
@@ -528,7 +528,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
       traceTimestamp: timeStampFilter?.value.getTime(),
       ...(traceDeleteCursor
         ? {
-            cursorTimestamp: convertDateToClickhouseDateTime(
+            cursorTimestamp: convertDateToAnalyticsDateTime(
               new Date(traceDeleteCursor.timestamp),
             ),
             cursorTraceId: traceDeleteCursor.traceId,
@@ -542,7 +542,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
       ...search.params,
     },
     tags: { ...(props.tags ?? {}), projectId },
-    clickhouseConfigs,
+    analyticsConfigs,
   });
 
   return res;
@@ -576,7 +576,7 @@ export const getTracesTableMetrics = async (props: {
   orderBy?: OrderByState;
   limit?: number;
   page?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
 }): Promise<Array<Omit<TracesMetricsUiReturnType, "scores">>> => {
   const countRows = await getTracesTableGeneric({
     select: "metrics",
@@ -594,7 +594,7 @@ export const getTracesTable = async (p: {
   orderBy?: OrderByState;
   limit?: number;
   page?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
 }) => {
   const {
     projectId,
@@ -604,7 +604,7 @@ export const getTracesTable = async (p: {
     orderBy,
     limit,
     page,
-    clickhouseConfigs,
+    analyticsConfigs,
   } = p;
   const rows = await getTracesTableGeneric({
     select: "rows",
@@ -615,7 +615,7 @@ export const getTracesTable = async (p: {
     orderBy,
     limit,
     page,
-    clickhouseConfigs,
+    analyticsConfigs,
   });
 
   return rows.map(convertToUiTableRows);
@@ -629,7 +629,7 @@ export const getTraceIdentifiers = async (props: {
   orderBy?: OrderByState;
   limit?: number;
   page?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
 }) => {
   const {
     projectId,
@@ -639,7 +639,7 @@ export const getTraceIdentifiers = async (props: {
     orderBy,
     limit,
     page,
-    clickhouseConfigs,
+    analyticsConfigs,
   } = props;
   const identifiers = await getTracesTableGeneric({
     select: "identifiers",
@@ -650,7 +650,7 @@ export const getTraceIdentifiers = async (props: {
     orderBy,
     limit,
     page,
-    clickhouseConfigs,
+    analyticsConfigs,
   });
 
   return identifiers.map((row) => ({
@@ -668,7 +668,7 @@ export const getTraceDeleteCursorPageFromTraces = async (props: {
   searchQuery?: string;
   searchType?: TracingSearchType[];
   limit: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
 }) => {
   const identifiers = await getTracesTableGeneric({
     select: "identifiers",
@@ -685,7 +685,7 @@ export const getTraceDeleteCursorPageFromTraces = async (props: {
     searchQuery: props.searchQuery,
     searchType: props.searchType,
     limit: props.limit,
-    clickhouseConfigs: props.clickhouseConfigs,
+    analyticsConfigs: props.analyticsConfigs,
     traceDeleteCursor: props.cursor ?? null,
     traceDeleteCursorOrder: true,
   });

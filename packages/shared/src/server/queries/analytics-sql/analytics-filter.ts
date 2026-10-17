@@ -5,8 +5,8 @@ import {
   filterOperators,
 } from "../../../interfaces/filters";
 import { InvalidRequestError } from "../../../errors";
-import { convertDateToClickhouseDateTime } from "../../clickhouse/client";
-import { clickhouseCompliantRandomCharacters } from "../../repositories";
+import { convertDateToAnalyticsDateTime } from "../../analytics-client/client";
+import { analyticsCompliantRandomCharacters } from "../../repositories";
 import { escapeSqlLikePattern } from "../../utils/sqlLike";
 import {
   assertValidFtsMatchFilter,
@@ -25,7 +25,7 @@ export type ClickhouseOperator =
   | FtsMatchOperator;
 export interface Filter {
   apply(): ClickhouseFilter;
-  clickhouseTable: string;
+  analyticsTable: string;
   tablePrefix?: string;
   operator: ClickhouseOperator;
   field: string;
@@ -43,7 +43,7 @@ const NGRAM_ACCELERATED_METADATA_OPERATORS = new Set<
 // A-Z only, byte-wise, leaving multi-byte UTF-8 untouched. Mirror that exactly
 // so a JS-lowered IN set matches the index and never prunes a real match. Full
 // String.toLowerCase() would diverge on non-ASCII and is unsafe here.
-const clickhouseAsciiLower = (value: string): string =>
+const analyticsAsciiLower = (value: string): string =>
   value.replace(/[A-Z]/g, (c) => c.toLowerCase());
 
 // Substring operators with an empty value skip the ngram prefilter and degrade
@@ -64,7 +64,7 @@ const EVENTS_METADATA_MAP_FIELDS = new Set([
 ]);
 
 export class StringFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public value: string;
   public operator:
@@ -74,14 +74,14 @@ export class StringFilter implements Filter {
   public emptyEqualsNull?: boolean;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators)["string"][number] | FtsMatchOperator;
     value: string;
     tablePrefix?: string;
     emptyEqualsNull?: boolean;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.value = opts.value;
     this.operator = opts.operator;
@@ -90,20 +90,17 @@ export class StringFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const varName = `stringFilter${clickhouseCompliantRandomCharacters()}`;
+    const varName = `stringFilter${analyticsCompliantRandomCharacters()}`;
 
     const fieldWithPrefix = `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field}`;
 
     // events_full carries an ngrambf_v1 skip index on lower(<col>) for these
     // columns. Emit a lower() conjunct so the index can prune; the exact
     // predicate below keeps the original (case-sensitive) semantics.
-    const ngramTarget = isNgramSubstringTarget(
-      this.clickhouseTable,
-      this.field,
-    );
+    const ngramTarget = isNgramSubstringTarget(this.analyticsTable, this.field);
     const ngramParams: Record<string, string> = {};
     const ngramLikeConjunct = (pattern: string): string => {
-      const p = `stringFilterNgram${clickhouseCompliantRandomCharacters()}`;
+      const p = `stringFilterNgram${analyticsCompliantRandomCharacters()}`;
       ngramParams[p] = pattern;
       return `lower(${fieldWithPrefix}) LIKE lower({${p}: String}) AND `;
     };
@@ -129,7 +126,7 @@ export class StringFilter implements Filter {
     switch (this.operator) {
       case "=":
         query = `${fieldWithPrefix} = {${varName}: String}`;
-        if (isFtsTextTarget(this.clickhouseTable, this.field, this.operator)) {
+        if (isFtsTextTarget(this.analyticsTable, this.field, this.operator)) {
           query = FTS_OPERATOR_DESCRIPTORS["="].textCondition(
             fieldWithPrefix,
             `{${varName}: String}`,
@@ -166,7 +163,7 @@ export class StringFilter implements Filter {
       case FTS_MATCH_OPERATOR:
         assertValidFtsMatchFilter({
           filterType: "string",
-          clickhouseTable: this.clickhouseTable,
+          analyticsTable: this.analyticsTable,
           field: this.field,
           value: this.value,
         });
@@ -198,33 +195,33 @@ export class StringFilter implements Filter {
 }
 
 export class NumberFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public value: number;
   public operator: (typeof filterOperators)["number"][number] | "!=";
-  public clickhouseTypeOverwrite?: string;
+  public analyticsTypeOverwrite?: string;
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators)["number"][number] | "!=";
     value: number;
     tablePrefix?: string;
-    clickhouseTypeOverwrite?: string;
+    analyticsTypeOverwrite?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.value = opts.value;
     this.operator = opts.operator;
     this.tablePrefix = opts.tablePrefix;
-    this.clickhouseTypeOverwrite = opts.clickhouseTypeOverwrite;
+    this.analyticsTypeOverwrite = opts.analyticsTypeOverwrite;
   }
 
   apply(): ClickhouseFilter {
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `numberFilter${uid}`;
-    const type = this.clickhouseTypeOverwrite ?? "Decimal64(12)";
+    const type = this.analyticsTypeOverwrite ?? "Decimal64(12)";
     return {
       query: `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field} ${this.operator} {${varName}: ${type}}`,
       params: { [varName]: this.value.toString() },
@@ -234,24 +231,24 @@ export class NumberFilter implements Filter {
 
 export const bindUtcDateTimeParam = (name: string, value: Date) => ({
   placeholder: `{${name}: DateTime64(3, 'UTC')}`,
-  value: convertDateToClickhouseDateTime(value),
+  value: convertDateToAnalyticsDateTime(value),
 });
 
 export class DateTimeFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public value: Date;
   public operator: (typeof filterOperators)["datetime"][number];
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators)["datetime"][number];
     value: Date;
     tablePrefix?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.value = opts.value;
     this.operator = opts.operator;
@@ -259,7 +256,7 @@ export class DateTimeFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `dateTimeFilter${uid}`;
     const dateTimeParam = bindUtcDateTimeParam(varName, new Date(this.value));
     // Use ClickHouse DateTime string encoding rather than epoch millis.
@@ -277,7 +274,7 @@ export class DateTimeFilter implements Filter {
 }
 
 export class StringOptionsFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public values: string[];
   public operator: (typeof filterOperators.stringOptions)[number];
@@ -285,14 +282,14 @@ export class StringOptionsFilter implements Filter {
   public emptyEqualsNull?: boolean;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators.stringOptions)[number];
     values: string[];
     tablePrefix?: string;
     emptyEqualsNull?: boolean;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.values = opts.values;
     this.operator = opts.operator;
@@ -301,7 +298,7 @@ export class StringOptionsFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `stringOptionsFilter${uid}`;
     const fieldWithPrefix = `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field}`;
     const hasEmpty = this.emptyEqualsNull && this.values.includes("");
@@ -312,11 +309,11 @@ export class StringOptionsFilter implements Filter {
     let ngramConjunct = "";
     if (
       this.operator === "any of" &&
-      isNgramSubstringTarget(this.clickhouseTable, this.field) &&
+      isNgramSubstringTarget(this.analyticsTable, this.field) &&
       this.values.length > 0
     ) {
-      const loweredVar = `stringOptionsFilterNgram${clickhouseCompliantRandomCharacters()}`;
-      ngramParams[loweredVar] = this.values.map(clickhouseAsciiLower);
+      const loweredVar = `stringOptionsFilterNgram${analyticsCompliantRandomCharacters()}`;
+      ngramParams[loweredVar] = this.values.map(analyticsAsciiLower);
       ngramConjunct = `lower(${fieldWithPrefix}) IN ({${loweredVar}: Array(String)}) AND `;
     }
 
@@ -346,7 +343,7 @@ export class StringOptionsFilter implements Filter {
 }
 
 export class CategoryOptionsFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public key: string;
   public values: string[];
@@ -354,14 +351,14 @@ export class CategoryOptionsFilter implements Filter {
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators.categoryOptions)[number];
     key: string;
     values: string[];
     tablePrefix?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.key = opts.key;
     this.values = opts.values;
@@ -370,7 +367,7 @@ export class CategoryOptionsFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `categoryOptionsFilter${uid}`;
 
     // Flatten the hierarchical structure into array of "parent:child" strings for improved query performance
@@ -403,7 +400,7 @@ export class CategoryOptionsFilter implements Filter {
 // For events tables (events_core, events_full): uses Array columns (metadata_names/metadata_values)
 // We can only filter efficiently on the first level of a json obj.
 export class StringObjectFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public key: string;
   public value: string;
@@ -413,7 +410,7 @@ export class StringObjectFilter implements Filter {
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator:
       | (typeof filterOperators)["stringObject"][number]
@@ -422,7 +419,7 @@ export class StringObjectFilter implements Filter {
     value: string;
     tablePrefix?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.value = opts.value;
     this.operator = opts.operator;
@@ -441,14 +438,14 @@ export class StringObjectFilter implements Filter {
       );
     }
 
-    const varKeyName = `stringObjectKeyFilter${clickhouseCompliantRandomCharacters()}`;
-    const varValueName = `stringObjectValueFilter${clickhouseCompliantRandomCharacters()}`;
+    const varKeyName = `stringObjectKeyFilter${analyticsCompliantRandomCharacters()}`;
+    const varValueName = `stringObjectValueFilter${analyticsCompliantRandomCharacters()}`;
     const prefix = this.tablePrefix ? this.tablePrefix + "." : "";
 
     // Events tables use array columns (metadata_names/metadata_values);
     // observations/traces tables use a Map column (metadata).
     let query: string;
-    if (isFtsEventsTable(this.clickhouseTable)) {
+    if (isFtsEventsTable(this.analyticsTable)) {
       // ClickHouse's index analyzer cannot extract `has(names, k)` from
       // `values[indexOf(names, k)] OP v` (cross-array arrayElement form), so a
       // bloom_filter skipping index on `names` would never prune granules.
@@ -461,7 +458,7 @@ export class StringObjectFilter implements Filter {
       const valueAccessor = `${valuesColumn}[indexOf(${namesColumn}, {${varKeyName}: String})]`;
       const hasKey = `JSON_CONTAINS(${namesColumn}, CAST({${varKeyName}: String} AS JSON))`;
       const valueParam = `{${varValueName}: String}`;
-      const ngramPrefilterParamName = `stringObjectNgramFilter${clickhouseCompliantRandomCharacters()}`;
+      const ngramPrefilterParamName = `stringObjectNgramFilter${analyticsCompliantRandomCharacters()}`;
       const shouldUseNgramPrefilter =
         this.operator !== FTS_MATCH_OPERATOR &&
         isFtsMetadataField(this.field) &&
@@ -502,7 +499,7 @@ export class StringObjectFilter implements Filter {
         case FTS_MATCH_OPERATOR:
           assertValidFtsMatchFilter({
             filterType: "stringObject",
-            clickhouseTable: this.clickhouseTable,
+            analyticsTable: this.analyticsTable,
             field: this.field,
             value: this.value,
           });
@@ -574,22 +571,22 @@ export class StringObjectFilter implements Filter {
   }
 }
 
-// this is used when we want to filter multiple values on a clickhouse column which is also an array
+// this is used when we want to filter multiple values on a analytics column which is also an array
 export class ArrayOptionsFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public values: string[];
   public operator: (typeof filterOperators.arrayOptions)[number];
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators.arrayOptions)[number];
     values: string[];
     tablePrefix?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.values = opts.values;
     this.operator = opts.operator;
@@ -597,7 +594,7 @@ export class ArrayOptionsFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `arrayOptionsFilter${uid}`;
     let query: string;
 
@@ -623,20 +620,20 @@ export class ArrayOptionsFilter implements Filter {
 }
 
 export class NullFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public operator: (typeof filterOperators)["null"][number];
   public tablePrefix?: string;
   public emptyEqualsNull?: boolean;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators)["null"][number];
     tablePrefix?: string;
     emptyEqualsNull?: boolean;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.operator = opts.operator;
     this.tablePrefix = opts.tablePrefix;
@@ -649,7 +646,7 @@ export class NullFilter implements Filter {
     // Event metadata aliases are computed maps. Their physical names arrays
     // are non-nullable, so emptiness represents a null/absent map.
     if (
-      isFtsEventsTable(this.clickhouseTable) &&
+      isFtsEventsTable(this.analyticsTable) &&
       EVENTS_METADATA_MAP_FIELDS.has(bareFtsField(this.field))
     ) {
       const metadataNames = `${fieldWithPrefix}_names`;
@@ -681,7 +678,7 @@ export class NullFilter implements Filter {
 }
 
 export class NumberObjectFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public key: string;
   public value: number;
@@ -689,14 +686,14 @@ export class NumberObjectFilter implements Filter {
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators)["numberObject"][number] | "!=";
     key: string;
     value: number;
     tablePrefix?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.value = opts.value;
     this.operator = opts.operator;
@@ -705,8 +702,8 @@ export class NumberObjectFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const varKeyName = `numberObjectKeyFilter${clickhouseCompliantRandomCharacters()}`;
-    const varValueName = `numberObjectValueFilter${clickhouseCompliantRandomCharacters()}`;
+    const varKeyName = `numberObjectKeyFilter${analyticsCompliantRandomCharacters()}`;
+    const varValueName = `numberObjectValueFilter${analyticsCompliantRandomCharacters()}`;
     const column = `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field}`;
     return {
       query: `(LENGTH(arrayFilter(x -> (((x.1) = 0) = {${varKeyName}: String}) AND ((x.2) ${this.operator} {${varValueName}: Decimal64(12)})), ${column})) = 0`,
@@ -726,7 +723,7 @@ export const encodeBooleanScoreEntry = (key: string, value: boolean): string =>
   `${key}:${value ? "true" : "false"}`;
 
 export class BooleanObjectFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public key: string;
   public value: boolean;
@@ -734,14 +731,14 @@ export class BooleanObjectFilter implements Filter {
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators)["booleanObject"][number];
     key: string;
     value: boolean;
     tablePrefix?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.value = opts.value;
     this.operator = opts.operator;
@@ -750,7 +747,7 @@ export class BooleanObjectFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `booleanObjectFilter${uid}`;
     const column = `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field}`;
     const value = encodeBooleanScoreEntry(this.key, this.value);
@@ -764,20 +761,20 @@ export class BooleanObjectFilter implements Filter {
 }
 
 export class BooleanFilter implements Filter {
-  public clickhouseTable: string;
+  public analyticsTable: string;
   public field: string;
   public operator: (typeof filterOperators)["boolean"][number];
   public value: boolean;
   public tablePrefix?: string;
 
   constructor(opts: {
-    clickhouseTable: string;
+    analyticsTable: string;
     field: string;
     operator: (typeof filterOperators)["boolean"][number];
     value: boolean;
     tablePrefix?: string;
   }) {
-    this.clickhouseTable = opts.clickhouseTable;
+    this.analyticsTable = opts.analyticsTable;
     this.field = opts.field;
     this.value = opts.value;
     this.tablePrefix = opts.tablePrefix;
@@ -785,7 +782,7 @@ export class BooleanFilter implements Filter {
   }
 
   apply(): ClickhouseFilter {
-    const uid = clickhouseCompliantRandomCharacters();
+    const uid = analyticsCompliantRandomCharacters();
     const varName = `booleanFilter${uid}`;
     return {
       query: `${this.tablePrefix ? this.tablePrefix + "." : ""}${this.field} ${this.operator} {${varName}: Boolean}`,
@@ -942,7 +939,7 @@ export const metadataFilterIsEventsCoreSafe = (
 // its result: input/output always (truncated, and events_core lacks the I/O FTS
 // indices); metadata only when the operator/value is truncation-sensitive.
 const filterRequiresEventsFull = (filter: Filter): boolean => {
-  if (!isFtsEventsTable(filter.clickhouseTable)) {
+  if (!isFtsEventsTable(filter.analyticsTable)) {
     return false;
   }
   if (isFtsTextField(filter.field)) {

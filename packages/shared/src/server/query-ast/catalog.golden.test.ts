@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  clickhouseFormatAvailable,
-  clickhouseLocalAvailable,
+  analyticsFormatAvailable,
+  analyticsLocalAvailable,
   executeClickhouseLocal,
   formatSql,
   normalizeParams,
@@ -11,23 +11,23 @@ import {
 import { CATALOG, CATALOG_PROJECT_ID } from "./catalog";
 import { compileClickhouseQuery } from "./compile";
 
-const describeWithClickhouse = clickhouseFormatAvailable()
+const describeWithClickhouse = analyticsFormatAvailable()
   ? describe
   : describe.skip;
 
-const describeWithClickhouseLocal = clickhouseLocalAvailable()
+const describeWithClickhouseLocal = analyticsLocalAvailable()
   ? describe
   : describe.skip;
 
-if (!clickhouseFormatAvailable()) {
+if (!analyticsFormatAvailable()) {
   console.warn(
-    "[catalog] `clickhouse format` unavailable — skipping catalog parity tests.",
+    "[catalog] `analytics format` unavailable — skipping catalog parity tests.",
   );
 }
 
-if (!clickhouseLocalAvailable()) {
+if (!analyticsLocalAvailable()) {
   console.warn(
-    "[catalog] `clickhouse local` unavailable — skipping JOIN execution tests.",
+    "[catalog] `analytics local` unavailable — skipping JOIN execution tests.",
   );
 }
 
@@ -130,7 +130,7 @@ const CATALOG_MEMORY_DDL = `
   ) ENGINE = Memory;
 `;
 
-// Syntactic parity (`compile(AST) ≡ referenceSql` under `clickhouse format`)
+// Syntactic parity (`compile(AST) ≡ referenceSql` under `analytics format`)
 // proves the text matches; it does not prove the text is *valid, analyzable*
 // ClickHouse. Executing each new shape against empty Memory tables forces the
 // analyzer to resolve every column, alias, and function — catching an

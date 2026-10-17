@@ -12,7 +12,7 @@ import { AuthHeaderValidVerificationResultIngestion } from "../auth/types";
 import {
   getClickhouseEntityType,
   type IngestionEntityTypes,
-} from "../clickhouse/schemaUtils";
+} from "../analytics-client/schemaUtils";
 import {
   getCurrentSpan,
   instrumentAsync,

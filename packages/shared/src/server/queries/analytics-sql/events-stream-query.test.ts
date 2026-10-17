@@ -2,7 +2,7 @@ import type { FilterCondition } from "../../../types";
 import type { OrderByState } from "../../../interfaces/orderBy";
 import { InvalidRequestError } from "../../../errors";
 import { describe, expect, it } from "vitest";
-import { convertDateToClickhouseDateTime } from "../../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../../analytics-client/client";
 import {
   buildEventsObservationRowSelection,
   groupEventsObservationFilters,
@@ -84,7 +84,7 @@ describe("buildEventsStreamQuery", () => {
     });
     expect(Object.values(params)).toContainEqual(["GENERATION"]);
     expect(Object.values(params)).toContain(
-      convertDateToClickhouseDateTime(cutoffCreatedAt),
+      convertDateToAnalyticsDateTime(cutoffCreatedAt),
     );
   });
 

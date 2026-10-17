@@ -25,10 +25,10 @@ export const CloudConfigSchema = z.object({
 
   // ClickHouse Billing (CHB) state. Written only by the CHB webhook handler,
   // except organizationId which checkout-session creation persists. Invariant:
-  // an org carries either `stripe` billing state or `clickhouse` state, never
+  // an org carries either `stripe` billing state or `analytics` state, never
   // both — provider routing (getBillingProvider) and the worker jobs'
   // Stripe-customer-id selection depend on it.
-  clickhouse: z
+  analytics: z
     .object({
       // ClickHouse Organization ID. Required and uuid-validated: parseDbOrg
       // nulls the whole cloudConfig on parse failure, so strictness here is

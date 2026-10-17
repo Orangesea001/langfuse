@@ -4,7 +4,7 @@ import {
   type RootOperationNode,
 } from "kysely";
 
-import { ClickHouseQueryCompiler } from "./compiler";
+import { AnalyticsQueryCompiler } from "./compiler";
 import { DedupLoweringPlugin } from "./dedup";
 import {
   type ExecutionContext,
@@ -49,7 +49,7 @@ export function compileClickhouseQuery(
     .withPlugin(new TenancyInjectionPlugin(scope))
     .withPlugin(new DedupLoweringPlugin())
     .toOperationNode();
-  const compiler = new ClickHouseQueryCompiler();
+  const compiler = new AnalyticsQueryCompiler();
   validateTypeCompatibility(stamped);
   const compiled = compiler.compileQuery(stamped, createQueryId());
   return {

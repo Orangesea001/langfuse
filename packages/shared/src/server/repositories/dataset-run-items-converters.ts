@@ -1,5 +1,5 @@
 import { DatasetRunItemDomain } from "../../domain/dataset-run-items";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import { parseMetadataCHRecordToDomain } from "../utils/metadata_conversion";
 import { parseClickhouseUTCDateTimeFormat } from "./clickhouse";
 import {
@@ -49,11 +49,11 @@ export const convertDatasetRunItemDomainToClickhouse = (
       string,
       string
     >,
-    created_at: convertDateToClickhouseDateTime(datasetRunItem.createdAt),
-    updated_at: convertDateToClickhouseDateTime(datasetRunItem.updatedAt),
-    event_ts: convertDateToClickhouseDateTime(new Date()),
+    created_at: convertDateToAnalyticsDateTime(datasetRunItem.createdAt),
+    updated_at: convertDateToAnalyticsDateTime(datasetRunItem.updatedAt),
+    event_ts: convertDateToAnalyticsDateTime(new Date()),
     is_deleted: 0,
-    dataset_run_created_at: convertDateToClickhouseDateTime(
+    dataset_run_created_at: convertDateToAnalyticsDateTime(
       datasetRunItem.datasetRunCreatedAt,
     ),
     error: datasetRunItem.error,

@@ -38,7 +38,7 @@ import { ObservationTypeMapperRegistry } from "./ObservationTypeMapper";
 import { env } from "../../env";
 import { OtelIngestionQueue } from "../redis/otelIngestionQueue";
 import { isValidDateString, flattenJsonToPathArrays } from "./utils";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 
 // Foreign level vocabularies observed from OTel senders (OTel severity
 // names, python logging, loguru, console) mapped onto the Langfuse enum.
@@ -3595,7 +3595,7 @@ export class OtelIngestionProcessor {
     if (value == null || value === "") return undefined;
     const stringValue = String(value);
     if (isValidDateString(stringValue)) {
-      return convertDateToClickhouseDateTime(new Date(stringValue));
+      return convertDateToAnalyticsDateTime(new Date(stringValue));
     }
     logger.warn(
       "OTEL invalid experiment item version, dropping. Expected timestamp.",

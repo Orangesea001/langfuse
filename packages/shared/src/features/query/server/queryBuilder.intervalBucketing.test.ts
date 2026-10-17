@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from "vitest";
 import { type QueryType } from "../types";
 import { QueryBuilder } from "./queryBuilder";
 
-vi.mock("../../../server/queries/clickhouse-sql/query-options", () => ({
+vi.mock("../../../server/queries/analytics-sql/query-options", () => ({
   shouldSkipObservationsFinal: vi.fn().mockResolvedValue(false),
 }));
 

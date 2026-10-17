@@ -16,15 +16,15 @@ import type * as ClickhouseModule from "./clickhouse";
  * Two independent pieces, both server-only and test-scoped:
  *
  *   1. Capture — {@link buildClickhouseMock} replaces the six exec functions in
- *      `repositories/clickhouse.ts` with recorders that push `(fn, query,
+ *      `repositories/analytics.ts` with recorders that push `(fn, query,
  *      params, tags)` into {@link capturedQueries} and return benign empty
  *      results. A test drives a real repository function with fixed inputs; the
  *      SQL it would have sent is captured without touching a ClickHouse server.
  *
  *   2. Golden check — {@link normalizeCapturedQueries} normalizes each captured
  *      query so two structurally-equal statements compare equal regardless of
- *      formatting or param naming: it pipes the SQL through `clickhouse format`
- *      (via `clickhouse-local`'s multi-binary — no server state) and rewrites
+ *      formatting or param naming: it pipes the SQL through `analytics format`
+ *      (via `analytics-local`'s multi-binary — no server state) and rewrites
  *      param placeholders to positional tokens (today's are random-suffixed at
  *      several sites). The normalized value is what a Vitest snapshot stores.
  *
@@ -36,15 +36,15 @@ import type * as ClickhouseModule from "./clickhouse";
  *
  * We capture only the SQL text, its params, and the tags — the parts the AST
  * compiler is responsible for producing. Every other `ClickhouseQueryOpts`
- * field (`clickhouseSettings`, `preferredClickhouseService`,
+ * field (`analyticsSettings`, `preferredClickhouseService`,
  * `useMultipartParamsAuto`, …) is a client-side execution/routing knob that
  * doesn't change the query text ClickHouse parses, so it's intentionally left
  * out of the baseline.
  *
- * KNOWN GAP: `queryClickhouseExecRaw` is the one exception — its real seam sends
+ * KNOWN GAP: `queryAnalyticsExecRaw` is the one exception — its real seam sends
  * `${query}\nFORMAT ${format}`, so `format` *is* part of the wire-level query
  * text. We deliberately ignore it for now: no exec-raw call site is golden-
- * tested yet (this file only drives `queryClickhouse`). Before the first
+ * tested yet (this file only drives `queryAnalytics`). Before the first
  * exec-raw site is migrated onto this harness, thread `format` into
  * CapturedQuery/GoldenQuery and fold `FORMAT <format>` into the normalized SQL,
  * or two exec-raw calls differing only in `format` (e.g. JSONEachRow vs
@@ -79,8 +79,8 @@ function capture(
 }
 
 /**
- * Build the mock module object for `vi.mock("../repositories/clickhouse")`.
- * Spreads the real module so non-exec exports (`upsertClickhouse`, error
+ * Build the mock module object for `vi.mock("../repositories/analytics")`.
+ * Spreads the real module so non-exec exports (`upsertAnalytics`, error
  * classes, re-exports) keep working, then overrides the six read/exec seams
  * with recorders. Each recorder honors its original signature — arrays,
  * async generators, and the exec-raw stream shape — so callers that iterate or
@@ -91,34 +91,34 @@ export function buildClickhouseMock(
 ): typeof ClickhouseModule {
   return {
     ...actual,
-    queryClickhouse: async (opts) => {
-      capture("queryClickhouse", opts);
+    queryAnalytics: async (opts) => {
+      capture("queryAnalytics", opts);
       return [];
     },
-    queryClickhouseStream: async function* (opts) {
-      capture("queryClickhouseStream", opts);
+    queryAnalyticsStream: async function* (opts) {
+      capture("queryAnalyticsStream", opts);
       yield* [];
     },
-    queryClickhouseStreamRawText: async function* (opts) {
-      capture("queryClickhouseStreamRawText", opts);
+    queryAnalyticsStreamRawText: async function* (opts) {
+      capture("queryAnalyticsStreamRawText", opts);
       yield* [];
     },
-    queryClickhouseWithProgress: async function* (opts) {
-      capture("queryClickhouseWithProgress", opts);
+    queryAnalyticsWithProgress: async function* (opts) {
+      capture("queryAnalyticsWithProgress", opts);
       yield* [];
     },
-    queryClickhouseExecRaw: async (opts) => {
+    queryAnalyticsExecRaw: async (opts) => {
       // NOTE: `opts.format` is dropped here on purpose — see CapturedQuery's
       // "KNOWN GAP". Revisit before any exec-raw call site is golden-tested.
-      capture("queryClickhouseExecRaw", opts);
+      capture("queryAnalyticsExecRaw", opts);
       return {
         queryId: "golden-harness",
         stream: Readable.from([]),
         responseHeaders: {},
       };
     },
-    commandClickhouse: async (opts) => {
-      capture("commandClickhouse", opts);
+    commandAnalytics: async (opts) => {
+      capture("commandAnalytics", opts);
     },
   } as unknown as typeof ClickhouseModule;
 }
@@ -128,22 +128,22 @@ export type GoldenQuery = {
   fn: string;
   /** `route` tag if the call site set one, else `"unknown"`. */
   route: string;
-  /** Formatted (via `clickhouse format`) and param-normalized SQL. */
+  /** Formatted (via `analytics format`) and param-normalized SQL. */
   sql: string;
   /** Params bound by the query, keyed by their positional token; only those
    * actually referenced in the SQL are kept (unreferenced binds are no-ops). */
   params: Record<string, unknown>;
 };
 
-// The `clickhouse` multi-binary's `format` subcommand. Not `clickhouse-local`,
+// The `analytics` multi-binary's `format` subcommand. Not `analytics-local`,
 // which forces local mode and won't accept `format` as a subcommand. Prefer
-// CLICKHOUSE_BIN, then PATH, then a user-local install — the PATH binary in
+// ANALYTICS_BIN, then PATH, then a user-local install — the PATH binary in
 // some agent VMs is a docker wrapper that cannot run `format`.
 function resolveClickhouseBin(): string {
   const candidates = [
-    process.env.CLICKHOUSE_BIN,
-    "clickhouse",
-    join(homedir(), ".local/bin/clickhouse"),
+    process.env.ANALYTICS_BIN,
+    "analytics",
+    join(homedir(), ".local/bin/analytics"),
   ].filter((bin): bin is string => Boolean(bin));
 
   for (const bin of candidates) {
@@ -157,22 +157,22 @@ function resolveClickhouseBin(): string {
       // try the next candidate
     }
   }
-  return "clickhouse";
+  return "analytics";
 }
 
-const clickhouseBin = resolveClickhouseBin();
+const analyticsBin = resolveClickhouseBin();
 
 let formatAvailability: boolean | undefined;
 
 /**
- * Whether `clickhouse format` can run here. The golden check needs it; gate the
+ * Whether `analytics format` can run here. The golden check needs it; gate the
  * suite on this so a machine (or CI job) without the binary skips loudly rather
  * than silently passing an unnormalized comparison.
  */
-export function clickhouseFormatAvailable(): boolean {
+export function analyticsFormatAvailable(): boolean {
   if (formatAvailability !== undefined) return formatAvailability;
   try {
-    const res = spawnSync(clickhouseBin, ["format"], {
+    const res = spawnSync(analyticsBin, ["format"], {
       input: "SELECT 1",
       encoding: "utf8",
     });
@@ -184,13 +184,13 @@ export function clickhouseFormatAvailable(): boolean {
 }
 
 /**
- * Canonicalize SQL through `clickhouse format` (whitespace, parenthesization,
- * keyword casing). Uses the `clickhouse` multi-binary's `format` subcommand,
- * which `clickhouse-local` provides — no server, no state. Throws on a parse
+ * Canonicalize SQL through `analytics format` (whitespace, parenthesization,
+ * keyword casing). Uses the `analytics` multi-binary's `format` subcommand,
+ * which `analytics-local` provides — no server, no state. Throws on a parse
  * error so malformed SQL fails the test instead of comparing raw.
  */
 export function formatSql(sql: string): string {
-  const res = spawnSync(clickhouseBin, ["format"], {
+  const res = spawnSync(analyticsBin, ["format"], {
     input: sql,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
@@ -198,7 +198,7 @@ export function formatSql(sql: string): string {
   if (res.error) throw res.error;
   if (res.status !== 0) {
     throw new Error(
-      `clickhouse format failed (status ${res.status}): ${res.stderr?.trim()}\n--- SQL ---\n${sql}`,
+      `analytics format failed (status ${res.status}): ${res.stderr?.trim()}\n--- SQL ---\n${sql}`,
     );
   }
   return res.stdout.trimEnd();
@@ -206,11 +206,11 @@ export function formatSql(sql: string): string {
 
 let localAvailability: boolean | undefined;
 
-/** Whether `clickhouse local` can execute a query on this machine. */
-export function clickhouseLocalAvailable(): boolean {
+/** Whether `analytics local` can execute a query on this machine. */
+export function analyticsLocalAvailable(): boolean {
   if (localAvailability !== undefined) return localAvailability;
   try {
-    const res = spawnSync(clickhouseBin, ["local", "--query", "SELECT 1"], {
+    const res = spawnSync(analyticsBin, ["local", "--query", "SELECT 1"], {
       encoding: "utf8",
     });
     localAvailability = res.status === 0;
@@ -259,18 +259,18 @@ export function substituteNamedParams(
 }
 
 /**
- * Run SQL through `clickhouse local` (no server). Throws on a non-zero status
+ * Run SQL through `analytics local` (no server). Throws on a non-zero status
  * so an analyzer/parse error fails the test instead of comparing stdout.
  */
 export function executeClickhouseLocal(sql: string): string {
-  const res = spawnSync(clickhouseBin, ["local", "--query", sql], {
+  const res = spawnSync(analyticsBin, ["local", "--query", sql], {
     encoding: "utf8",
     maxBuffer: 16 * 1024 * 1024,
   });
   if (res.error) throw res.error;
   if (res.status !== 0) {
     throw new Error(
-      `clickhouse local failed (status ${res.status}): ${res.stderr?.trim()}\n--- SQL ---\n${sql}`,
+      `analytics local failed (status ${res.status}): ${res.stderr?.trim()}\n--- SQL ---\n${sql}`,
     );
   }
   return (res.stdout ?? "").trimEnd();
@@ -306,7 +306,7 @@ export function normalizeParams(
   return { sql: normalizedSql, params: normalizedParams };
 }
 
-// `clickhouse format` lays queries out clause by clause but never breaks inside a
+// `analytics format` lays queries out clause by clause but never breaks inside a
 // single expression, so a deeply-nested facet expression lands as one 500+ char
 // line that is unreadable in a snapshot diff. Wrap those — and only those — at
 // top-level argument boundaries of the first function/array group on the line.
@@ -323,7 +323,7 @@ const CLAUSE_KEYWORD =
  * Pretty-print any expression line longer than {@link MAX_SQL_LINE} by
  * recursively breaking the first `(...)`/`[...]` group across lines, one
  * top-level argument per line. Shorter lines, and clause-level layout
- * `clickhouse format` already produces, are returned untouched — so this only
+ * `analytics format` already produces, are returned untouched — so this only
  * reflows the giant nested facet expressions. Deterministic and
  * CH-version-independent (pure string work).
  */

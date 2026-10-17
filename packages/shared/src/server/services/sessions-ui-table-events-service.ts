@@ -1,10 +1,10 @@
-// ClickHouseClientConfigOptions no longer needed (MySQL backend)
-import { type ClickHouseClientConfigOptions } from "../repositories/clickhouse";
+// AnalyticsClientConfigOptions no longer needed (MySQL backend)
+import { type AnalyticsClientConfigOptions } from "../repositories/clickhouse";
 
 import { InvalidRequestError } from "../../errors";
 import { OrderByState } from "../../interfaces/orderBy";
 import { FilterState } from "../../types";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import {
   CTEQueryBuilder,
   DateTimeFilter,
@@ -13,13 +13,13 @@ import {
   orderByToClickhouseSql,
   type SessionEventsMetricsRow,
 } from "../queries";
-import { createFilterFromFilterState } from "../queries/clickhouse-sql/factory";
+import { createFilterFromFilterState } from "../queries/analytics-sql/factory";
 import {
   eventsSessionsAggregation,
   eventsSessionScoresAggregation,
   eventsTracesAggregation,
-} from "../queries/clickhouse-sql/query-fragments";
-import { queryClickhouse } from "../repositories";
+} from "../queries/analytics-sql/query-fragments";
+import { queryAnalytics } from "../repositories";
 import {
   sessionEventsCols,
   sessionEventsOrderByCols,
@@ -86,7 +86,7 @@ export const getSessionTracesFromEvents = async (props: {
     tags: { projectId: props.projectId },
   };
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     id: string;
     name: string | null;
     timestamp: string;
@@ -159,7 +159,7 @@ export const getSessionsTableFromEvents = async (props: {
 
 // Single-query equivalent of getSessionsTableFromEvents + getSessionMetricsFromEvents,
 // mirroring the legacy getSessionsWithMetrics. Used by batch export so the metrics
-// aggregation inherits the same filter (incl. the createdAt cutoff) and clickhouseConfigs
+// aggregation inherits the same filter (incl. the createdAt cutoff) and analyticsConfigs
 // (extended HTTP timeouts) as the row query, in a single round-trip.
 export const getSessionsWithMetricsFromEvents = async (props: {
   projectId: string;
@@ -167,7 +167,7 @@ export const getSessionsWithMetricsFromEvents = async (props: {
   orderBy?: OrderByState;
   limit?: number;
   page?: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
 }) => {
   const rows = await getSessionsTableFromEventsGeneric<SessionEventsMetricsRow>(
     {
@@ -177,7 +177,7 @@ export const getSessionsWithMetricsFromEvents = async (props: {
       orderBy: props.orderBy,
       limit: props.limit,
       page: props.page,
-      clickhouseConfigs: props.clickhouseConfigs,
+      analyticsConfigs: props.analyticsConfigs,
     },
   );
 
@@ -197,13 +197,13 @@ export type FetchSessionsTableFromEventsProps = {
   limit?: number;
   page?: number;
   tags?: Record<string, string>;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
 };
 
 const getSessionsTableFromEventsGeneric = async <T>(
   props: FetchSessionsTableFromEventsProps,
 ) => {
-  const { select, projectId, filter, orderBy, limit, page, clickhouseConfigs } =
+  const { select, projectId, filter, orderBy, limit, page, analyticsConfigs } =
     props;
 
   const nullMetadataFilter = filter.find(
@@ -244,12 +244,12 @@ const getSessionsTableFromEventsGeneric = async <T>(
   ) as StringOptionsFilter | undefined;
 
   const requiresScoresJoin =
-    sessionFilters.some((f) => f.clickhouseTable === "scores") ||
+    sessionFilters.some((f) => f.analyticsTable === "scores") ||
     findUiColumnMapping(sessionEventsOrderByCols, orderBy?.column)
-      ?.clickhouseTableName === "scores";
+      ?.analyticsTableName === "scores";
   const requiresMetadata = sessionFilters.some(
     (filter) =>
-      filter.clickhouseTable === "events_proto" && filter.field === "metadata",
+      filter.analyticsTable === "events_proto" && filter.field === "metadata",
   );
 
   // Build session_data CTE
@@ -257,7 +257,7 @@ const getSessionsTableFromEventsGeneric = async <T>(
     projectId,
     sessionIds: sessionIdFilter?.values,
     startTimeFrom: traceTimestampFilter
-      ? convertDateToClickhouseDateTime(traceTimestampFilter.value)
+      ? convertDateToAnalyticsDateTime(traceTimestampFilter.value)
       : null,
     includeMetadata: requiresMetadata,
   });
@@ -352,11 +352,11 @@ const getSessionsTableFromEventsGeneric = async <T>(
     tags: { ...(props.tags ?? {}), projectId },
   };
 
-  return queryClickhouse<T>({
+  return queryAnalytics<T>({
     query,
     params: input.params,
     tags: input.tags,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService: "EventsReadOnly",
   });
 };

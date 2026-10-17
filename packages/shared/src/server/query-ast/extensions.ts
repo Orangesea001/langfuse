@@ -36,10 +36,10 @@ import {
   ArrayJoinNode,
   LimitByNode,
   type ArrayJoinVariant,
-  type ClickHouseSelectQueryNode,
+  type AnalyticsSelectQueryNode,
 } from "./nodes";
-import type { ClickHouseDatabase } from "./schema";
-import { ClickHouseOperationNodeTransformer } from "./transformer";
+import type { AnalyticsDatabase } from "./schema";
+import { AnalyticsOperationNodeTransformer } from "./transformer";
 
 type OperationNodeSource = OperationNode | { toOperationNode(): OperationNode };
 
@@ -67,10 +67,10 @@ class ArrayJoinPlugin implements KyselyPlugin {
 
   transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
     if (args.node.kind !== "SelectQueryNode") return args.node;
-    const transformer = new ClickHouseOperationNodeTransformer();
+    const transformer = new AnalyticsOperationNodeTransformer();
     const node = transformer.transformNode(
       args.node,
-    ) as ClickHouseSelectQueryNode;
+    ) as AnalyticsSelectQueryNode;
     const arrayJoinNode = ArrayJoinNode.create(
       this.items.map((item) => ({
         expression: toNode(item.expression),
@@ -100,10 +100,10 @@ class LimitByPlugin implements KyselyPlugin {
 
   transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
     if (args.node.kind !== "SelectQueryNode") return args.node;
-    const transformer = new ClickHouseOperationNodeTransformer();
+    const transformer = new AnalyticsOperationNodeTransformer();
     const node = transformer.transformNode(
       args.node,
-    ) as ClickHouseSelectQueryNode;
+    ) as AnalyticsSelectQueryNode;
     return {
       ...node,
       limitBy: LimitByNode.create(
@@ -140,11 +140,9 @@ function columnRef(name: string): OperationNode {
 }
 
 function arrayFunction<T>(fn: string, column: string): Expression<T[]> {
-  return new ExpressionWrapper<
-    ClickHouseDatabase,
-    keyof ClickHouseDatabase,
-    T[]
-  >(FunctionNode.create(fn, [columnRef(column)]) as unknown as OperationNode);
+  return new ExpressionWrapper<AnalyticsDatabase, keyof AnalyticsDatabase, T[]>(
+    FunctionNode.create(fn, [columnRef(column)]) as unknown as OperationNode,
+  );
 }
 
 /** `mapKeys(map)` as a typed array expression (element type defaults to string). */
@@ -164,7 +162,7 @@ export function mapValues<V = string>(column: string): Expression<V[]> {
 export function metadataValue(
   tableAlias: string,
   key: string,
-): ExpressionWrapper<ClickHouseDatabase, "events_core", string | number> {
+): ExpressionWrapper<AnalyticsDatabase, "events_core", string | number> {
   return new ExpressionWrapper(
     ArrayIndexNode.create(
       qualifiedColumn(tableAlias, "metadata_values"),

@@ -12,7 +12,7 @@ import { QueryBuilder } from "./queryBuilder";
 
 // QueryBuilder.build checks the OTEL FINAL optimization before filter lowering.
 // Mock it so this stays unit-level and does not need ClickHouse.
-vi.mock("../../../server/queries/clickhouse-sql/query-options", () => ({
+vi.mock("../../../server/queries/analytics-sql/query-options", () => ({
   shouldSkipObservationsFinal: vi.fn().mockResolvedValue(false),
 }));
 

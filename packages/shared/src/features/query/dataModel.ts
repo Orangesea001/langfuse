@@ -326,7 +326,7 @@ export const eventsTracesView: ViewDeclarationType = {
       },
     },
     latency: {
-      sql: "date_diff('millisecond', minIf(events_traces.start_time, events_traces.parent_span_id != ''), maxIf(events_traces.end_time, events_traces.parent_span_id != ''))",
+      sql: "date_diff('millisecond', MIN(events_traces.start_time, events_traces.parent_span_id != ''), maxIf(events_traces.end_time, events_traces.parent_span_id != ''))",
       alias: "latency",
       type: "integer",
       description:

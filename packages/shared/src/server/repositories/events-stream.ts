@@ -3,7 +3,7 @@ import { normalizeEventsTraceName } from "../../eventsTable";
 import type { FilterCondition } from "../../types";
 import type { TracingSearchType } from "../../interfaces/search";
 import { buildEventsStreamQuery } from "../queries";
-import { queryClickhouseStream } from "./clickhouse";
+import { queryAnalyticsStream } from "./clickhouse";
 
 /**
  * Lightweight event stream for batch observation evaluation.
@@ -79,12 +79,12 @@ export const getEventsStreamForEval = async (props: {
     experiment_item_metadata: Record<string, unknown> | null;
   };
 
-  const asyncGenerator = queryClickhouseStream<EvalEventRow>({
+  const asyncGenerator = queryAnalyticsStream<EvalEventRow>({
     query,
     params: queryParams,
-    clickhouseConfigs: {
+    analyticsConfigs: {
       request_timeout: 180_000,
-      clickhouse_settings: {
+      analytics_settings: {
         http_send_timeout: 300,
         http_receive_timeout: 300,
       },

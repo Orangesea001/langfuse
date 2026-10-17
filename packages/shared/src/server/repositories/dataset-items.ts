@@ -28,10 +28,7 @@ import {
   DatasetItemDomainWithoutIO,
   type DatasetItemMediaField,
 } from "../../domain";
-import {
-  parseClickhouseUTCDateTimeFormat,
-  queryClickhouse,
-} from "./clickhouse";
+import { parseClickhouseUTCDateTimeFormat, queryAnalytics } from "./clickhouse";
 import { postgresSearchCondition } from "../queries";
 import { TracingSearchType } from "../../interfaces/search";
 
@@ -2011,7 +2008,7 @@ export async function getDatasetVersionForRun(params: {
     },
     [Implementation.VERSIONED]: async () => {
       // Step 1: Get the latest creation timestamp from dataset run items (ClickHouse)
-      const maxCreatedAtResult = await queryClickhouse<{
+      const maxCreatedAtResult = await queryAnalytics<{
         max_created_at: string | null;
         max_dataset_item_version: string | null;
       }>({

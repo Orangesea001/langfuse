@@ -15,7 +15,7 @@ type CatalogTier = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type CatalogEntry = {
   id: string;
   tier: CatalogTier;
-  /** Hand-written reference SQL the compiler must match after `clickhouse format`. */
+  /** Hand-written reference SQL the compiler must match after `analytics format`. */
   referenceSql: string;
   build: () => ClickhouseCompilable;
 };
@@ -57,7 +57,7 @@ function environmentsVariant(spec: {
 /**
  * Catalog of reference query shapes, one entry per complexity tier.
  * Reference SQL is the intended ClickHouse shape, not a dump of Kysely's
- * first draft — `compile(AST) ≡ referenceSQL` after `clickhouse format`.
+ * first draft — `compile(AST) ≡ referenceSQL` after `analytics format`.
  *
  * No entry filters `project_id`: the reference SQL shows the `project_id`
  * predicate the mandatory tenancy pass injects, so these also prove injection.

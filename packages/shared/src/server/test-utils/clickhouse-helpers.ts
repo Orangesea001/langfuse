@@ -1,4 +1,4 @@
-import { upsertClickhouse } from "../repositories/clickhouse";
+import { upsertAnalytics } from "../repositories/clickhouse";
 import {
   TraceRecordInsertType,
   ObservationRecordInsertType,
@@ -8,7 +8,7 @@ import {
 } from "../repositories/definitions";
 
 export const createTracesCh = async (trace: TraceRecordInsertType[]) => {
-  return await upsertClickhouse({
+  return await upsertAnalytics({
     table: "traces",
     records: trace as Record<string, unknown>[],
   });
@@ -17,21 +17,21 @@ export const createTracesCh = async (trace: TraceRecordInsertType[]) => {
 export const createObservationsCh = async (
   observations: ObservationRecordInsertType[],
 ) => {
-  return await upsertClickhouse({
+  return await upsertAnalytics({
     table: "observations",
     records: observations as Record<string, unknown>[],
   });
 };
 
 export const createEventsCh = async (events: EventRecordInsertType[]) => {
-  return await upsertClickhouse({
+  return await upsertAnalytics({
     table: "events_full",
     records: events as Record<string, unknown>[],
   });
 };
 
 export const createScoresCh = async (scores: ScoreRecordInsertType[]) => {
-  return await upsertClickhouse({
+  return await upsertAnalytics({
     table: "scores",
     records: scores as Record<string, unknown>[],
   });
@@ -40,7 +40,7 @@ export const createScoresCh = async (scores: ScoreRecordInsertType[]) => {
 export const createDatasetRunItemsCh = async (
   datasetRunItems: DatasetRunItemRecordInsertType[],
 ) => {
-  return await upsertClickhouse({
+  return await upsertAnalytics({
     table: "dataset_run_items_rmt",
     records: datasetRunItems as Record<string, unknown>[],
   });

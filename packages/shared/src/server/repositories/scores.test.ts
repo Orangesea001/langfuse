@@ -2,20 +2,20 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const mockQueryClickhouse = vi.hoisted(() => vi.fn());
 
-vi.mock("./clickhouse", () => ({
-  queryClickhouse: mockQueryClickhouse,
-  queryClickhouseStream: vi.fn(),
-  queryClickhouseExecRaw: vi.fn(),
-  commandClickhouse: vi.fn(),
-  upsertClickhouse: vi.fn(),
+vi.mock("./analytics", () => ({
+  queryAnalytics: mockQueryClickhouse,
+  queryAnalyticsStream: vi.fn(),
+  queryAnalyticsExecRaw: vi.fn(),
+  commandAnalytics: vi.fn(),
+  upsertAnalytics: vi.fn(),
   parseClickhouseUTCDateTimeFormat: vi.fn(),
-  clickhouseCompliantRandomCharacters: vi.fn(() => "x"),
+  analyticsCompliantRandomCharacters: vi.fn(() => "x"),
   BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS: {},
 }));
 
 // Break the query-options -> server-barrel import cycle that otherwise fails
 // module initialization when the graph is entered from this repository file.
-vi.mock("../queries/clickhouse-sql/query-options", () => ({
+vi.mock("../queries/analytics-sql/query-options", () => ({
   shouldSkipObservationsFinal: vi.fn().mockResolvedValue(false),
 }));
 

@@ -3,16 +3,16 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const mockQueryClickhouse = vi.hoisted(() => vi.fn());
 let charCounter = 0;
 
-vi.mock("./clickhouse", () => ({
-  queryClickhouse: mockQueryClickhouse,
-  commandClickhouse: vi.fn(),
-  queryClickhouseStream: vi.fn(),
-  queryClickhouseStreamRawText: vi.fn(),
-  queryClickhouseExecRaw: vi.fn(),
+vi.mock("./analytics", () => ({
+  queryAnalytics: mockQueryClickhouse,
+  commandAnalytics: vi.fn(),
+  queryAnalyticsStream: vi.fn(),
+  queryAnalyticsStreamRawText: vi.fn(),
+  queryAnalyticsExecRaw: vi.fn(),
   parseClickhouseUTCDateTimeFormat: vi.fn(),
   BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS: {},
   // Return unique names per call so filter parameter variables don't collide
-  clickhouseCompliantRandomCharacters: vi.fn(() => `x${++charCounter}`),
+  analyticsCompliantRandomCharacters: vi.fn(() => `x${++charCounter}`),
 }));
 
 import { getObservationsV2FromEventsTableForPublicApi } from "./events";

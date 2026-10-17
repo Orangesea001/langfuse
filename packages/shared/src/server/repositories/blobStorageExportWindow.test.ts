@@ -4,19 +4,19 @@ const mockQueryClickhouseStream = vi.hoisted(() =>
   vi.fn(() => (async function* () {})()),
 );
 
-vi.mock("./clickhouse", () => ({
-  queryClickhouse: vi.fn(),
-  queryClickhouseStream: mockQueryClickhouseStream,
-  queryClickhouseStreamRawText: mockQueryClickhouseStream,
-  queryClickhouseExecRaw: vi.fn(),
-  commandClickhouse: vi.fn(),
-  upsertClickhouse: vi.fn(),
+vi.mock("./analytics", () => ({
+  queryAnalytics: vi.fn(),
+  queryAnalyticsStream: mockQueryClickhouseStream,
+  queryAnalyticsStreamRawText: mockQueryClickhouseStream,
+  queryAnalyticsExecRaw: vi.fn(),
+  commandAnalytics: vi.fn(),
+  upsertAnalytics: vi.fn(),
   parseClickhouseUTCDateTimeFormat: vi.fn(),
-  clickhouseCompliantRandomCharacters: vi.fn(() => "x"),
+  analyticsCompliantRandomCharacters: vi.fn(() => "x"),
   BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS: {},
 }));
 
-vi.mock("../queries/clickhouse-sql/query-options", () => ({
+vi.mock("../queries/analytics-sql/query-options", () => ({
   shouldSkipObservationsFinal: vi.fn().mockResolvedValue(false),
 }));
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { normalizeParams } from "./goldenHarness";
 
-// Pure logic — no `clickhouse` binary required, so this always runs.
+// Pure logic — no `analytics` binary required, so this always runs.
 describe("normalizeParams", () => {
   it("rewrites placeholders to positional tokens in first-occurrence order", () => {
     const { sql, params } = normalizeParams(

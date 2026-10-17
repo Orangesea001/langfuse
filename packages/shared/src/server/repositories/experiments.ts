@@ -5,7 +5,7 @@ import { env } from "../../env";
 import { type ScoreSourceType } from "../../domain";
 import { type OrderByState } from "../../interfaces/orderBy";
 import { type FilterState } from "../../types";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import {
   FilterList,
   StringOptionsFilter,
@@ -16,7 +16,7 @@ import {
   StringFilter,
   extractTimeFilter,
 } from "../queries";
-import { createFilterFromFilterState } from "../queries/clickhouse-sql/factory";
+import { createFilterFromFilterState } from "../queries/analytics-sql/factory";
 import {
   buildScoreRowsCTE,
   buildScoresCTE,
@@ -27,10 +27,10 @@ import {
   eventsTracesScoresAggregation,
   experimentItemLevelsAggregation,
   scoreBooleansAggregation,
-} from "../queries/clickhouse-sql/query-fragments";
+} from "../queries/analytics-sql/query-fragments";
 import {
   parseClickhouseUTCDateTimeFormat,
-  queryClickhouse,
+  queryAnalytics,
 } from "../repositories/clickhouse";
 import { experimentItemsTableNativeUiColumnDefinitions } from "../tableMappings/mapExperimentItemsTable";
 import {
@@ -98,7 +98,7 @@ export const getDatasetExperimentMetricsFromEvents = async (props: {
     })
     .buildWithParams();
 
-  const rows = await queryClickhouse<DatasetExperimentMetricsReturnType>({
+  const rows = await queryAnalytics<DatasetExperimentMetricsReturnType>({
     query: `
       SELECT
         experiment_dataset_id,
@@ -360,7 +360,7 @@ export const getExperimentMetricsFromEvents = async (props: {
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const res = await queryClickhouse<ExperimentMetricsReturnType>({
+  const res = await queryAnalytics<ExperimentMetricsReturnType>({
     query,
     params,
     tags: { projectId: props.projectId },
@@ -521,7 +521,7 @@ const getExperimentsFromEventsGeneric = async <T>(
 
   const finalParams = built.params;
 
-  return queryClickhouse<T>({
+  return queryAnalytics<T>({
     query: finalQuery,
     params: finalParams,
     tags: { ...(props.tags ?? {}), projectId },
@@ -622,7 +622,7 @@ export const getExperimentItemsCountFromEvents = async (
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const rows = await queryClickhouse<{ count: string }>({
+  const rows = await queryAnalytics<{ count: string }>({
     query,
     params,
     tags: { projectId },
@@ -824,13 +824,13 @@ const getExperimentItemScoreOptionsByLevel = async ({
   });
 
   const [traceResults, obsResults] = await Promise.all([
-    queryClickhouse<ScoreFilterOptionsRow>({
+    queryAnalytics<ScoreFilterOptionsRow>({
       query: traceQuery.query,
       params: traceQuery.params,
       tags: { projectId },
       preferredClickhouseService: "ReadOnly",
     }),
-    queryClickhouse<ScoreFilterOptionsRow>({
+    queryAnalytics<ScoreFilterOptionsRow>({
       query: obsQuery.query,
       params: obsQuery.params,
       tags: { projectId },
@@ -908,19 +908,19 @@ const getExperimentScoreOptionsByLevel = async ({
   });
 
   const [obsResults, traceResults, runResults] = await Promise.all([
-    queryClickhouse<ScoreFilterOptionsRow>({
+    queryAnalytics<ScoreFilterOptionsRow>({
       query: obsQuery.query,
       params: obsQuery.params,
       tags: { projectId },
       preferredClickhouseService: "ReadOnly",
     }),
-    queryClickhouse<ScoreFilterOptionsRow>({
+    queryAnalytics<ScoreFilterOptionsRow>({
       query: traceQuery.query,
       params: traceQuery.params,
       tags: { projectId },
       preferredClickhouseService: "ReadOnly",
     }),
-    queryClickhouse<ScoreFilterOptionsRow>({
+    queryAnalytics<ScoreFilterOptionsRow>({
       query: runQuery.query,
       params: runQuery.params,
       tags: { projectId },
@@ -1023,7 +1023,7 @@ function compileExperimentFilter(params: {
 }): { query: string; params: Record<string, any> } {
   // 1) force experiment constraint
   const experimentFilter = new StringFilter({
-    clickhouseTable: "events_proto",
+    analyticsTable: "events_proto",
     field: "e.experiment_id",
     operator: "=",
     value: params.experimentId,
@@ -1294,7 +1294,7 @@ export const getExperimentItemsFromEvents = async (
       offset,
     });
 
-  const itemIdsResult = await queryClickhouse<{
+  const itemIdsResult = await queryAnalytics<{
     item_id: string;
     start_time: string;
   }>({
@@ -1341,7 +1341,7 @@ export const getExperimentItemsFromEvents = async (
     experimentIds: allExperimentIds,
   })
     .whereRaw("e.start_time >= {itemsMinStartTime: DateTime64(3)}", {
-      itemsMinStartTime: convertDateToClickhouseDateTime(minStartTime),
+      itemsMinStartTime: convertDateToAnalyticsDateTime(minStartTime),
     })
     .selectRaw(
       "e.experiment_item_id as item_id",
@@ -1367,7 +1367,7 @@ export const getExperimentItemsFromEvents = async (
   const { query: dataQuery, params: dataParams } =
     queryBuilderData.buildWithParams();
 
-  const rows = await queryClickhouse<ExperimentItemEventsDataReturnType>({
+  const rows = await queryAnalytics<ExperimentItemEventsDataReturnType>({
     query: dataQuery,
     params: dataParams,
     tags: { projectId },
@@ -1460,7 +1460,7 @@ export const getExperimentItemsBatchIO = async (props: {
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     item_id: string;
     experiment_id: string;
     input: string | null;
@@ -1566,7 +1566,7 @@ export const getExperimentNamesFromEvents = async (props: {
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const res = await queryClickhouse<{
+  const res = await queryAnalytics<{
     experimentName: string;
     experimentId: string;
     datasetId: string | null;

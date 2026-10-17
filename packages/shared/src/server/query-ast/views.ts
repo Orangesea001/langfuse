@@ -15,10 +15,10 @@ import {
 } from "kysely";
 
 import type { ClickhouseCompilable } from "./compile";
-import { ClickHouseCompileDialect } from "./dialect";
-import { ClickHouseOperationNodeTransformer } from "./transformer";
+import { AnalyticsCompileDialect } from "./dialect";
+import { AnalyticsOperationNodeTransformer } from "./transformer";
 
-export type ClickHouseView<N extends string, O> = {
+export type AnalyticsView<N extends string, O> = {
   name: N;
   build: () => ClickhouseCompilable;
   /** Phantom: the view's exposed row type. */
@@ -32,17 +32,17 @@ export type ClickHouseView<N extends string, O> = {
  * tenancy injection still walks the CTE body.
  */
 export function defineView<N extends string>(name: N) {
-  return <O>(build: () => ClickhouseCompilable): ClickHouseView<N, O> => ({
+  return <O>(build: () => ClickhouseCompilable): AnalyticsView<N, O> => ({
     name,
     build,
   });
 }
 
 class VirtualViewPlugin implements KyselyPlugin {
-  private readonly views: Map<string, ClickHouseView<string, unknown>>;
+  private readonly views: Map<string, AnalyticsView<string, unknown>>;
 
   constructor(
-    views: ClickHouseView<string, unknown> | ClickHouseView<string, unknown>[],
+    views: AnalyticsView<string, unknown> | AnalyticsView<string, unknown>[],
   ) {
     const list = Array.isArray(views) ? views : [views];
     this.views = new Map(list.map((view) => [view.name, view]));
@@ -50,7 +50,7 @@ class VirtualViewPlugin implements KyselyPlugin {
 
   transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
     if (args.node.kind !== "SelectQueryNode") return args.node;
-    const transformer = new ClickHouseOperationNodeTransformer();
+    const transformer = new AnalyticsOperationNodeTransformer();
     const node = transformer.transformNode(args.node) as SelectQueryNode;
 
     const froms = node.from?.froms ?? [];
@@ -96,12 +96,12 @@ function tableNameOfFrom(node: OperationNode): string | undefined {
  * exposed columns are in the type.
  */
 export function fromView<N extends string, O>(
-  view: ClickHouseView<N, O>,
+  view: AnalyticsView<N, O>,
 ): SelectQueryBuilder<Record<N, O>, N, Record<string, never>> {
   type DB = Record<N, O>;
-  const db = new Kysely<DB>({ dialect: new ClickHouseCompileDialect() });
+  const db = new Kysely<DB>({ dialect: new AnalyticsCompileDialect() });
   return db
-    .withPlugin(new VirtualViewPlugin(view as ClickHouseView<string, unknown>))
+    .withPlugin(new VirtualViewPlugin(view as AnalyticsView<string, unknown>))
     .selectFrom(view.name) as SelectQueryBuilder<
     Record<N, O>,
     N,

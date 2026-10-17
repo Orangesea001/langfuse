@@ -2,9 +2,9 @@ import * as opentelemetry from "@opentelemetry/api";
 import type { IncomingHttpHeaders } from "http";
 import { env } from "../env";
 import {
-  CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS,
-  type ClickHouseQuerySurface,
-} from "./clickhouse/queryTags";
+  ANALYTICS_QUERY_TAG_BAGGAGE_KEYS,
+  type AnalyticsQuerySurface,
+} from "./analytics-client/queryTags";
 import { extractPublicApiCallerAttribution } from "./ingestion/ingestionAttribution";
 import { redactLangfuseSecretKeys } from "./auth/apiKeys";
 
@@ -13,8 +13,8 @@ export type LangfuseContextProps = {
   userId?: string;
   projectId?: string;
   apiKeyId?: string;
-  clickhouse?: {
-    surface: ClickHouseQuerySurface;
+  analytics?: {
+    surface: AnalyticsQuerySurface;
     route?: string;
   };
 };
@@ -32,11 +32,11 @@ export const contextWithLangfuseProps = (
     opentelemetry.propagation.getBaggage(ctx) ??
     opentelemetry.propagation.createBaggage();
 
-  if (props.clickhouse?.surface === "publicapi") {
+  if (props.analytics?.surface === "publicapi") {
     [
-      CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkName,
-      CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkVersion,
-      CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.userAgent,
+      ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.sdkName,
+      ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.sdkVersion,
+      ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.userAgent,
     ].forEach((key) => {
       baggage = baggage.removeEntry(key);
     });
@@ -71,28 +71,25 @@ export const contextWithLangfuseProps = (
       }
     });
 
-    if (props.clickhouse?.surface === "publicapi") {
+    if (props.analytics?.surface === "publicapi") {
       const callerAttribution = extractPublicApiCallerAttribution(
         props.headers,
       );
       if (callerAttribution.sdkName) {
-        baggage = baggage.setEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkName, {
+        baggage = baggage.setEntry(ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.sdkName, {
           value: callerAttribution.sdkName,
         });
       }
       if (callerAttribution.sdkVersion) {
         baggage = baggage.setEntry(
-          CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkVersion,
+          ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.sdkVersion,
           { value: callerAttribution.sdkVersion },
         );
       }
       if (callerAttribution.userAgent) {
-        baggage = baggage.setEntry(
-          CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.userAgent,
-          {
-            value: callerAttribution.userAgent,
-          },
-        );
+        baggage = baggage.setEntry(ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.userAgent, {
+          value: callerAttribution.userAgent,
+        });
       }
     }
   }
@@ -109,13 +106,13 @@ export const contextWithLangfuseProps = (
       value: props.apiKeyId,
     });
   }
-  if (props.clickhouse) {
-    baggage = baggage.setEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.surface, {
-      value: props.clickhouse.surface,
+  if (props.analytics) {
+    baggage = baggage.setEntry(ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.surface, {
+      value: props.analytics.surface,
     });
-    if (props.clickhouse.route?.trim()) {
-      baggage = baggage.setEntry(CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.route, {
-        value: props.clickhouse.route,
+    if (props.analytics.route?.trim()) {
+      baggage = baggage.setEntry(ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.route, {
+        value: props.analytics.route,
       });
     }
   }

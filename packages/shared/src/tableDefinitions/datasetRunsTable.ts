@@ -17,12 +17,12 @@ type DatasetRunFilterColumnLiterals = ExtractLiterals<
  * Columns that can be filtered using basic PostgreSQL dataset run data
  * (don't require aggregated metrics from ClickHouse)
  */
-const CLICKHOUSE_FILTER_COLUMNS: DatasetRunFilterColumnLiterals[] = [
+const ANALYTICS_FILTER_COLUMNS: DatasetRunFilterColumnLiterals[] = [
   "Scores (categorical)",
   "Scores (numeric)",
   "Scores (boolean)",
 ];
-const CLICKHOUSE_FILTER_COLUMNS_SET = new Set(CLICKHOUSE_FILTER_COLUMNS);
+const ANALYTICS_FILTER_COLUMNS_SET = new Set(ANALYTICS_FILTER_COLUMNS);
 
 /**
  * Returns true if the dataset run filter column requires DRI metrics from ClickHouse.
@@ -34,7 +34,7 @@ const CLICKHOUSE_FILTER_COLUMNS_SET = new Set(CLICKHOUSE_FILTER_COLUMNS);
  * @returns true if requires ClickHouse DRI metrics, false if PostgreSQL data is sufficient
  */
 export function isClickhouseFilterColumn(column: string): boolean {
-  return CLICKHOUSE_FILTER_COLUMNS_SET.has(column);
+  return ANALYTICS_FILTER_COLUMNS_SET.has(column);
 }
 
 export const datasetRunsTableCols: ColumnDefinition[] = [

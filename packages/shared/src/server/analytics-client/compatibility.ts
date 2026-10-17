@@ -8,7 +8,7 @@
 /** Stub: ClickHouse settings type */
 
 /** Stub: version info */
-export type ClickHouseVersion = {
+export type AnalyticsVersion = {
   raw: string;
   major: number;
   minor: number;
@@ -18,43 +18,43 @@ export type ClickHouseVersion = {
 };
 
 /** No-op: returns empty settings for MySQL */
-export const getClickHouseCompatibilitySettings = (): Record<
+export const getAnalyticsCompatibilitySettings = (): Record<
   string,
   unknown
 > => ({});
 
 /** No-op: initialization not needed for MySQL */
-export const initializeClickhouseCompatibility = async (): Promise<void> => {
+export const initializeAnalyticsCompatibility = async (): Promise<void> => {
   // MySQL does not need version-based compatibility initialization
 };
 
 /** No-op: returns 'sanitize' as default (unused for MySQL) */
-export const getClickHouseJsonBadUnicodeEscapeMode = () => "sanitize" as const;
+export const getAnalyticsJsonBadUnicodeEscapeMode = () => "sanitize" as const;
 
 /** No-op: resolves to empty settings */
-export const resolveClickHouseCompatibility = () => ({
+export const resolveAnalyticsCompatibility = () => ({
   settings: {} as Record<string, unknown>,
   appliedRules: [] as unknown[],
-  parsedVersion: null as ClickHouseVersion | null,
+  parsedVersion: null as AnalyticsVersion | null,
   flags: [] as unknown[],
 });
 
 /** No-op: version parsing */
-export const parseClickHouseVersion = (
+export const parseAnalyticsVersion = (
   _rawVersion: string,
-): ClickHouseVersion | null => null;
+): AnalyticsVersion | null => null;
 
 /** No-op: version band check */
-export const isClickHouseVersionInBand = (
-  _version: string | ClickHouseVersion,
+export const isAnalyticsVersionInBand = (
+  _version: string | AnalyticsVersion,
   _band: { minInclusive: string; maxExclusive?: string },
 ): boolean => false;
 
 /** No-op: resolve JSON bad unicode escape mode */
-export const resolveClickHouseJsonBadUnicodeEscapeMode = () =>
+export const resolveAnalyticsJsonBadUnicodeEscapeMode = () =>
   "sanitize" as const;
 
 /** No-op: set version for tests */
-export const setClickHouseCompatibilityVersionForTests = (
+export const setAnalyticsCompatibilityVersionForTests = (
   _version: string | null,
 ): void => {};

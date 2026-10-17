@@ -8,9 +8,9 @@ import {
   eventsTableTraceNameSql,
 } from "../../../eventsTable";
 import type { FilterState } from "../../../types";
-import { convertDateToClickhouseDateTime } from "../../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../../analytics-client/client";
 import { eventsTableUiColumnDefinitions } from "../../tableMappings/mapEventsTable";
-import { FilterList } from "./clickhouse-filter";
+import { FilterList } from "./analytics-filter";
 import { EventsAggQueryBuilder } from "./event-query-builder";
 import { buildEventsObservationRowSelection } from "./events-observation-row-selection";
 import { createFilterFromFilterState } from "./factory";
@@ -152,7 +152,7 @@ const EVENTS_FILTER_OPTION_DEFINITIONS = {
     sort: "countDesc",
   },
   // The SDK attribution columns default to the 'unknown' placeholder (see
-  // clickhouse migration 0042 / UNKNOWN_INGESTION_SDK_VALUE), not '' like
+  // analytics migration 0042 / UNKNOWN_INGESTION_SDK_VALUE), not '' like
   // ingestion_api_key — exclude it so the facet only offers real SDK values.
   ingestionSdkName: {
     kind: "scalar",
@@ -405,7 +405,7 @@ const eventFilterOptionScopeCondition = (
         clauses.push(
           `timestamp ${scope.fromTime.operator} {scoredTracesFromTime: DateTime64(3, 'UTC')}`,
         );
-        params.scoredTracesFromTime = convertDateToClickhouseDateTime(
+        params.scoredTracesFromTime = convertDateToAnalyticsDateTime(
           scope.fromTime.value,
         );
       }
@@ -413,7 +413,7 @@ const eventFilterOptionScopeCondition = (
         clauses.push(
           `timestamp ${scope.toTime.operator} {scoredTracesToTime: DateTime64(3, 'UTC')}`,
         );
-        params.scoredTracesToTime = convertDateToClickhouseDateTime(
+        params.scoredTracesToTime = convertDateToAnalyticsDateTime(
           scope.toTime.value,
         );
       }

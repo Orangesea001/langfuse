@@ -5,7 +5,7 @@ import {
   type ExecutionContext,
 } from "../query-ast/compile";
 import { getClickhouseKysely } from "../query-ast/dialect";
-import { queryClickhouse } from "./clickhouse";
+import { queryAnalytics } from "./clickhouse";
 
 export type EnvironmentFilterProps = {
   projectId: string;
@@ -68,7 +68,7 @@ export const getEnvironmentsForProject = async (
   // The events read may route to a dedicated ClickHouse service
   // (CLICKHOUSE_EVENTS_READ_ONLY_URL) while scores always read the primary, so
   // the two cannot share one query.
-  const tracingEnvironmentsPromise = queryClickhouse<{ environment: string }>({
+  const tracingEnvironmentsPromise = queryAnalytics<{ environment: string }>({
     query: tracing.sql,
     params: tracing.params,
     tags: { projectId, route: "environments.getEnvironmentsForProject" },
@@ -76,7 +76,7 @@ export const getEnvironmentsForProject = async (
       writeMode === "legacy" ? "ReadOnly" : "EventsReadOnly",
   });
 
-  const scoreEnvironmentsPromise = queryClickhouse<{ environment: string }>({
+  const scoreEnvironmentsPromise = queryAnalytics<{ environment: string }>({
     query: scores.sql,
     params: scores.params,
     tags: { projectId, route: "environments.getEnvironmentsForProject" },

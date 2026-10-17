@@ -22,16 +22,16 @@ export {
   filtersRequireEventsFull,
   metadataFilterIsEventsCoreSafe,
   type ClickhouseOperator,
-} from "./clickhouse-sql/clickhouse-filter";
+} from "./analytics-sql/analytics-filter";
 export {
   orderByToClickhouseSql,
   orderByToEntries,
-} from "./clickhouse-sql/orderby-factory";
-export { createFilterFromFilterState } from "./clickhouse-sql/factory";
+} from "./analytics-sql/orderby-factory";
+export { createFilterFromFilterState } from "./analytics-sql/factory";
 export {
-  clickhouseSearchCondition,
+  analyticsSearchCondition,
   type ClickhouseSearchConditionOptions,
-} from "./clickhouse-sql/search";
+} from "./analytics-sql/search";
 export {
   FTS_EVENTS_TABLES,
   FTS_MATCH_OPERATOR,
@@ -47,7 +47,7 @@ export {
   isFtsMetadataTarget,
   isFtsTextField,
   isFtsTextTarget,
-} from "./clickhouse-sql/fts";
+} from "./analytics-sql/fts";
 export { postgresSearchCondition } from "./postgres-sql/search";
 export {
   convertApiProvidedFilterToClickhouseFilter,
@@ -71,7 +71,7 @@ export {
   type ExperimentsAggregationFieldSetName,
   type SessionEventsMetricsRow,
   type SplitQueryBuilder,
-} from "./clickhouse-sql/event-query-builder";
+} from "./analytics-sql/event-query-builder";
 export {
   buildEventsFilterOptionColumnQuery,
   buildEventsFilterOptionsForColumnsQuery,
@@ -83,7 +83,7 @@ export {
   type EventFilterOptionRow,
   type EventFilterOptionColumn,
   type EventFilterOptionScope,
-} from "./clickhouse-sql/event-filter-options";
+} from "./analytics-sql/event-filter-options";
 export {
   eventsScoresAggregation,
   eventsSessionsAggregation,
@@ -93,13 +93,13 @@ export {
   eventsTracesScoresAggregation,
   promptEventsForMetrics,
   scoreBooleansAggregation,
-} from "./clickhouse-sql/query-fragments";
+} from "./analytics-sql/query-fragments";
 export {
   buildEventsBlobExportStreamQuery,
   buildEventsStreamQuery,
   type EventsStreamQuery,
   type EventsStreamQueryInput,
-} from "./clickhouse-sql/events-stream-query";
+} from "./analytics-sql/events-stream-query";
 export {
   buildEventsObservationRowSelection,
   eventSearchCondition,
@@ -107,5 +107,5 @@ export {
   toLevelAgnosticScoreFilter,
   type EventsObservationFilterGroups,
   type EventsObservationRowSelectionInput,
-} from "./clickhouse-sql/events-observation-row-selection";
-export { extractTimeFilter } from "./clickhouse-sql/filter-utils";
+} from "./analytics-sql/events-observation-row-selection";
+export { extractTimeFilter } from "./analytics-sql/filter-utils";

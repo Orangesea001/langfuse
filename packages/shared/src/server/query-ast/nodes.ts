@@ -9,7 +9,7 @@ import {
  *
  * Not a Kysely `OperationNode` kind — Kysely's `kind` union is closed, so a
  * real custom kind would collapse to `never`. These nodes live as extra
- * fields on {@link ClickHouseSelectQueryNode}. Children (`expression`,
+ * fields on {@link AnalyticsSelectQueryNode}. Children (`expression`,
  * `alias`) are traced Kysely nodes, not raw SQL.
  */
 export type ArrayJoinVariant = "default" | "left" | "inner";
@@ -98,17 +98,17 @@ export const ArrayIndexNode = {
 /**
  * Select query extended with ClickHouse-only clauses.
  * Extra fields are ignored by Kysely's default compiler/transformer; our
- * dialect compiler and {@link ClickHouseOperationNodeTransformer} are the
+ * dialect compiler and {@link AnalyticsOperationNodeTransformer} are the
  * ones that read them. Tenancy is stamped by identity (WeakSet), not a
  * copyable property on this node.
  */
-export type ClickHouseSelectQueryNode = SelectQueryNode & {
+export type AnalyticsSelectQueryNode = SelectQueryNode & {
   readonly arrayJoins?: ReadonlyArray<ArrayJoinNode>;
   readonly limitBy?: LimitByNode;
 };
 
-export function isClickHouseSelectQueryNode(
+export function isAnalyticsSelectQueryNode(
   node: OperationNode,
-): node is ClickHouseSelectQueryNode {
+): node is AnalyticsSelectQueryNode {
   return node.kind === "SelectQueryNode";
 }

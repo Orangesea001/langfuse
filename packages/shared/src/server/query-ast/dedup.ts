@@ -42,10 +42,10 @@ import {
 } from "kysely";
 
 import { QueryCompileError } from "./errors";
-import { LimitByNode, type ClickHouseSelectQueryNode } from "./nodes";
+import { LimitByNode, type AnalyticsSelectQueryNode } from "./nodes";
 import { DEDUP_SPECS, type DedupSpec } from "./schema";
 import { stampCompiledTree } from "./tenancy";
-import { ClickHouseOperationNodeTransformer } from "./transformer";
+import { AnalyticsOperationNodeTransformer } from "./transformer";
 
 type PhysicalFrom = {
   tableName: string;
@@ -70,7 +70,7 @@ export class DedupLoweringPlugin implements KyselyPlugin {
   }
 }
 
-class DedupLoweringTransformer extends ClickHouseOperationNodeTransformer {
+class DedupLoweringTransformer extends AnalyticsOperationNodeTransformer {
   protected override transformSelectQuery(
     node: SelectQueryNode,
     queryId?: QueryId,
@@ -78,7 +78,7 @@ class DedupLoweringTransformer extends ClickHouseOperationNodeTransformer {
     const withChildren = super.transformSelectQuery(
       node,
       queryId,
-    ) as ClickHouseSelectQueryNode;
+    ) as AnalyticsSelectQueryNode;
     return lowerSelect(withChildren, collectCteNames(withChildren));
   }
 }
@@ -92,9 +92,9 @@ function collectCteNames(node: SelectQueryNode): Set<string> {
 }
 
 function lowerSelect(
-  node: ClickHouseSelectQueryNode,
+  node: AnalyticsSelectQueryNode,
   cteNames: Set<string>,
-): ClickHouseSelectQueryNode {
+): AnalyticsSelectQueryNode {
   const from = singlePhysicalFrom(node, cteNames);
   if (!from) return node;
 
@@ -221,10 +221,10 @@ function unwrapSelection(selection: OperationNode): OperationNode | undefined {
 }
 
 function attachRowDedup(
-  node: ClickHouseSelectQueryNode,
+  node: AnalyticsSelectQueryNode,
   from: PhysicalFrom,
   spec: LimitBySpec,
-): ClickHouseSelectQueryNode {
+): AnalyticsSelectQueryNode {
   // LIMIT BY keeps the first row per key in the query's full sort order.
   // A caller ORDER BY on any other column would make the version a
   // tiebreaker and could keep a stale row — wrap so collapse is inner.
@@ -238,11 +238,11 @@ function attachRowDedup(
 }
 
 function wrapPhysicalFrom(
-  node: ClickHouseSelectQueryNode,
+  node: AnalyticsSelectQueryNode,
   from: PhysicalFrom,
   spec: LimitBySpec,
-): ClickHouseSelectQueryNode {
-  const inner: ClickHouseSelectQueryNode = {
+): AnalyticsSelectQueryNode {
+  const inner: AnalyticsSelectQueryNode = {
     kind: "SelectQueryNode",
     from: FromNode.create([from.fromItem]),
     selections: [SelectionNode.createSelectAll()],
@@ -259,14 +259,14 @@ function wrapPhysicalFrom(
 }
 
 function ensureVersionOrder(
-  node: ClickHouseSelectQueryNode,
+  node: AnalyticsSelectQueryNode,
   from: PhysicalFrom,
   spec: LimitBySpec,
-): ClickHouseSelectQueryNode {
+): AnalyticsSelectQueryNode {
   if (orderByHasColumn(node.orderBy, spec.version)) return node;
   return QueryNode.cloneWithOrderByItems(node, [
     versionOrderItem(from, spec),
-  ]) as ClickHouseSelectQueryNode;
+  ]) as AnalyticsSelectQueryNode;
 }
 
 function versionOrderBy(from: PhysicalFrom, spec: LimitBySpec): OrderByNode {

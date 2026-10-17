@@ -2,14 +2,14 @@ import { createQueryId, sql, type KyselyPlugin } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import { compileClickhouseQuery } from "./compile";
-import { ClickHouseQueryCompiler } from "./compiler";
+import { AnalyticsQueryCompiler } from "./compiler";
 import { getClickhouseKysely } from "./dialect";
 import { QueryCompileError, UnscopedRelationError } from "./errors";
 import { arrayJoin, limitBy, mapKeys, mapValues } from "./extensions";
 import {
   ArrayJoinNode,
   LimitByNode,
-  isClickHouseSelectQueryNode,
+  isAnalyticsSelectQueryNode,
 } from "./nodes";
 import { TenancyInjectionPlugin } from "./tenancy";
 
@@ -121,7 +121,7 @@ describe("tenancy injection", () => {
       ...qb.toOperationNode(),
       langfuseTenancy: { projectId: "proj-1" },
     };
-    const compiler = new ClickHouseQueryCompiler();
+    const compiler = new AnalyticsQueryCompiler();
     expect(() => compiler.compileQuery(forged, createQueryId())).toThrow(
       QueryCompileError,
     );
@@ -228,8 +228,8 @@ describe("ARRAY JOIN and LIMIT BY nodes", () => {
     const node = qb
       .withPlugin(new TenancyInjectionPlugin(ctx))
       .toOperationNode();
-    expect(isClickHouseSelectQueryNode(node)).toBe(true);
-    if (!isClickHouseSelectQueryNode(node)) return;
+    expect(isAnalyticsSelectQueryNode(node)).toBe(true);
+    if (!isAnalyticsSelectQueryNode(node)) return;
     expect(node.arrayJoins).toHaveLength(1);
     const arrayJoinNode = node.arrayJoins![0];
     expect(ArrayJoinNode.is(arrayJoinNode)).toBe(true);
@@ -263,8 +263,8 @@ describe("ARRAY JOIN and LIMIT BY nodes", () => {
     const node = qb
       .withPlugin(new TenancyInjectionPlugin(ctx))
       .toOperationNode();
-    expect(isClickHouseSelectQueryNode(node)).toBe(true);
-    if (!isClickHouseSelectQueryNode(node)) return;
+    expect(isAnalyticsSelectQueryNode(node)).toBe(true);
+    if (!isAnalyticsSelectQueryNode(node)) return;
     expect(node.limitBy).toBeDefined();
     expect(LimitByNode.is(node.limitBy!)).toBe(true);
     expect(node.limitBy!.columns).toHaveLength(2);

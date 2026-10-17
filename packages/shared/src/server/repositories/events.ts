@@ -2,8 +2,8 @@
 import { prisma } from "../../db";
 import {
   TupleParam,
-  type ClickHouseClientConfigOptions,
-  type ClickHouseSettings,
+  type AnalyticsClientConfigOptions,
+  type AnalyticsSettings,
 } from "./clickhouse";
 import type {
   EventsObservation,
@@ -17,9 +17,9 @@ import {
   LangfuseNotFoundError,
 } from "../../errors";
 import {
-  convertDateToClickhouseDateTime,
-  PreferredClickhouseService,
-} from "../clickhouse/client";
+  convertDateToAnalyticsDateTime,
+  PreferredAnalyticsService,
+} from "../analytics-client/client";
 import { recordDistribution } from "../instrumentation";
 import { logger } from "../logger";
 import { OBSERVATIONS_TO_TRACE_INTERVAL } from "./constants";
@@ -54,11 +54,11 @@ import {
   type ApiColumnMapping,
   ObservationPriceFields,
 } from "../queries";
-import { createFilterFromFilterState } from "../queries/clickhouse-sql/factory";
+import { createFilterFromFilterState } from "../queries/analytics-sql/factory";
 import {
   planScoreFilterPushdown,
   resolveScoreDataRequirement,
-} from "../queries/clickhouse-sql/score-filter-pushdown";
+} from "../queries/analytics-sql/score-filter-pushdown";
 import type { EventsTableFilterState, FilterState } from "../../types";
 import type { TracingSearchType } from "../../interfaces/search";
 import {
@@ -67,7 +67,7 @@ import {
   eventsTracesAggregation,
   eventsTracesScoresAggregation,
   promptEventsForMetrics,
-} from "../queries/clickhouse-sql/query-fragments";
+} from "../queries/analytics-sql/query-fragments";
 import {
   eventsTableNativeUiColumnDefinitions,
   eventsTableUiColumnDefinitions,
@@ -85,13 +85,13 @@ import {
   type ObservationFieldGroupFull,
 } from "../../domain/observation-field-groups";
 import {
-  commandClickhouse,
+  commandAnalytics,
   parseClickhouseUTCDateTimeFormat,
-  queryClickhouse,
-  queryClickhouseStream,
-  queryClickhouseStreamRawText,
-  queryClickhouseExecRaw,
-  BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS,
+  queryAnalytics,
+  queryAnalyticsStream,
+  queryAnalyticsStreamRawText,
+  queryAnalyticsExecRaw,
+  BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS,
 } from "./clickhouse";
 import {
   EventsObservationRecordReadType,
@@ -115,7 +115,7 @@ import {
   type QueryWithParams,
   type SessionEventsMetricsRow,
   OrderByEntry,
-} from "../queries/clickhouse-sql/event-query-builder";
+} from "../queries/analytics-sql/event-query-builder";
 import {
   buildEventsFilterOptionColumnQuery,
   buildEventsFilterOptionsForColumnsQuery,
@@ -126,7 +126,7 @@ import {
   type EventFilterOptionRow,
   type EventFilterOptionColumn,
   type EventFilterOptionScope,
-} from "../queries/clickhouse-sql/event-filter-options";
+} from "../queries/analytics-sql/event-filter-options";
 import { type EventsObservationPublic } from "../queries/createGenerationsQuery";
 import {
   eventsTableCols,
@@ -383,20 +383,20 @@ const TRACES_FROM_EVENTS_UI_COLUMN_DEFINITIONS =
   tracesTableUiColumnDefinitions.map((col) => {
     // If this column references the observations table with 'o' prefix,
     // remap it to use 't' prefix since observations are aggregated into traces CTE
-    if (col.clickhouseTableName === "observations") {
-      // Replace o. prefix with t. in clickhouseSelect (only when followed by identifier)
+    if (col.analyticsTableName === "observations") {
+      // Replace o. prefix with t. in analyticsSelect (only when followed by identifier)
       // Technically we do not need to deal with the prefix at all,
       // since here these columns are always used inside a CTE.
-      const updatedSelect = col.clickhouseSelect.replace(
+      const updatedSelect = col.analyticsSelect.replace(
         /\bo\.([a-z_])/g,
         "t.$1",
       );
 
       return {
         ...col,
-        clickhouseTableName: "traces", // Now it's in the traces CTE
+        analyticsTableName: "traces", // Now it's in the traces CTE
         queryPrefix: undefined,
-        clickhouseSelect: updatedSelect,
+        analyticsSelect: updatedSelect,
       };
     }
     return col;
@@ -419,8 +419,8 @@ const TRACES_ORDER_BY_COLUMNS = TRACES_FROM_EVENTS_UI_COLUMN_DEFINITIONS.filter(
 ).map((col) => ({
   ...col,
   // Adjust column names that change after aggregation (start_time -> timestamp)
-  clickhouseSelect:
-    col.uiTableId === "timestamp" ? "timestamp" : col.clickhouseSelect,
+  analyticsSelect:
+    col.uiTableId === "timestamp" ? "timestamp" : col.analyticsSelect,
   queryPrefix: "t", // Use 't' prefix because we're selecting from traces CTE
 }));
 
@@ -594,10 +594,10 @@ export const getObservationMetricsForPromptsFromEvents = async (
         projectId,
         promptIds,
         ...(fromTimestamp
-          ? { fromTimestamp: convertDateToClickhouseDateTime(fromTimestamp) }
+          ? { fromTimestamp: convertDateToAnalyticsDateTime(fromTimestamp) }
           : {}),
         ...(toTimestamp
-          ? { toTimestamp: convertDateToClickhouseDateTime(toTimestamp) }
+          ? { toTimestamp: convertDateToAnalyticsDateTime(toTimestamp) }
           : {}),
       }),
     )
@@ -618,7 +618,7 @@ export const getObservationMetricsForPromptsFromEvents = async (
     .orderBy("ORDER BY e.prompt_version DESC");
 
   const { query, params } = queryBuilder.buildWithParams();
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     count: string;
     prompt_id: string;
     prompt_version: number;
@@ -667,16 +667,16 @@ export const getObservationsWithPromptNameFromEvents = async (
   ${toTimestamp ? "AND start_time <= {toTimestamp: DateTime64(6)}" : ""}
   GROUP BY prompt_name
 `;
-  const rows = await queryClickhouse<{ count: string; prompt_name: string }>({
+  const rows = await queryAnalytics<{ count: string; prompt_name: string }>({
     query,
     params: {
       projectId,
       promptNames,
       fromTimestamp: fromTimestamp
-        ? convertDateToClickhouseDateTime(fromTimestamp)
+        ? convertDateToAnalyticsDateTime(fromTimestamp)
         : undefined,
       toTimestamp: toTimestamp
-        ? convertDateToClickhouseDateTime(toTimestamp)
+        ? convertDateToAnalyticsDateTime(toTimestamp)
         : undefined,
     },
     tags: { projectId },
@@ -697,7 +697,7 @@ export const getTraceDeleteCursorPageFromEvents = async (props: {
   searchQuery?: string;
   searchType?: TracingSearchType[];
   limit: number;
-  clickhouseConfigs?: ClickHouseClientConfigOptions | undefined;
+  analyticsConfigs?: AnalyticsClientConfigOptions | undefined;
 }): Promise<TraceDeleteBatchActionCursor[]> => {
   // Trace-delete cursoring intentionally reuses observation pagination where
   // span_id is the final tuple element, while this scanner deduplicates by
@@ -730,7 +730,7 @@ export const getTraceDeleteCursorPageFromEvents = async (props: {
           lastId: props.cursor.id,
         }
       : undefined,
-    clickhouseConfigs: props.clickhouseConfigs,
+    analyticsConfigs: props.analyticsConfigs,
     // This scanner runs interleaved with DELETE mutations. Use the writable
     // pool so the next page is read from the same side as the mutation path
     // instead of a potentially lagging EventsReadOnly replica.
@@ -753,7 +753,7 @@ async function getObservationsFromEventsTableInternal<T>(
       | "rows"
       | "trace-delete-cursor";
     selectToolData?: boolean;
-    preferredClickhouseService?: PreferredClickhouseService;
+    preferredClickhouseService?: PreferredAnalyticsService;
   },
 ): Promise<Array<T>> {
   const {
@@ -765,7 +765,7 @@ async function getObservationsFromEventsTableInternal<T>(
     limit,
     offset,
     orderBy,
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService,
   } = opts;
 
@@ -915,11 +915,11 @@ async function getObservationsFromEventsTableInternal<T>(
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  return queryClickhouse<T>({
+  return queryAnalytics<T>({
     query,
     params,
     tags: { projectId },
-    clickhouseConfigs,
+    analyticsConfigs,
     preferredClickhouseService: preferredClickhouseService ?? "EventsReadOnly",
   });
 }
@@ -943,7 +943,7 @@ export const getObservationByIdFromEventsTable = async ({
   type?: ObservationType;
   traceId?: string;
   renderingProps?: RenderingProps;
-  preferredClickhouseService?: PreferredClickhouseService;
+  preferredClickhouseService?: PreferredAnalyticsService;
 }) => {
   const records = await getObservationByIdFromEventsTableInternal({
     id,
@@ -1013,7 +1013,7 @@ async function getObservationByIdFromEventsTableInternal({
   type?: ObservationType;
   traceId?: string;
   renderingProps?: RenderingProps;
-  preferredClickhouseService?: PreferredClickhouseService;
+  preferredClickhouseService?: PreferredAnalyticsService;
 }) {
   const queryBuilder = new EventsQueryBuilder({ projectId })
     .selectFieldSet("byIdBase", "byIdModel", "byIdPrompt", "byIdTimestamps")
@@ -1032,7 +1032,7 @@ async function getObservationByIdFromEventsTableInternal({
       b.whereRaw(
         "start_time - INTERVAL SECOND(start_time) SECOND = {startTime: DateTime64(3)} - INTERVAL SECOND({startTime: DateTime64(3)}) SECOND",
         {
-          startTime: convertDateToClickhouseDateTime(startTime!),
+          startTime: convertDateToAnalyticsDateTime(startTime!),
         },
       ),
     )
@@ -1043,7 +1043,7 @@ async function getObservationByIdFromEventsTableInternal({
       b.whereRaw(
         `start_time >= {startTimeLowerBound: DateTime64(3)} - ${OBSERVATIONS_TO_TRACE_INTERVAL}`,
         {
-          startTimeLowerBound: convertDateToClickhouseDateTime(
+          startTimeLowerBound: convertDateToAnalyticsDateTime(
             startTimeLowerBound!,
           ),
         },
@@ -1061,7 +1061,7 @@ async function getObservationByIdFromEventsTableInternal({
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  return await queryClickhouse<EventsObservationRecordReadType>({
+  return await queryAnalytics<EventsObservationRecordReadType>({
     query,
     params,
     tags: { projectId },
@@ -1091,7 +1091,7 @@ export const getTraceByIdFromEventsTable = async ({
   timestamp?: Date;
   fromTimestamp?: Date;
   renderingProps?: RenderingProps;
-  preferredClickhouseService?: PreferredClickhouseService;
+  preferredClickhouseService?: PreferredAnalyticsService;
   /** When true, sets input/output columns to empty in the query to reduce database load */
   excludeInputOutput?: boolean;
   /** When true, sets metadata column to empty in the query to reduce database load */
@@ -1103,7 +1103,7 @@ export const getTraceByIdFromEventsTable = async ({
     projectId,
     traceIds: [traceId],
     startTimeFrom: fromTimestamp
-      ? convertDateToClickhouseDateTime(fromTimestamp)
+      ? convertDateToAnalyticsDateTime(fromTimestamp)
       : null,
     truncated: renderingProps.truncated,
   });
@@ -1135,7 +1135,7 @@ export const getTraceByIdFromEventsTable = async ({
     queryBuilder.whereRaw(
       `DATE(t.timestamp) = DATE({timestamp: DateTime64(3)})`,
       {
-        timestamp: convertDateToClickhouseDateTime(timestamp),
+        timestamp: convertDateToAnalyticsDateTime(timestamp),
       },
     );
   }
@@ -1160,7 +1160,7 @@ export const getTraceByIdFromEventsTable = async ({
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const records = await queryClickhouse<TraceRecordReadType>({
+  const records = await queryAnalytics<TraceRecordReadType>({
     query,
     params,
     tags: { projectId },
@@ -1256,12 +1256,12 @@ export const hasAnyTraceFromEventsTable = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: { projectId },
     tags: { projectId },
     preferredClickhouseService: "EventsReadOnly",
-    clickhouseSettings: {
+    analyticsSettings: {
       max_threads: 1,
     },
   });
@@ -1315,7 +1315,7 @@ export const getLastTraceTimestampsByProjectsFromEventsTable = async ({
     GROUP BY project_id
   `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     project_id: string;
     last_trace_at: string;
   }>({
@@ -1379,7 +1379,7 @@ type PublicApiObservationsQuery = {
 
 type BuildObservationsQueryComponentsOptions = {
   allowUnindexedIoFilters?: boolean;
-  clickhouseSettings?: ClickHouseSettings;
+  analyticsSettings?: AnalyticsSettings;
 };
 
 const EVENTS_IO_FILTER_TYPE_ERROR =
@@ -1394,8 +1394,8 @@ const validateInputOutputFilterTypes = (
 
     if (
       column &&
-      isFtsEventsTable(column.clickhouseTableName) &&
-      isFtsTextField(column.clickhouseSelect) &&
+      isFtsEventsTable(column.analyticsTableName) &&
+      isFtsTextField(column.analyticsSelect) &&
       filter.type !== "string"
     ) {
       throw new InvalidRequestError(EVENTS_IO_FILTER_TYPE_ERROR);
@@ -1462,7 +1462,7 @@ function buildObservationsQueryComponents(
 
   // Determine if we need to join traces (check both simple params and advanced filters)
   const hasTraceFilter = observationsFilter.some(
-    (f) => f.clickhouseTable === "traces",
+    (f) => f.analyticsTable === "traces",
   );
   const filtersNeedFullTable = filtersRequireEventsFull(observationsFilter);
 
@@ -1560,7 +1560,7 @@ function applyObservationsCursorFilter(
     return b.whereRaw(
       "e.start_time <= {lastStartTime: DateTime64(6)} AND (e.start_time, CRC32(e.trace_id), e.span_id) < ({lastStartTime: DateTime64(6)}, CRC32({lastTraceId: String}), {lastId: String})",
       {
-        lastStartTime: convertDateToClickhouseDateTime(
+        lastStartTime: convertDateToAnalyticsDateTime(
           currentCursor.lastStartTimeTo,
         ),
         lastTraceId: currentCursor.lastTraceId,
@@ -1584,16 +1584,16 @@ async function getObservationsRowsFromBuilder<T>(
   projectId: string,
   queryBuilder: QueryWithParams,
   extraTags: Record<string, string> = {},
-  clickhouseSettings?: ClickHouseSettings,
+  analyticsSettings?: AnalyticsSettings,
 ): Promise<Array<T>> {
   const { query, params } = queryBuilder.buildWithParams();
 
-  return await queryClickhouse<T>({
+  return await queryAnalytics<T>({
     query,
     params,
     tags: { projectId, ...extraTags },
     preferredClickhouseService: "EventsReadOnly",
-    clickhouseSettings,
+    analyticsSettings,
   });
 }
 
@@ -1613,7 +1613,7 @@ async function getObservationsCountFromEventsTableForPublicApiInternal(
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const result = await queryClickhouse<{ count: string }>({
+  const result = await queryAnalytics<{ count: string }>({
     query,
     params,
     tags: { projectId },
@@ -1760,7 +1760,7 @@ export const getObservationsV2FromEventsTableForPublicApi = async (
       projectId,
       builder,
       {},
-      options.clickhouseSettings,
+      options.analyticsSettings,
     );
 
   return await enrichObservationsWithModelData(
@@ -1841,7 +1841,7 @@ async function getTracesFromEventsTableForPublicApiInternal<T>(
 
   // Check if any filters reference the scores table
   const filtersNeedScores = tracesFilter.some(
-    (f) => f.clickhouseTable === "scores",
+    (f) => f.analyticsTable === "scores",
   );
 
   // Check if filters specifically reference score aggregation columns
@@ -1958,7 +1958,7 @@ async function getTracesFromEventsTableForPublicApiInternal<T>(
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const result = await queryClickhouse<T>({
+  const result = await queryAnalytics<T>({
     query,
     params,
     tags: { projectId },
@@ -2060,7 +2060,7 @@ export const updateEvents = async (
     ...updates,
   };
 
-  const useLightweightUpdate = env.CLICKHOUSE_USE_LIGHTWEIGHT_UPDATE === "true";
+  const useLightweightUpdate = env.ANALYTICS_USE_LIGHTWEIGHT_UPDATE === "true";
 
   const updateOpts = (table: string) => ({
     query: useLightweightUpdate
@@ -2071,8 +2071,8 @@ export const updateEvents = async (
   });
 
   await Promise.all([
-    commandClickhouse(updateOpts("events_full")),
-    commandClickhouse(updateOpts("events_core")),
+    commandAnalytics(updateOpts("events_full")),
+    commandAnalytics(updateOpts("events_core")),
   ]);
 };
 
@@ -2098,7 +2098,7 @@ const queryEventsFilterOptionRows = async (
     | BuiltEventsFilterOptionsForColumnsQuery
     | BuiltEventsExactFilterOptionsForColumnsQuery,
 ) => {
-  return queryClickhouse<EventFilterOptionRow>({
+  return queryAnalytics<EventFilterOptionRow>({
     query: queryWithParams.query,
     params: queryWithParams.params,
     tags: { projectId },
@@ -2232,7 +2232,7 @@ export const getEventsMetadataValues = async (params: {
     return [];
   }
 
-  return queryClickhouse<EventsMetadataOptionRow>({
+  return queryAnalytics<EventsMetadataOptionRow>({
     query: queryWithParams.query,
     params: queryWithParams.params,
     tags: { projectId: params.projectId },
@@ -2319,7 +2319,7 @@ export const getEventsNumericStatsByFilterColumn = async (
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const res = await queryClickhouse<{
+  const res = await queryAnalytics<{
     min: number | null;
     max: number | null;
     avg: number | null;
@@ -2368,7 +2368,7 @@ export const deleteEventsByTraceIds = async (
   traceIds: string[],
 ) => {
   // Preflight query uses events_core (faster)
-  const preflight = await queryClickhouse<{
+  const preflight = await queryAnalytics<{
     min_ts: string;
     max_ts: string;
     cnt: string;
@@ -2382,8 +2382,8 @@ export const deleteEventsByTraceIds = async (
       WHERE project_id = {projectId: String} AND trace_id IN ({traceIds: Array(String)})
     `,
     params: { projectId, traceIds },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
@@ -2412,16 +2412,16 @@ export const deleteEventsByTraceIds = async (
   const deleteOpts = (table: string) => ({
     query: deleteQuery(table),
     params: deleteParams,
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
 
   // Delete from all tables in parallel
   await Promise.all([
-    commandClickhouse(deleteOpts("events_full")),
-    commandClickhouse(deleteOpts("events_core")),
+    commandAnalytics(deleteOpts("events_full")),
+    commandAnalytics(deleteOpts("events_core")),
   ]);
 };
 
@@ -2438,7 +2438,7 @@ export const hasAnyEvent = async (projectId: string) => {
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: { projectId },
     tags: { projectId },
@@ -2463,16 +2463,16 @@ export const deleteEventsByProjectId = async (
   const deleteOpts = (table: string) => ({
     query: `DELETE FROM ${table} WHERE project_id = {projectId: String}`,
     params: { projectId },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
-    clickhouseSettings: { send_logs_level: "trace" as const },
+    analyticsSettings: { send_logs_level: "trace" as const },
   });
 
   await Promise.all([
-    commandClickhouse(deleteOpts("events_full")),
-    commandClickhouse(deleteOpts("events_core")),
+    commandAnalytics(deleteOpts("events_full")),
+    commandAnalytics(deleteOpts("events_core")),
   ]);
 
   return true;
@@ -2504,7 +2504,7 @@ export async function getAgentGraphDataFromEventsTable(params: {
       AND e.start_time <= {chMaxStartTime: DateTime64(3)}
   `;
 
-  return queryClickhouse({
+  return queryAnalytics({
     query,
     params: { projectId, traceId, chMinStartTime, chMaxStartTime },
     tags: { projectId },
@@ -2529,11 +2529,11 @@ export const hasAnyEventOlderThan = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: {
       projectId,
-      cutoffDate: convertDateToClickhouseDateTime(beforeDate),
+      cutoffDate: convertDateToAnalyticsDateTime(beforeDate),
     },
     tags: { projectId },
   });
@@ -2562,17 +2562,17 @@ export const deleteEventsOlderThanDays = async (
     `,
     params: {
       projectId,
-      cutoffDate: convertDateToClickhouseDateTime(beforeDate),
+      cutoffDate: convertDateToAnalyticsDateTime(beforeDate),
     },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DELETION_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DELETION_TIMEOUT_MS,
     },
     tags: { projectId },
   });
 
   await Promise.all([
-    commandClickhouse(deleteOpts("events_full")),
-    commandClickhouse(deleteOpts("events_core")),
+    commandAnalytics(deleteOpts("events_full")),
+    commandAnalytics(deleteOpts("events_core")),
   ]);
 
   return true;
@@ -2689,7 +2689,7 @@ export const getObservationsBatchIOFromEventsTable = async <
       AND e.start_time <= {maxTimestamp: DateTime64(3)}
   `;
 
-  const results = await queryClickhouse<{
+  const results = await queryAnalytics<{
     id: string;
     trace_id: string;
     input: string | null;
@@ -2707,8 +2707,8 @@ export const getObservationsBatchIOFromEventsTable = async <
       traceIds,
       observationTuples,
       sessionId: opts.sessionId,
-      minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-      maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+      minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+      maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
     },
     tags: { projectId: opts.projectId },
     preferredClickhouseService: "EventsReadOnly",
@@ -2792,10 +2792,10 @@ function observationIOReadParams(opts: ObservationIOReadOpts) {
     projectId: opts.projectId,
     traceId: opts.traceId,
     observationId: opts.observationId,
-    minTimestamp: convertDateToClickhouseDateTime(
+    minTimestamp: convertDateToAnalyticsDateTime(
       new Date(opts.startTime.getTime() - 1000),
     ),
-    maxTimestamp: convertDateToClickhouseDateTime(
+    maxTimestamp: convertDateToAnalyticsDateTime(
       new Date(opts.startTime.getTime() + 1000),
     ),
   };
@@ -2809,7 +2809,7 @@ function observationIOReadParams(opts: ObservationIOReadOpts) {
  *    diagnosable 404 rather than a misleading empty body; and
  *  - gives the exact byte count for a `Content-Length` header, so a mid-stream
  *    ClickHouse failure (truncated body) is detectable at the HTTP layer on ANY
- *    ClickHouse version — independent of the `x-clickhouse-exception-tag` header
+ *    ClickHouse version — independent of the `x-analytics-exception-tag` header
  *    that raw-passthrough failure detection needs (≥25.11 only).
  * Uses the SAME field expression + WHERE as the stream, so the length matches the
  * bytes streamed. `length()` on a ClickHouse `String` is its byte count.
@@ -2824,7 +2824,7 @@ export const getObservationIOFieldByteLengthFromEventsTable = async (
     ORDER BY e.event_ts DESC
     LIMIT 1
   `;
-  const rows = await queryClickhouse<{ len: string }>({
+  const rows = await queryAnalytics<{ len: string }>({
     query,
     params: observationIOReadParams(opts),
     tags: { projectId: opts.projectId, route: "observation-io-stream-length" },
@@ -2838,7 +2838,7 @@ export const getObservationIOFieldByteLengthFromEventsTable = async (
  * Stream ONE observation's single IO field (input | output | metadata) straight
  * from ClickHouse to the caller as raw bytes, WITHOUT materializing the whole
  * value in the Node process. Uses `FORMAT RawBLOB`, so ClickHouse emits exactly
- * the field's bytes (no JSONEachRow envelope) and {@link queryClickhouseExecRaw}
+ * the field's bytes (no JSONEachRow envelope) and {@link queryAnalyticsExecRaw}
  * hands back the live HTTP body as a `Readable` for the caller to pipe onward.
  * This is the transport primitive behind the lazy/streaming large-JSON viewer
  * (LFE-11081): the browser can fetch a multi-hundred-MB field as a byte stream
@@ -2865,7 +2865,7 @@ export const streamObservationIOFieldFromEventsTable = (
 
   // FORMAT RawBLOB emits the selected String column's bytes with no escaping or
   // delimiters; with LIMIT 1 that is exactly this observation's field value.
-  return queryClickhouseExecRaw({
+  return queryAnalyticsExecRaw({
     query,
     format: "RawBLOB",
     params: observationIOReadParams(opts),
@@ -2920,7 +2920,7 @@ export const getObservationFullIOForSessionFromEventsTable = async (opts: {
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     id: string;
     input: string | null;
     output: string | null;
@@ -2932,8 +2932,8 @@ export const getObservationFullIOForSessionFromEventsTable = async (opts: {
       sessionId: opts.sessionId,
       traceId: opts.traceId,
       observationId: opts.observationId,
-      minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-      maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+      minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+      maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
     },
     tags: { projectId: opts.projectId },
     preferredClickhouseService: "EventsReadOnly",
@@ -2977,7 +2977,7 @@ export const getObservationsTraceIdsFromEventsTable = async (opts: {
 
   const { query, params: queryParams } = queryBuilder.buildWithParams();
 
-  const result = await queryClickhouse<{
+  const result = await queryAnalytics<{
     trace_id: string;
     span_id: string;
   }>({
@@ -3003,8 +3003,8 @@ const usersFromEventsTableColumnDefinitions: UiColumnMappings = [
   {
     uiTableName: "Timestamp",
     uiTableId: "timestamp",
-    clickhouseTableName: "events_proto",
-    clickhouseSelect: 'e."start_time"',
+    analyticsTableName: "events_proto",
+    analyticsSelect: 'e."start_time"',
   },
 ];
 
@@ -3042,7 +3042,7 @@ export const getUsersFromEventsTable = async (
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  return queryClickhouse<{ user: string; count: string }>({
+  return queryAnalytics<{ user: string; count: string }>({
     query,
     params,
     tags: { projectId },
@@ -3078,7 +3078,7 @@ export const getUsersCountFromEventsTable = async (
     ${searchCondition}
   `;
 
-  return queryClickhouse<{ totalCount: string }>({
+  return queryAnalytics<{ totalCount: string }>({
     query,
     params: {
       projectId,
@@ -3149,7 +3149,7 @@ export const getUserMetricsFromEventsTable = async (
     FROM stats
   `;
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     user_id: string;
     environment: string;
     max_timestamp: string;
@@ -3199,7 +3199,7 @@ export const hasAnyUserFromEventsTable = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: { projectId },
     tags: { projectId },
@@ -3256,8 +3256,8 @@ const buildEventsForBlobStorageExportQuery = (
     .whereRaw(
       "e.start_time >= {minTimestamp: DateTime64(3)} AND e.start_time < {maxTimestamp: DateTime64(3)}",
       {
-        minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-        maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+        minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+        maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
       },
     )
     .whereRaw("e.is_deleted = 0")
@@ -3270,8 +3270,8 @@ const buildEventsForBlobStorageExportQuery = (
     params,
     // Tagged explicitly: worker baggage isn't active during the deferred stream send.
     tags: { projectId, surface: "worker", route: "blob_export" },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DATA_EXPORT_REQUEST_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DATA_EXPORT_REQUEST_TIMEOUT_MS,
     },
     preferredClickhouseService: "EventsReadOnly" as const,
   };
@@ -3283,7 +3283,7 @@ export const getEventsForBlobStorageExport = function (
   maxTimestamp: Date,
   fieldGroups: ObservationFieldGroupFull[] = [...OBSERVATION_FIELD_GROUPS_FULL],
 ) {
-  return queryClickhouseStream<Record<string, unknown>>(
+  return queryAnalyticsStream<Record<string, unknown>>(
     buildEventsForBlobStorageExportQuery(
       projectId,
       minTimestamp,
@@ -3306,7 +3306,7 @@ export const getEventsForBlobStorageExportRaw = function (
   fieldGroups: ObservationFieldGroupFull[] = [...OBSERVATION_FIELD_GROUPS_FULL],
   convertLatencyToSeconds = false,
 ) {
-  return queryClickhouseStreamRawText(
+  return queryAnalyticsStreamRawText(
     buildEventsForBlobStorageExportQuery(
       projectId,
       minTimestamp,
@@ -3327,7 +3327,7 @@ export const getEventsForBlobStorageExportParquet = function (
   fieldGroups: ObservationFieldGroupFull[] = [...OBSERVATION_FIELD_GROUPS_FULL],
   convertLatencyToSeconds = false,
 ) {
-  return queryClickhouseExecRaw({
+  return queryAnalyticsExecRaw({
     ...buildEventsForBlobStorageExportQuery(
       projectId,
       minTimestamp,
@@ -3336,7 +3336,7 @@ export const getEventsForBlobStorageExportParquet = function (
       convertLatencyToSeconds,
     ),
     format: "Parquet",
-    clickhouseSettings: BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS,
+    analyticsSettings: BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS,
   });
 };
 
@@ -3368,8 +3368,8 @@ export const getEventsForAnalyticsIntegrations = async function* (
     .whereRaw(
       "e.start_time >= {minTimestamp: DateTime64(3)} AND e.start_time < {maxTimestamp: DateTime64(3)}",
       {
-        minTimestamp: convertDateToClickhouseDateTime(minTimestamp),
-        maxTimestamp: convertDateToClickhouseDateTime(maxTimestamp),
+        minTimestamp: convertDateToAnalyticsDateTime(minTimestamp),
+        maxTimestamp: convertDateToAnalyticsDateTime(maxTimestamp),
       },
     )
     .whereRaw("e.is_deleted = 0")
@@ -3377,13 +3377,13 @@ export const getEventsForAnalyticsIntegrations = async function* (
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const records = queryClickhouseStream<Record<string, unknown>>({
+  const records = queryAnalyticsStream<Record<string, unknown>>({
     query,
     params,
     // Tagged explicitly: worker baggage isn't active during the deferred stream send.
     tags: { projectId, surface: "worker", route: "analytics_integration" },
-    clickhouseConfigs: {
-      request_timeout: env.LANGFUSE_CLICKHOUSE_DATA_EXPORT_REQUEST_TIMEOUT_MS,
+    analyticsConfigs: {
+      request_timeout: env.LANGFUSE_ANALYTICS_DATA_EXPORT_REQUEST_TIMEOUT_MS,
     },
     preferredClickhouseService: "EventsReadOnly",
   });
@@ -3445,7 +3445,7 @@ export const hasAnySessionFromEventsTable = async (
     LIMIT 1
   `;
 
-  const rows = await queryClickhouse<{ 1: number }>({
+  const rows = await queryAnalytics<{ 1: number }>({
     query,
     params: { projectId },
     tags: { projectId },
@@ -3462,7 +3462,7 @@ export const hasAnySessionFromEventsTable = async (
 export const getTraceMetadataByIdsFromEvents = async (props: {
   projectId: string;
   traceIds: string[];
-  clickhouseConfigs?: ClickHouseClientConfigOptions;
+  analyticsConfigs?: AnalyticsClientConfigOptions;
 }) => {
   if (props.traceIds.length === 0) return [];
 
@@ -3473,7 +3473,7 @@ export const getTraceMetadataByIdsFromEvents = async (props: {
 
   const { query, params } = builder.buildWithParams();
 
-  return queryClickhouse<{
+  return queryAnalytics<{
     id: string;
     name: string;
     user_id: string;
@@ -3482,7 +3482,7 @@ export const getTraceMetadataByIdsFromEvents = async (props: {
     query,
     params,
     tags: { projectId: props.projectId },
-    clickhouseConfigs: props.clickhouseConfigs,
+    analyticsConfigs: props.analyticsConfigs,
     preferredClickhouseService: "EventsReadOnly",
   });
 };
@@ -3568,7 +3568,7 @@ const getCostMetricsByIdentifierIds = async <
     .groupBy("tc.identifier_id");
 
   const { query, params: queryParams } = queryBuilder.buildWithParams();
-  const rows = await queryClickhouse<Record<string, string>>({
+  const rows = await queryAnalytics<Record<string, string>>({
     query,
     params: queryParams,
     tags: { projectId: params.projectId },
@@ -3659,7 +3659,7 @@ export const getLatestEvaluatorRunCost = async (
     .limit(1);
 
   const { query, params } = builder.buildWithParams();
-  const rows = await queryClickhouse<{ trace_total_cost: string }>({
+  const rows = await queryAnalytics<{ trace_total_cost: string }>({
     query,
     params,
     tags: { projectId },
@@ -3694,7 +3694,7 @@ export const getRecentEvaluatorExecutionTraces = async (
     .limitByCount(5, "evaluator_id");
 
   const { query, params } = builder.buildWithParams();
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     id: string;
     evaluator_id: string;
     level: string;
@@ -3736,7 +3736,7 @@ export const getRecentRuleExecutionTraces = async (
     .limitByCount(5, "evaluation_rule_id");
 
   const { query, params } = builder.buildWithParams();
-  const rows = await queryClickhouse<
+  const rows = await queryAnalytics<
     {
       id: string;
       level: string;
@@ -3768,13 +3768,13 @@ export const getSessionMetricsFromEvents = async (props: {
     projectId: props.projectId,
     sessionIds: props.sessionIds,
     startTimeFrom: props.queryFromTimestamp
-      ? convertDateToClickhouseDateTime(props.queryFromTimestamp)
+      ? convertDateToAnalyticsDateTime(props.queryFromTimestamp)
       : undefined,
   }).limit(props.sessionIds.length);
 
   const { query, params } = builder.buildWithParams();
 
-  const rows = await queryClickhouse<SessionEventsMetricsRow>({
+  const rows = await queryAnalytics<SessionEventsMetricsRow>({
     query,
     params,
     tags: { projectId: props.projectId },
@@ -3819,7 +3819,7 @@ export async function getLatestSdkVersionInfoFromEvents(params: {
 
   // Time filter: last 7 days
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const result = await queryClickhouse<{
+  const result = await queryAnalytics<{
     ingestion_sdk_name: string;
     ingestion_sdk_version: string;
     telemetry_sdk_language: string;
@@ -3851,7 +3851,7 @@ ORDER BY last_seen DESC
     `,
     params: {
       projectId,
-      sevenDaysAgo: convertDateToClickhouseDateTime(sevenDaysAgo),
+      sevenDaysAgo: convertDateToAnalyticsDateTime(sevenDaysAgo),
       internalSdkNames: [...INTERNAL_INGESTION_SDK_NAMES],
     },
     tags: { projectId },
@@ -3929,7 +3929,7 @@ export const getTracesIdentifierForSessionFromEvents = async (
 
   const { query, params } = queryBuilder.buildWithParams();
 
-  const rows = await queryClickhouse<{
+  const rows = await queryAnalytics<{
     id: string;
     user_id: string;
     name: string;

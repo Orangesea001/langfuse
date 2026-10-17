@@ -2,7 +2,7 @@
  * Single source of truth for the physical ClickHouse relations the Kysely
  * compiler targets. One table declaration drives the downstream views:
  *
- *  - `ClickHouseDatabase` — the Kysely row types (column autocomplete and typed
+ *  - `AnalyticsDatabase` — the Kysely row types (column autocomplete and typed
  *    comparisons).
  *  - `COLUMN_DATA_TYPES` — the coarse runtime type map the aggregate type-check
  *    pass consults (`typecheck.ts`).
@@ -144,7 +144,7 @@ type RowOf<Cols extends Record<string, ChColumnType>> = {
 };
 
 /** Derived Kysely row types. */
-export type ClickHouseDatabase = {
+export type AnalyticsDatabase = {
   [T in keyof typeof TABLE_REGISTRY]: RowOf<
     (typeof TABLE_REGISTRY)[T]["columns"]
   >;

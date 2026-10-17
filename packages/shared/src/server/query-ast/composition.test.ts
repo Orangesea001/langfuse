@@ -5,7 +5,7 @@ import { getClickhouseKysely } from "./dialect";
 import { arrayJoin, limitBy, mapKeys, mapValues } from "./extensions";
 import { defineView, fromView } from "./views";
 
-// Raw compiler output (no `clickhouse format` binary needed), so these run
+// Raw compiler output (no `analytics format` binary needed), so these run
 // unconditionally in CI. The raw SQL is lowercase; match case-insensitively.
 const ctx = { projectId: "p" };
 

@@ -1,9 +1,9 @@
-import { queryClickhouse } from "./clickhouse";
-import { createFilterFromFilterState } from "../queries/clickhouse-sql/factory";
+import { queryAnalytics } from "./clickhouse";
+import { createFilterFromFilterState } from "../queries/analytics-sql/factory";
 import { FilterState } from "../../types";
 import { DateTimeFilter, FilterList } from "../queries";
 import { dashboardColumnDefinitions } from "../tableMappings";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import { SCORE_TO_TRACE_OBSERVATIONS_INTERVAL } from "./constants";
 
 export type DateTrunc = "month" | "week" | "day" | "hour" | "minute";
@@ -20,8 +20,8 @@ const extractEnvironmentFilterFromFilters = (
 const convertEnvFilterToClickhouseFilter = (filter: FilterState) => {
   return createFilterFromFilterState(filter, [
     {
-      clickhouseSelect: "environment",
-      clickhouseTableName: "traces",
+      analyticsSelect: "environment",
+      analyticsTableName: "traces",
       uiTableId: "environment",
       uiTableName: "Environment",
     },
@@ -48,7 +48,7 @@ export const getScoreAggregate = async (
 
   const chFilterApplied = chFilter.apply();
 
-  const hasTraceFilter = chFilter.find((f) => f.clickhouseTable === "traces");
+  const hasTraceFilter = chFilter.find((f) => f.analyticsTable === "traces");
   // TODO: Validate whether we can filter traces on timestamp here.
 
   const query = `
@@ -68,7 +68,7 @@ export const getScoreAggregate = async (
     ORDER BY count(*) DESC
     `;
 
-  const result = await queryClickhouse<{
+  const result = await queryAnalytics<{
     name: string;
     count: string;
     avg_value: string;
@@ -81,7 +81,7 @@ export const getScoreAggregate = async (
       ...chFilterApplied.params,
       ...environmentFilter.params,
       ...(timeFilter
-        ? { tracesTimestamp: convertDateToClickhouseDateTime(timeFilter.value) }
+        ? { tracesTimestamp: convertDateToAnalyticsDateTime(timeFilter.value) }
         : {}),
     },
     tags: { projectId },

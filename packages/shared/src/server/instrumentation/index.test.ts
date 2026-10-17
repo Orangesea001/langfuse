@@ -7,9 +7,9 @@ import {
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS,
-  normalizeClickHouseQueryTags,
-} from "../clickhouse/queryTags";
+  ANALYTICS_QUERY_TAG_BAGGAGE_KEYS,
+  normalizeAnalyticsQueryTags,
+} from "../analytics-client/queryTags";
 import { contextWithLangfuseProps } from "../headerPropagation";
 import { addUserToSpan, instrumentAsync, instrumentSync } from ".";
 
@@ -29,13 +29,13 @@ describe("instrumentation baggage propagation", () => {
   it("instrumentAsync keeps worker surface/route across startNewTrace", async () => {
     const workerContext = contextWithLangfuseProps({
       projectId: "project-1",
-      clickhouse: { surface: "worker", route: "langfuse.queue.monitor" },
+      analytics: { surface: "worker", route: "langfuse.queue.monitor" },
     });
 
     const tags = await context.with(workerContext, () =>
       instrumentAsync(
         { name: "process monitor", startNewTrace: true },
-        async () => normalizeClickHouseQueryTags(),
+        async () => normalizeAnalyticsQueryTags(),
       ),
     );
 
@@ -49,12 +49,12 @@ describe("instrumentation baggage propagation", () => {
   it("instrumentSync keeps worker surface/route across startNewTrace", () => {
     const workerContext = contextWithLangfuseProps({
       projectId: "project-1",
-      clickhouse: { surface: "worker", route: "langfuse.queue.monitor" },
+      analytics: { surface: "worker", route: "langfuse.queue.monitor" },
     });
 
     const tags = context.with(workerContext, () =>
       instrumentSync({ name: "process monitor", startNewTrace: true }, () =>
-        normalizeClickHouseQueryTags(),
+        normalizeAnalyticsQueryTags(),
       ),
     );
 
@@ -73,14 +73,14 @@ describe("instrumentation baggage propagation", () => {
         "user-agent": "Codex CLI/1.2.3",
       },
       projectId: "project-1",
-      clickhouse: {
+      analytics: {
         surface: "publicapi",
         route: "GET /api/public/traces",
       },
     });
 
     const tags = context.with(publicApiContext, () =>
-      normalizeClickHouseQueryTags(),
+      normalizeAnalyticsQueryTags(),
     );
 
     expect(tags).toMatchObject({
@@ -98,11 +98,11 @@ describe("instrumentation baggage propagation", () => {
     const inboundContext = propagation.setBaggage(
       ROOT_CONTEXT,
       propagation.createBaggage({
-        [CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkName]: { value: "python" },
-        [CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.sdkVersion]: {
+        [ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.sdkName]: { value: "python" },
+        [ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.sdkVersion]: {
           value: "attacker-controlled-version",
         },
-        [CLICKHOUSE_QUERY_TAG_BAGGAGE_KEYS.userAgent]: {
+        [ANALYTICS_QUERY_TAG_BAGGAGE_KEYS.userAgent]: {
           value: "attacker-controlled-user-agent",
         },
       }),
@@ -112,14 +112,14 @@ describe("instrumentation baggage propagation", () => {
       const publicApiContext = contextWithLangfuseProps({
         headers: {},
         projectId: "project-1",
-        clickhouse: {
+        analytics: {
           surface: "publicapi",
           route: "GET /api/public/traces",
         },
       });
 
       return context.with(publicApiContext, () =>
-        normalizeClickHouseQueryTags(),
+        normalizeAnalyticsQueryTags(),
       );
     });
 

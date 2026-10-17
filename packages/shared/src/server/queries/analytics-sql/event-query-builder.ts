@@ -8,7 +8,7 @@ import {
   eventsTableTraceNameSelectSql,
 } from "../../../eventsTable";
 import { OBSERVATIONS_TO_TRACE_INTERVAL } from "../../repositories/constants";
-import { FilterList, StringFilter } from "./clickhouse-filter";
+import { FilterList, StringFilter } from "./analytics-filter";
 
 /**
  * Extract the output column alias from a field expression (unquoted).
@@ -934,7 +934,7 @@ abstract class BaseEventsQueryBuilder<
   override applyFilters(filterList: FilterList): this {
     const traceIdFilter = filterList.find(
       (f) =>
-        f.clickhouseTable.startsWith("events") &&
+        f.analyticsTable.startsWith("events") &&
         f.field === 'e."trace_id"' &&
         f.operator === "=",
     );

@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { env } from "../../env";
 import {
   capturedQueries,
-  clickhouseFormatAvailable,
+  analyticsFormatAvailable,
   normalizeCapturedQueries,
   resetCaptures,
 } from "./goldenHarness";
@@ -23,15 +23,15 @@ const FIXED_PROJECT_ID = "golden-project";
 // Fixed so the captured params are deterministic across runs.
 const FIXED_FROM_TIMESTAMP = new Date("2026-01-01T00:00:00.000Z");
 
-// clickhouse format is the normalizer; without it a comparison would be
+// analytics format is the normalizer; without it a comparison would be
 // unnormalized and could pass on cosmetic-only differences. Skip loudly.
-const describeWithClickhouse = clickhouseFormatAvailable()
+const describeWithClickhouse = analyticsFormatAvailable()
   ? describe
   : describe.skip;
 
-if (!clickhouseFormatAvailable()) {
+if (!analyticsFormatAvailable()) {
   console.warn(
-    "[golden-harness] `clickhouse format` unavailable — skipping golden SQL tests. Install clickhouse-local to run them.",
+    "[golden-harness] `analytics format` unavailable — skipping golden SQL tests. Install analytics-local to run them.",
   );
 }
 

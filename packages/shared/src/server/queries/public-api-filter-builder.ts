@@ -10,22 +10,22 @@ import {
   NumberFilter,
   BooleanFilter,
   type ClickhouseOperator,
-} from "./clickhouse-sql/clickhouse-filter";
+} from "./analytics-sql/analytics-filter";
 import { z } from "zod";
 import type { EventsTableFilterState } from "../../types";
 import type {
   UiColumnMappings,
   ColumnDefinition,
 } from "../../tableDefinitions";
-import { createFilterFromFilterState } from "./clickhouse-sql/factory";
+import { createFilterFromFilterState } from "./analytics-sql/factory";
 
 export type ApiColumnMapping = {
   id: string;
-  clickhouseSelect: string;
-  clickhouseTable: string;
+  analyticsSelect: string;
+  analyticsTable: string;
   filterType: string;
   operator?: ClickhouseOperator;
-  clickhousePrefix?: string;
+  analyticsPrefix?: string;
 };
 
 /**
@@ -99,29 +99,29 @@ export function createPublicApiTracesColumnMapping(
       simpleFilters.push(
         {
           id: "fromTimestamp",
-          clickhouseSelect: timestampColumn,
+          analyticsSelect: timestampColumn,
           operator: ">=" as const,
           filterType: def.filterType,
-          clickhouseTable: tableName,
-          clickhousePrefix: tablePrefix,
+          analyticsTable: tableName,
+          analyticsPrefix: tablePrefix,
         },
         {
           id: "toTimestamp",
-          clickhouseSelect: timestampColumn,
+          analyticsSelect: timestampColumn,
           operator: "<" as const,
           filterType: def.filterType,
-          clickhouseTable: tableName,
-          clickhousePrefix: tablePrefix,
+          analyticsTable: tableName,
+          analyticsPrefix: tablePrefix,
         },
       );
     } else {
       // Regular column mapping for simple filters
       simpleFilters.push({
         id: def.id,
-        clickhouseSelect: def.column,
+        analyticsSelect: def.column,
         filterType: def.filterType,
-        clickhouseTable: tableName,
-        clickhousePrefix: tablePrefix,
+        analyticsTable: tableName,
+        analyticsPrefix: tablePrefix,
       });
     }
   }
@@ -144,22 +144,22 @@ export function createPublicApiObservationsColumnMapping(
   const traceFieldMapping =
     tableName === "events_proto"
       ? {
-          clickhouseTable: tableName,
-          clickhousePrefix: tablePrefix,
+          analyticsTable: tableName,
+          analyticsPrefix: tablePrefix,
         }
       : {
-          clickhouseTable: "traces",
-          clickhousePrefix: "t",
+          analyticsTable: "traces",
+          analyticsPrefix: "t",
         };
   const userIdMapping: ApiColumnMapping = {
     id: "userId",
-    clickhouseSelect: "user_id",
+    analyticsSelect: "user_id",
     filterType: "StringFilter",
     ...traceFieldMapping,
   };
   const sessionIdMapping: ApiColumnMapping = {
     id: "sessionId",
-    clickhouseSelect: "session_id",
+    analyticsSelect: "session_id",
     filterType: "StringFilter",
     ...traceFieldMapping,
   };
@@ -168,78 +168,78 @@ export function createPublicApiObservationsColumnMapping(
     sessionIdMapping,
     {
       id: "traceId",
-      clickhouseSelect: "trace_id",
+      analyticsSelect: "trace_id",
       filterType: "StringFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     {
       id: "name",
-      clickhouseSelect: "name",
+      analyticsSelect: "name",
       filterType: "StringFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     {
       id: "level",
-      clickhouseSelect: "level",
+      analyticsSelect: "level",
       filterType: "StringFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     {
       id: "type",
-      clickhouseSelect: "type",
+      analyticsSelect: "type",
       filterType: "StringFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     {
       id: "parentObservationId",
-      clickhouseSelect: parentFieldName,
+      analyticsSelect: parentFieldName,
       filterType: "StringFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     ...(tableName === "events_proto"
       ? [
           {
             id: "isRootObservation",
-            clickhouseSelect: eventsTableIsRootObservationSql,
+            analyticsSelect: eventsTableIsRootObservationSql,
             filterType: "BooleanFilter",
-            clickhouseTable: tableName,
+            analyticsTable: tableName,
           },
         ]
       : []),
     {
       id: "fromStartTime",
-      clickhouseSelect: "start_time",
+      analyticsSelect: "start_time",
       operator: ">=",
       filterType: "DateTimeFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     {
       id: "toStartTime",
-      clickhouseSelect: "start_time",
+      analyticsSelect: "start_time",
       operator: "<",
       filterType: "DateTimeFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     {
       id: "version",
-      clickhouseSelect: "version",
+      analyticsSelect: "version",
       filterType: "StringFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
     {
       id: "environment",
-      clickhouseSelect: "environment",
+      analyticsSelect: "environment",
       filterType: "StringOptionsFilter",
-      clickhouseTable: tableName,
-      clickhousePrefix: tablePrefix,
+      analyticsTable: tableName,
+      analyticsPrefix: tablePrefix,
     },
   ];
 }
@@ -273,11 +273,11 @@ export function convertApiProvidedFilterToClickhouseFilter(
           typeof value === "string" &&
           ["<", "<=", ">", ">="].includes(finalOperator)
             ? (filterInstance = new DateTimeFilter({
-                clickhouseTable: columnMapping.clickhouseTable,
-                field: columnMapping.clickhouseSelect,
+                analyticsTable: columnMapping.analyticsTable,
+                field: columnMapping.analyticsSelect,
                 operator: finalOperator as "<" | "<=" | ">" | ">=",
                 value: new Date(value),
-                tablePrefix: columnMapping.clickhousePrefix,
+                tablePrefix: columnMapping.analyticsPrefix,
               }))
             : undefined;
 
@@ -286,22 +286,22 @@ export function convertApiProvidedFilterToClickhouseFilter(
         case "ArrayOptionsFilter":
           if (Array.isArray(value) || typeof value === "string") {
             filterInstance = new ArrayOptionsFilter({
-              clickhouseTable: columnMapping.clickhouseTable,
-              field: columnMapping.clickhouseSelect,
+              analyticsTable: columnMapping.analyticsTable,
+              field: columnMapping.analyticsSelect,
               operator: "all of",
               values: Array.isArray(value) ? value : value.split(","),
-              tablePrefix: columnMapping.clickhousePrefix,
+              tablePrefix: columnMapping.analyticsPrefix,
             });
           }
           break;
         case "StringOptionsFilter":
           if (Array.isArray(value) || typeof value === "string") {
             filterInstance = new StringOptionsFilter({
-              clickhouseTable: columnMapping.clickhouseTable,
-              field: columnMapping.clickhouseSelect,
+              analyticsTable: columnMapping.analyticsTable,
+              field: columnMapping.analyticsSelect,
               operator: "any of",
               values: Array.isArray(value) ? value : value.split(","),
-              tablePrefix: columnMapping.clickhousePrefix,
+              tablePrefix: columnMapping.analyticsPrefix,
             });
           }
           break;
@@ -319,12 +319,12 @@ export function convertApiProvidedFilterToClickhouseFilter(
               typeof filter.key === "string"
             ) {
               filterInstance = new CategoryOptionsFilter({
-                clickhouseTable: columnMapping.clickhouseTable,
-                field: columnMapping.clickhouseSelect,
+                analyticsTable: columnMapping.analyticsTable,
+                field: columnMapping.analyticsSelect,
                 key: filter.key,
                 operator: parsedOperatorCategory.data,
                 values: value,
-                tablePrefix: columnMapping.clickhousePrefix,
+                tablePrefix: columnMapping.analyticsPrefix,
               });
             }
           }
@@ -333,11 +333,11 @@ export function convertApiProvidedFilterToClickhouseFilter(
         case "StringFilter":
           if (typeof value === "string") {
             filterInstance = new StringFilter({
-              clickhouseTable: columnMapping.clickhouseTable,
-              field: columnMapping.clickhouseSelect,
+              analyticsTable: columnMapping.analyticsTable,
+              field: columnMapping.analyticsSelect,
               operator: "=",
               value: value,
-              tablePrefix: columnMapping.clickhousePrefix,
+              tablePrefix: columnMapping.analyticsPrefix,
             });
           }
           break;
@@ -352,11 +352,11 @@ export function convertApiProvidedFilterToClickhouseFilter(
 
           if (parsedOperatorNum.success) {
             filterInstance = new NumberFilter({
-              clickhouseTable: columnMapping.clickhouseTable,
-              field: columnMapping.clickhouseSelect,
+              analyticsTable: columnMapping.analyticsTable,
+              field: columnMapping.analyticsSelect,
               operator: parsedOperatorNum.data,
               value: Number(value),
-              tablePrefix: columnMapping.clickhousePrefix,
+              tablePrefix: columnMapping.analyticsPrefix,
             });
           }
           break;
@@ -364,11 +364,11 @@ export function convertApiProvidedFilterToClickhouseFilter(
         case "BooleanFilter":
           if (typeof value === "boolean") {
             filterInstance = new BooleanFilter({
-              clickhouseTable: columnMapping.clickhouseTable,
-              field: columnMapping.clickhouseSelect,
+              analyticsTable: columnMapping.analyticsTable,
+              field: columnMapping.analyticsSelect,
               operator: "=",
               value,
-              tablePrefix: columnMapping.clickhousePrefix,
+              tablePrefix: columnMapping.analyticsPrefix,
             });
           }
           break;
@@ -419,7 +419,7 @@ export function deriveFilters<T extends BaseQueryType>(
       (simpleFilter) =>
         !filterList.some(
           (advancedFilter) =>
-            advancedFilter.clickhouseTable === simpleFilter.clickhouseTable &&
+            advancedFilter.analyticsTable === simpleFilter.analyticsTable &&
             advancedFilter.field === simpleFilter.field,
         ),
     )

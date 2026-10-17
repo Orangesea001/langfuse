@@ -42,7 +42,7 @@ const remainingQueryPatterns: QueryPattern[] = [
   },
   {
     description: "Bloom filter index hint",
-    usedIn: ["clickhouse migrations"],
+    usedIn: ["analytics migrations"],
     chSyntax: "INDEX idx_id id TYPE bloom_filter(0.001) GRANULARITY 1",
     mysqlSyntax: "INDEX idx_id (id) USING BTREE (MySQL uses B-tree by default)",
     verified: true,
@@ -118,7 +118,7 @@ const remainingQueryPatterns: QueryPattern[] = [
   {
     description: "Stream read for batch export",
     usedIn: ["events-stream.ts", "trace-batch.ts"],
-    chSyntax: "queryClickhouseStream with JSONEachRow format",
+    chSyntax: "queryAnalyticsStream with JSONEachRow format",
     mysqlSyntax: "SELECT ... with server-side cursor / fetch chunk size",
     verified: true,
   },

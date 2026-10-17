@@ -20,7 +20,7 @@ import type { QueryId } from "kysely";
 import {
   ArrayJoinNode,
   ArrayIndexNode,
-  type ClickHouseSelectQueryNode,
+  type AnalyticsSelectQueryNode,
   type LimitByNode,
 } from "./nodes";
 import { COLUMN_BIND_TYPES } from "./schema";
@@ -40,10 +40,10 @@ function canonicalParamValue(value: unknown): string {
   return `${typeof value}:${String(value)}`;
 }
 
-function inferClickHouseType(value: unknown): string {
+function inferAnalyticsType(value: unknown): string {
   if (value instanceof Date) return "DateTime64(3)";
   if (Array.isArray(value)) {
-    const inner = value.length === 0 ? "String" : inferClickHouseType(value[0]);
+    const inner = value.length === 0 ? "String" : inferAnalyticsType(value[0]);
     return `Array(${inner})`;
   }
   if (typeof value === "string") return "String";
@@ -56,7 +56,7 @@ function inferClickHouseType(value: unknown): string {
 }
 
 /**
- * ClickHouse SQL compiler. Identifier quoting is omitted so `clickhouse format`
+ * ClickHouse SQL compiler. Identifier quoting is omitted so `analytics format`
  * matches the golden snapshots (unquoted identifiers). Parameters are named
  * `{pN:Type}` binds, interned by (type, value) so repeated values collapse to a
  * single placeholder, matching the named `{projectId:String}` style once the
@@ -72,7 +72,7 @@ function inferClickHouseType(value: unknown): string {
  * ARRAY JOIN and LIMIT BY ride as extra fields on the select node as real
  * {@link ArrayJoinNode} / {@link LimitByNode} operation nodes.
  */
-export class ClickHouseQueryCompiler extends DefaultQueryCompiler {
+export class AnalyticsQueryCompiler extends DefaultQueryCompiler {
   namedParameters: Record<string, unknown> = {};
   private intern = new Map<string, string>();
   /**
@@ -114,7 +114,7 @@ export class ClickHouseQueryCompiler extends DefaultQueryCompiler {
     return super.compileQuery(node, queryId);
   }
 
-  // Emit identifiers unquoted. `clickhouse format` normalizes to unquoted
+  // Emit identifiers unquoted. `analytics format` normalizes to unquoted
   // identifiers, so returning empty wrappers is what keeps raw compiler output
   // byte-comparable with the golden snapshots. (Column/table names in this
   // codebase are plain identifiers, so dropping the quotes is safe here.)
@@ -178,7 +178,7 @@ export class ClickHouseQueryCompiler extends DefaultQueryCompiler {
     if (this.pendingBindType) {
       return `Array(${this.pendingBindType})`;
     }
-    return inferClickHouseType(values);
+    return inferAnalyticsType(values);
   }
 
   protected override visitSelectQuery(node: SelectQueryNode): void {
@@ -199,7 +199,7 @@ export class ClickHouseQueryCompiler extends DefaultQueryCompiler {
    * sync with the pinned 0.28.17) with two ClickHouse-only insertions:
    *   - the ARRAY JOIN block, emitted after JOINs and before WHERE (line ~193)
    *   - the LIMIT BY block, emitted before LIMIT (line ~225)
-   * Both read extra fields off {@link ClickHouseSelectQueryNode}. Every other
+   * Both read extra fields off {@link AnalyticsSelectQueryNode}. Every other
    * clause mirrors the parent verbatim. We override the whole method rather
    * than call `super` because the parent emits clauses in a fixed order and
    * offers no hook to inject a clause between JOIN and WHERE.
@@ -259,7 +259,7 @@ export class ClickHouseQueryCompiler extends DefaultQueryCompiler {
       this.compileList(node.joins, " ");
     }
 
-    const chNode = node as ClickHouseSelectQueryNode;
+    const chNode = node as AnalyticsSelectQueryNode;
     if (chNode.arrayJoins?.length) {
       for (const arrayJoin of chNode.arrayJoins) {
         this.append(" ");
@@ -354,7 +354,7 @@ export class ClickHouseQueryCompiler extends DefaultQueryCompiler {
     // still coerces it to the compared column's type — so the widening cases we
     // emit are safe. Pass `type` explicitly where exact width or precision
     // matters (e.g. a Decimal column, where inferred Float64 could round).
-    const inferred = type ?? inferClickHouseType(value);
+    const inferred = type ?? inferAnalyticsType(value);
     const key = `${inferred}:${canonicalParamValue(value)}`;
     const existing = this.intern.get(key);
     if (existing) {

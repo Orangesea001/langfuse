@@ -3,7 +3,7 @@ import {
   type Filter,
   type FilterList,
   StringOptionsFilter,
-} from "./clickhouse-filter";
+} from "./analytics-filter";
 
 export type ScoreDataRequirement = "filter-only" | "complete";
 
@@ -57,7 +57,7 @@ export const planScoreFilterPushdown = ({
   let hasUnsupportedScoreFilter = false;
 
   filters.forEach((filter) => {
-    if (filter.clickhouseTable !== "scores") {
+    if (filter.analyticsTable !== "scores") {
       return;
     }
 
@@ -75,7 +75,7 @@ export const planScoreFilterPushdown = ({
   }
 
   return new StringOptionsFilter({
-    clickhouseTable: "scores",
+    analyticsTable: "scores",
     field: "name",
     operator: "any of",
     values: Array.from(scoreNames),

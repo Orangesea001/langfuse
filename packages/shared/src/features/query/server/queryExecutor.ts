@@ -1,8 +1,8 @@
 import {
-  queryClickhouse,
+  queryAnalytics,
   type ClickhouseQueryOpts,
 } from "../../../server/repositories/clickhouse";
-import { type PreferredClickhouseService } from "../../../server/clickhouse/client";
+import { type PreferredAnalyticsService } from "../../../server/analytics-client/client";
 import { QueryBuilder } from "./queryBuilder";
 import { type QueryType, type ViewVersion } from "../types";
 import { env } from "../../../env";
@@ -10,9 +10,9 @@ import { env } from "../../../env";
 export type PreparedQuery = {
   compiledQuery: string;
   parameters: Record<string, unknown>;
-  preferredClickhouseService: PreferredClickhouseService | undefined;
+  preferredClickhouseService: PreferredAnalyticsService | undefined;
   tags: { projectId: string };
-  clickhouseSettings: Record<string, string>;
+  analyticsSettings: Record<string, string>;
   usesTraceTable: boolean;
   fromTimestamp: string;
 };
@@ -54,13 +54,13 @@ export async function prepareExecuteQuery(opts: {
 
   const tags = { projectId };
 
-  const clickhouseSettings: Record<string, string> = {
+  const analyticsSettings: Record<string, string> = {
     date_time_output_format: "iso",
-    ...(env.CLICKHOUSE_USE_QUERY_CONDITION_CACHE === "true"
+    ...(env.ANALYTICS_USE_QUERY_CONDITION_CACHE === "true"
       ? { use_query_condition_cache: "true" }
       : {}),
     max_bytes_before_external_group_by: String(
-      env.CLICKHOUSE_MAX_BYTES_BEFORE_EXTERNAL_GROUP_BY,
+      env.ANALYTICS_MAX_BYTES_BEFORE_EXTERNAL_GROUP_BY,
     ),
   };
 
@@ -69,7 +69,7 @@ export async function prepareExecuteQuery(opts: {
     parameters,
     preferredClickhouseService,
     tags,
-    clickhouseSettings,
+    analyticsSettings,
     usesTraceTable: compiledQuery.includes("traces"),
     fromTimestamp: query.fromTimestamp,
   };
@@ -81,7 +81,7 @@ export function toClickhouseQueryOpts(
   return {
     query: prepared.compiledQuery,
     params: prepared.parameters,
-    clickhouseSettings: prepared.clickhouseSettings,
+    analyticsSettings: prepared.analyticsSettings,
     tags: prepared.tags,
     preferredClickhouseService: prepared.preferredClickhouseService,
   };
@@ -103,10 +103,10 @@ export async function executeQuery(
   const chOpts = toClickhouseQueryOpts(prepared);
 
   if (!prepared.usesTraceTable) {
-    return queryClickhouse<Record<string, unknown>>(chOpts);
+    return queryAnalytics<Record<string, unknown>>(chOpts);
   }
 
-  return queryClickhouse<Record<string, unknown>>({
+  return queryAnalytics<Record<string, unknown>>({
     ...chOpts,
     query: prepared.compiledQuery,
     params: prepared.parameters,

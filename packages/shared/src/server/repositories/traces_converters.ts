@@ -1,6 +1,6 @@
 import { parseClickhouseUTCDateTimeFormat } from "./clickhouse";
 import { TraceRecordExtraFieldsType, TraceRecordReadType } from "./definitions";
-import { convertDateToClickhouseDateTime } from "../clickhouse/client";
+import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import { TraceDomain } from "../../domain";
 import { parseMetadataCHRecordToDomain } from "../utils/metadata_conversion";
 import {
@@ -14,7 +14,7 @@ export const convertTraceDomainToClickhouse = (
 ): TraceRecordReadType => {
   return {
     id: trace.id,
-    timestamp: convertDateToClickhouseDateTime(trace.timestamp),
+    timestamp: convertDateToAnalyticsDateTime(trace.timestamp),
     name: trace.name,
     user_id: trace.userId,
     metadata: trace.metadata as Record<string, string>,
@@ -28,9 +28,9 @@ export const convertTraceDomainToClickhouse = (
     input: trace.input as string,
     output: trace.output as string,
     session_id: trace.sessionId,
-    created_at: convertDateToClickhouseDateTime(trace.createdAt),
-    updated_at: convertDateToClickhouseDateTime(trace.updatedAt),
-    event_ts: convertDateToClickhouseDateTime(new Date()),
+    created_at: convertDateToAnalyticsDateTime(trace.createdAt),
+    updated_at: convertDateToAnalyticsDateTime(trace.updatedAt),
+    event_ts: convertDateToAnalyticsDateTime(new Date()),
     is_deleted: 0,
   };
 };

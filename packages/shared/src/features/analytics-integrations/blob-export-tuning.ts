@@ -19,7 +19,7 @@
 import { z } from "zod";
 
 // Minimum ClickHouse version for safe raw passthrough. The passthrough relies on
-// ClickHouse's mid-stream exception tagging (the `x-clickhouse-exception-tag`
+// ClickHouse's mid-stream exception tagging (the `x-analytics-exception-tag`
 // response header + end-of-stream marker) so the client errors the stream when a
 // query fails after a 200 response. That mechanism only exists in ClickHouse
 // >= 25.11. On older servers a query that fails mid-stream is NOT detected and

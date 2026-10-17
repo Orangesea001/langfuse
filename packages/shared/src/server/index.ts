@@ -70,20 +70,20 @@ export * from "./utils/transforms";
 export * from "./utils/billingCycleHelpers";
 export * from "./utils/compareVersions";
 export * from "./otel/utils";
-export * from "./clickhouse/client";
-export { EXCEPTION_TAG_HEADER_NAME } from "./clickhouse/client";
+export * from "./analytics-client/client";
+export { EXCEPTION_TAG_HEADER_NAME } from "./analytics-client/client";
 export {
-  getClickHouseCompatibilitySettings,
-  initializeClickhouseCompatibility,
-  getClickHouseJsonBadUnicodeEscapeMode,
-} from "./clickhouse/compatibility";
-export * from "./clickhouse/schemaUtils";
-export * from "./clickhouse/schema";
-export * from "./clickhouse/clickhouseIdentifiers";
-export * from "./clickhouse/queryTracking";
-export * from "./clickhouse/queryTags";
-export * from "./clickhouse/queryOutcome";
-export * from "./clickhouse/json";
+  getAnalyticsCompatibilitySettings,
+  initializeAnalyticsCompatibility,
+  getAnalyticsJsonBadUnicodeEscapeMode,
+} from "./analytics-client/compatibility";
+export * from "./analytics-client/schemaUtils";
+export * from "./analytics-client/schema";
+export * from "./analytics-client/analyticsIdentifiers";
+export * from "./analytics-client/queryTracking";
+export * from "./analytics-client/queryTags";
+export * from "./analytics-client/queryOutcome";
+export * from "./analytics-client/json";
 export * from "./repositories/definitions";
 export * from "../utils/IORepresentation/chatML/types";
 export * from "../server/ingestion/types";
@@ -148,8 +148,8 @@ export * from "./logger";
 export * from "./processErrorHandlers";
 export * from "./headerPropagation";
 export * from "./queries";
-export * from "./queries/clickhouse-sql/orderby-factory";
-export * from "./queries/clickhouse-sql/query-options";
+export * from "./queries/analytics-sql/orderby-factory";
+export * from "./queries/analytics-sql/query-options";
 export * from "./repositories";
 export { SCORE_TO_TRACE_OBSERVATIONS_INTERVAL } from "./repositories/constants";
 export { scoreDomainToV3 } from "./repositories/scores";

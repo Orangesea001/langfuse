@@ -7,21 +7,21 @@ import {
   type Dialect,
 } from "kysely";
 
-import { ClickHouseQueryCompiler } from "./compiler";
-import type { ClickHouseDatabase } from "./schema";
+import { AnalyticsQueryCompiler } from "./compiler";
+import type { AnalyticsDatabase } from "./schema";
 
 /**
  * Compile-only ClickHouse dialect. Queries are never executed through Kysely;
- * the existing `queryClickhouse` seam remains the exec path. DummyDriver
+ * the existing `queryAnalytics` seam remains the exec path. DummyDriver
  * throws if anyone tries to `.execute()`.
  */
-export class ClickHouseCompileDialect implements Dialect {
+export class AnalyticsCompileDialect implements Dialect {
   createDriver() {
     return new DummyDriver();
   }
 
   createQueryCompiler() {
-    return new ClickHouseQueryCompiler();
+    return new AnalyticsQueryCompiler();
   }
 
   createAdapter() {
@@ -33,11 +33,11 @@ export class ClickHouseCompileDialect implements Dialect {
   }
 }
 
-let compileDb: Kysely<ClickHouseDatabase> | undefined;
+let compileDb: Kysely<AnalyticsDatabase> | undefined;
 
-export function getClickhouseKysely(): Kysely<ClickHouseDatabase> {
-  compileDb ??= new Kysely<ClickHouseDatabase>({
-    dialect: new ClickHouseCompileDialect(),
+export function getClickhouseKysely(): Kysely<AnalyticsDatabase> {
+  compileDb ??= new Kysely<AnalyticsDatabase>({
+    dialect: new AnalyticsCompileDialect(),
   });
   return compileDb;
 }

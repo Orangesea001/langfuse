@@ -15,7 +15,7 @@ import { defineView, fromView } from "./views";
  * - view exposing only declared columns: TS types
  * - sum() over a String column: NOT caught by TS (Kysely's sum() argument
  *   is any ReferenceExpression) — caught by the runtime validation pass
- * - column-name auto-complete: yes, from ClickHouseDatabase schema keys
+ * - column-name auto-complete: yes, from AnalyticsDatabase schema keys
  */
 export function schemaTypeAssertions(): void {
   const db = getClickhouseKysely();

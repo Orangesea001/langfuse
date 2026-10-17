@@ -9,7 +9,7 @@ import {
   NumberObjectFilter,
   StringFilter,
   StringObjectFilter,
-} from "./clickhouse-filter";
+} from "./analytics-filter";
 import { createFilterFromFilterState } from "./factory";
 import { experimentItemsTableNativeUiColumnDefinitions } from "../../tableMappings/mapExperimentItemsTable";
 
@@ -24,7 +24,7 @@ const metadataString = (
   value: string,
 ) =>
   new StringObjectFilter({
-    clickhouseTable: "events_core",
+    analyticsTable: "events_core",
     field: "metadata",
     key: "some_key",
     operator,
@@ -115,7 +115,7 @@ describe("filtersRequireEventsFull metadata routing", () => {
     expect(
       requires(
         new NumberObjectFilter({
-          clickhouseTable: "events_core",
+          analyticsTable: "events_core",
           field: "metadata",
           key: "n",
           operator: "=",
@@ -127,7 +127,7 @@ describe("filtersRequireEventsFull metadata routing", () => {
       filtersRequireEventsFull(
         new FilterList([
           new BooleanObjectFilter({
-            clickhouseTable: "events_core",
+            analyticsTable: "events_core",
             field: "metadata",
             key: "b",
             operator: "=",
@@ -140,7 +140,7 @@ describe("filtersRequireEventsFull metadata routing", () => {
       filtersRequireEventsFull(
         new FilterList([
           new NullFilter({
-            clickhouseTable: "events_core",
+            analyticsTable: "events_core",
             field: "metadata",
             operator: "is not null",
           }),
@@ -174,7 +174,7 @@ describe("StringObjectFilter key presence/absence operators", () => {
   it("compiles `is set` / `is not set` to mapContains() on map tables", () => {
     const mapFilter = (operator: StringObjectFilter["operator"]) =>
       new StringObjectFilter({
-        clickhouseTable: "traces",
+        analyticsTable: "traces",
         field: "metadata",
         key: "some_key",
         operator,
@@ -209,13 +209,13 @@ describe("NullFilter metadata filters on events tables", () => {
     "compiles `%s` null checks against `%s`",
     (field, namesColumn) => {
       const isNullFilter = new NullFilter({
-        clickhouseTable: "events_proto",
+        analyticsTable: "events_proto",
         field,
         operator: "is null",
         tablePrefix: "e",
       });
       const isNotNullFilter = new NullFilter({
-        clickhouseTable: "events_proto",
+        analyticsTable: "events_proto",
         field,
         operator: "is not null",
         tablePrefix: "e",
@@ -234,7 +234,7 @@ describe("NullFilter metadata filters on events tables", () => {
 
   it("keeps null filters on legacy map tables unchanged", () => {
     const filter = new NullFilter({
-      clickhouseTable: "traces",
+      analyticsTable: "traces",
       field: "metadata",
       operator: "is null",
     });
@@ -292,7 +292,7 @@ describe("StringObjectFilter empty-value rejection", () => {
 describe("filtersRequireEventsFull input/output routing", () => {
   const ioFilter = (field: "input" | "output") =>
     new StringFilter({
-      clickhouseTable: "events_core",
+      analyticsTable: "events_core",
       field,
       operator: "=",
       value: "short",
@@ -312,7 +312,7 @@ describe("filtersRequireEventsFull input/output routing", () => {
       filtersRequireEventsFull(
         new FilterList([
           new StringObjectFilter({
-            clickhouseTable: "traces",
+            analyticsTable: "traces",
             field: "metadata",
             key: "k",
             operator: "contains",

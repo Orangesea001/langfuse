@@ -23,9 +23,9 @@ import {
 } from "kysely";
 
 import { QueryCompileError, UnscopedRelationError } from "./errors";
-import { type ClickHouseSelectQueryNode } from "./nodes";
+import { type AnalyticsSelectQueryNode } from "./nodes";
 import { TENANTED_TABLES } from "./schema";
-import { ClickHouseOperationNodeTransformer } from "./transformer";
+import { AnalyticsOperationNodeTransformer } from "./transformer";
 
 /**
  * Compile-time tenancy scope. Every ClickHouse query compiled through
@@ -54,7 +54,7 @@ type Relation =
 /**
  * Mandatory tenancy injection. Attaches `project_id = {projectId}` to every
  * tenanted physical relation that does not already have that predicate, then
- * stamps the tree so {@link ClickHouseQueryCompiler} will compile it.
+ * stamps the tree so {@link AnalyticsQueryCompiler} will compile it.
  *
  * Any `RawNode` whose SQL fragments introduce a relation (`SELECT` / `FROM` /
  * `JOIN`) is rejected — not only FROM/JOIN table sources. Kysely's own
@@ -81,7 +81,7 @@ export class TenancyInjectionPlugin implements KyselyPlugin {
   }
 }
 
-class TenancyInjectionTransformer extends ClickHouseOperationNodeTransformer {
+class TenancyInjectionTransformer extends AnalyticsOperationNodeTransformer {
   constructor(private readonly ctx: ExecutionContext) {
     super();
   }
@@ -93,7 +93,7 @@ class TenancyInjectionTransformer extends ClickHouseOperationNodeTransformer {
     const withChildren = super.transformSelectQuery(
       node,
       queryId,
-    ) as ClickHouseSelectQueryNode;
+    ) as AnalyticsSelectQueryNode;
     return injectSelect(withChildren, this.ctx, collectCteNames(withChildren));
   }
 }
@@ -107,10 +107,10 @@ function collectCteNames(node: SelectQueryNode): Set<string> {
 }
 
 function injectSelect(
-  node: ClickHouseSelectQueryNode,
+  node: AnalyticsSelectQueryNode,
   ctx: ExecutionContext,
   cteNames: Set<string>,
-): ClickHouseSelectQueryNode {
+): AnalyticsSelectQueryNode {
   const fromRelations = (node.from?.froms ?? []).map(describeRelation);
   const joinRelations = (node.joins ?? []).map((join) => ({
     join,

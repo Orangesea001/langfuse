@@ -1,5 +1,5 @@
 import { v4 } from "uuid";
-import { toClickhouseDateTime } from "../clickhouse/client";
+import { toAnalyticsDateTime } from "../analytics-client/client";
 import {
   TraceRecordInsertType,
   ObservationRecordInsertType,
@@ -19,9 +19,9 @@ type WithDateTimeInputs<T, K extends keyof T> = Omit<Partial<T>, K> & {
 // Numbers above 1e14 cannot be unix milliseconds in the DateTime64 range.
 const toEventClickhouseDateTime = (value?: DateTimeInput | null): string => {
   if (typeof value === "number" && Math.abs(value) > 1e14) {
-    return toClickhouseDateTime(Math.trunc(value / 1000));
+    return toAnalyticsDateTime(Math.trunc(value / 1000));
   }
-  return toClickhouseDateTime(value);
+  return toAnalyticsDateTime(value);
 };
 
 export const createTrace = (
@@ -35,7 +35,7 @@ export const createTrace = (
     id: v4(),
     project_id: v4(),
     session_id: v4(),
-    timestamp: toClickhouseDateTime(timestamp),
+    timestamp: toAnalyticsDateTime(timestamp),
     environment: "default",
     metadata: {
       source: "API",
@@ -48,9 +48,9 @@ export const createTrace = (
     release: "1.0.0",
     version: "2",
     user_id: v4(),
-    created_at: toClickhouseDateTime(created_at),
-    updated_at: toClickhouseDateTime(updated_at),
-    event_ts: toClickhouseDateTime(event_ts),
+    created_at: toAnalyticsDateTime(created_at),
+    updated_at: toAnalyticsDateTime(updated_at),
+    event_ts: toAnalyticsDateTime(event_ts),
     is_deleted: 0,
     ...rest,
   };
@@ -87,12 +87,12 @@ export const createDatasetRunItem = (
     dataset_item_input: "{}",
     dataset_item_expected_output: "{}",
     dataset_item_metadata: { key: "value" },
-    dataset_run_created_at: toClickhouseDateTime(dataset_run_created_at),
-    created_at: toClickhouseDateTime(created_at),
-    updated_at: toClickhouseDateTime(updated_at),
-    event_ts: toClickhouseDateTime(event_ts),
+    dataset_run_created_at: toAnalyticsDateTime(dataset_run_created_at),
+    created_at: toAnalyticsDateTime(created_at),
+    updated_at: toAnalyticsDateTime(updated_at),
+    event_ts: toAnalyticsDateTime(event_ts),
     dataset_item_version: dataset_item_version
-      ? toClickhouseDateTime(dataset_item_version)
+      ? toAnalyticsDateTime(dataset_item_version)
       : undefined,
     is_deleted: 0,
     error: datasetRunItem.error ?? null,
@@ -135,10 +135,10 @@ export const createObservation = (
     usage_details: { input: 1234, output: 5678, total: 6912 },
     cost_details: { input: 100, output: 200, total: 300 },
     is_deleted: 0,
-    created_at: toClickhouseDateTime(created_at),
-    updated_at: toClickhouseDateTime(updated_at),
-    start_time: toClickhouseDateTime(start_time),
-    event_ts: toClickhouseDateTime(event_ts),
+    created_at: toAnalyticsDateTime(created_at),
+    updated_at: toAnalyticsDateTime(updated_at),
+    start_time: toAnalyticsDateTime(start_time),
+    event_ts: toAnalyticsDateTime(event_ts),
     name: "sample_name" + v4(),
     level: "DEFAULT",
     status_message: "status",
@@ -152,11 +152,11 @@ export const createObservation = (
     prompt_id: v4(),
     prompt_name: "generation-prompt",
     prompt_version: 1,
-    end_time: end_time === null ? null : toClickhouseDateTime(end_time),
+    end_time: end_time === null ? null : toAnalyticsDateTime(end_time),
     completion_start_time:
       completion_start_time === null
         ? null
-        : toClickhouseDateTime(completion_start_time),
+        : toAnalyticsDateTime(completion_start_time),
     tool_definitions: {},
     tool_calls: [],
     tool_call_names: [],
@@ -178,7 +178,7 @@ export const createTraceScore = (
     observation_id: null, // Trace-level scores must have observation_id as null by default
     environment: "default",
     name: "test-score" + v4(),
-    timestamp: toClickhouseDateTime(timestamp),
+    timestamp: toAnalyticsDateTime(timestamp),
     value: 100.5,
     string_value: null,
     long_string_value: "",
@@ -186,9 +186,9 @@ export const createTraceScore = (
     comment: "comment",
     metadata: { "test-key": "test-value" },
     data_type: "NUMERIC" as const,
-    created_at: toClickhouseDateTime(created_at),
-    updated_at: toClickhouseDateTime(updated_at),
-    event_ts: toClickhouseDateTime(event_ts),
+    created_at: toAnalyticsDateTime(created_at),
+    updated_at: toAnalyticsDateTime(updated_at),
+    event_ts: toAnalyticsDateTime(event_ts),
     ingestion_api_key: "",
     ingestion_sdk_name: UNKNOWN_INGESTION_SDK_VALUE,
     ingestion_sdk_version: UNKNOWN_INGESTION_SDK_VALUE,
@@ -212,16 +212,16 @@ export const createSessionScore = (
     session_id: v4(),
     environment: "default",
     name: "test-session-score" + v4(),
-    timestamp: toClickhouseDateTime(timestamp),
+    timestamp: toAnalyticsDateTime(timestamp),
     value: 100.5,
     long_string_value: "",
     source: "API",
     comment: "comment",
     metadata: { "test-key": "test-value" },
     data_type: "NUMERIC" as const,
-    created_at: toClickhouseDateTime(created_at),
-    updated_at: toClickhouseDateTime(updated_at),
-    event_ts: toClickhouseDateTime(event_ts),
+    created_at: toAnalyticsDateTime(created_at),
+    updated_at: toAnalyticsDateTime(updated_at),
+    event_ts: toAnalyticsDateTime(event_ts),
     ingestion_api_key: "",
     ingestion_sdk_name: UNKNOWN_INGESTION_SDK_VALUE,
     ingestion_sdk_version: UNKNOWN_INGESTION_SDK_VALUE,
@@ -246,16 +246,16 @@ export const createDatasetRunScore = (
     dataset_run_id: v4(),
     environment: "default",
     name: "test-run-score" + v4(),
-    timestamp: toClickhouseDateTime(timestamp),
+    timestamp: toAnalyticsDateTime(timestamp),
     value: 100.5,
     long_string_value: "",
     source: "API",
     comment: "comment",
     metadata: { "test-key": "test-value" },
     data_type: "NUMERIC" as const,
-    created_at: toClickhouseDateTime(created_at),
-    updated_at: toClickhouseDateTime(updated_at),
-    event_ts: toClickhouseDateTime(event_ts),
+    created_at: toAnalyticsDateTime(created_at),
+    updated_at: toAnalyticsDateTime(updated_at),
+    event_ts: toAnalyticsDateTime(event_ts),
     ingestion_api_key: "",
     ingestion_sdk_name: UNKNOWN_INGESTION_SDK_VALUE,
     ingestion_sdk_version: UNKNOWN_INGESTION_SDK_VALUE,
