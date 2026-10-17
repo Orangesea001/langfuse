@@ -268,16 +268,14 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
     SELECT
       project_id,
       session_id AS score_session_id,
-      -- For numeric scores, use tuples of (name, avg_value)
-      groupArrayIf(
-        tuple(name, avg_value),
-        data_type IN ('NUMERIC', 'BOOLEAN')
-      ) AS scores_avg,
-      -- For categorical scores, use name:value format for improved query performance
-      groupArrayIf(
-        concat(name, ':', string_value),
-        data_type = 'CATEGORICAL' AND notEmpty(string_value)
-      ) AS score_categories,
+      -- For numeric scores, use JSON array of [name, avg_value] pairs
+      CAST(
+        CONCAT('[', GROUP_CONCAT(CASE WHEN data_type IN ('NUMERIC', 'BOOLEAN') THEN CONCAT('["', name, '",', CAST(avg_value AS CHAR), ']') ELSE NULL END SEPARATOR ','), ']')
+      AS JSON) AS scores_avg,
+      -- For categorical scores, use JSON array of name:value strings
+      CAST(
+        CONCAT('[', GROUP_CONCAT(CASE WHEN data_type = 'CATEGORICAL' AND string_value IS NOT NULL AND string_value <> '' THEN CONCAT('"', name, ':', string_value, '"') ELSE NULL END SEPARATOR ','), ']')
+      AS JSON) AS score_categories,
       ${scoreBooleansAggregation()} AS score_booleans
     FROM (
       SELECT
@@ -287,7 +285,7 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
         data_type,
         string_value,
         avg(value) avg_value
-      FROM scores s FINAL
+      FROM scores s
       WHERE
         project_id = {projectId: String}
         ${scoresFilterRes ? `AND ${scoresFilterRes.query}` : ""}
@@ -311,7 +309,7 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
           WHERE t.session_id IS NOT NULL
             AND t.project_id = {projectId: String}
             ${singleTraceFilter?.query ? ` AND ${singleTraceFilter.query}` : ""}
-            LIMIT 1 BY id, project_id
+            
         ),
         deduplicated_observations AS (
             SELECT *
@@ -323,15 +321,15 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
               FROM deduplicated_traces
             )
             ORDER BY event_ts DESC
-            LIMIT 1 BY id, project_id
+            
         ),
         observations_agg AS (
           SELECT o.trace_id,
                 count(*) as obs_count,
                 min(o.start_time) as min_start_time,
                 max(o.end_time) as max_end_time,
-                sumMap(usage_details) as sum_usage_details,
-                sumMap(cost_details) as sum_cost_details,
+                usage_details as sum_usage_details,
+                cost_details as sum_cost_details,
                 anyLast(project_id) as project_id
           FROM deduplicated_observations o
           WHERE o.project_id = {projectId: String}
@@ -344,10 +342,10 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
                 anyLast(t.project_id) as project_id,
                 max(t.timestamp) as max_timestamp,
                 min(t.timestamp) as min_timestamp,
-                groupArray(t.id) AS trace_ids,
-                groupUniqArray(t.user_id) AS user_ids,
+                CONCAT('[', GROUP_CONCAT(CONCAT('"', t.id, '"')), ']') AS trace_ids,
+                CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', t.user_id, '"')), ']') AS user_ids,
                 count(*) as trace_count,
-                groupUniqArrayArray(t.tags) as trace_tags,
+                CONCAT('[', GROUP_CONCAT(DISTINCT CAST(t.tags AS CHAR)), ']') as trace_tags,
                 anyLast(t.environment) as trace_environment
                 -- Aggregate observations data at session level
                 ${
@@ -356,22 +354,22 @@ const getSessionsTableGeneric = async <T>(props: FetchSessionsTableProps) => {
                       sum(o.obs_count) as total_observations,
                       -- Use MIN, because the analytics store fills 1970-01-01 on left joins. We assume that no
                       -- LLM session started on that date so this behaviour should yield better results.
-                      date_diff('second', MIN(min_start_time, min_start_time > '1970-01-01'), max(max_end_time)) as duration,
-                      sumMap(o.sum_usage_details) as session_usage_details,
-                      sumMap(o.sum_cost_details) as session_cost_details,
+                      TIMESTAMPDIFF(SECOND, LEAST(min_start_time, CASE WHEN min_start_time > '1970-01-01' THEN min_start_time ELSE '1970-01-02' END), max(max_end_time)) as duration,
+                      o.sum_usage_details as session_usage_details,
+                      o.sum_cost_details as session_cost_details,
                       ${
                         select === "metrics" || requiresScoresJoin
-                          ? `groupUniqArrayArray(s.scores_avg) as scores_avg,
-                      groupUniqArrayArray(s.score_categories) as score_categories,
-                      groupUniqArrayArray(s.score_booleans) as score_booleans,`
+                          ? `s.scores_avg as scores_avg,
+                      s.score_categories as score_categories,
+                      s.score_booleans as score_booleans,`
                           : ""
                       }
-                      arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, sumMap(o.sum_cost_details)))) as session_input_cost,
-                      arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, sumMap(o.sum_cost_details)))) as session_output_cost,
-                      sumMap(o.sum_cost_details)['total'] as session_total_cost,
-                      arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'input') > 0, sumMap(o.sum_usage_details)))) as session_input_usage,
-                      arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, sumMap(o.sum_usage_details)))) as session_output_usage,
-                      sumMap(o.sum_usage_details)['total'] as session_total_usage`
+                      JSON_EXTRACT(o.sum_cost_details, '$.input') as session_input_cost,
+                      JSON_EXTRACT(o.sum_cost_details, '$.output') as session_output_cost,
+                      JSON_EXTRACT(o.sum_cost_details, '$.total') as session_total_cost,
+                      JSON_EXTRACT(o.sum_usage_details, '$.input') as session_input_usage,
+                      JSON_EXTRACT(o.sum_usage_details, '$.output') as session_output_usage,
+                      JSON_EXTRACT(o.sum_usage_details, '$.total') as session_total_usage`
                     : ""
                 }
             FROM deduplicated_traces t

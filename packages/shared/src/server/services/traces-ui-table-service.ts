@@ -312,23 +312,23 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
     WITH observations_stats AS (
       SELECT
         COUNT(*) AS observation_count,
-        sumMap(usage_details) as usage_details,
+        usage_details as usage_details,
         SUM(total_cost) AS total_cost,
-        date_diff('millisecond', least(min(start_time), min(end_time)), greatest(max(start_time), max(end_time))) as latency_milliseconds,
-        countIf(level = 'ERROR') as error_count,
-        countIf(level = 'WARNING') as warning_count,
-        countIf(level = 'DEFAULT') as default_count,
-        countIf(level = 'DEBUG') as debug_count,
-        multiIf(
-          arrayExists(x -> x = 'ERROR', groupArray(level)), 'ERROR',
-          arrayExists(x -> x = 'WARNING', groupArray(level)), 'WARNING',
-          arrayExists(x -> x = 'DEFAULT', groupArray(level)), 'DEFAULT',
-          'DEBUG'
-        ) AS aggregated_level,
-        sumMap(cost_details) as cost_details,
+        TIMESTAMPDIFF(MICROSECOND, LEAST(min(start_time), min(end_time)), GREATEST(max(start_time), max(end_time))) DIV 1000 as latency_milliseconds,
+        SUM(CASE WHEN level = 'ERROR' THEN 1 ELSE 0 END) as error_count,
+        SUM(CASE WHEN level = 'WARNING' THEN 1 ELSE 0 END) as warning_count,
+        SUM(CASE WHEN level = 'DEFAULT' THEN 1 ELSE 0 END) as default_count,
+        SUM(CASE WHEN level = 'DEBUG' THEN 1 ELSE 0 END) as debug_count,
+        CASE
+          WHEN SUM(CASE WHEN level = 'ERROR' THEN 1 ELSE 0 END) > 0 THEN 'ERROR'
+          WHEN SUM(CASE WHEN level = 'WARNING' THEN 1 ELSE 0 END) > 0 THEN 'WARNING'
+          WHEN SUM(CASE WHEN level = 'DEFAULT' THEN 1 ELSE 0 END) > 0 THEN 'DEFAULT'
+          ELSE 'DEBUG'
+        END AS aggregated_level,
+        cost_details as cost_details,
         trace_id,
         project_id
-      FROM observations o ${skipObservationsDedup ? "" : "FINAL"}
+      FROM observations o 
       WHERE o.project_id = {projectId: String}
         ${timeStampFilter ? `AND o.start_time >= {traceTimestamp: DateTime64(3)} - ${OBSERVATIONS_TO_TRACE_INTERVAL}` : ""}
         ${observationsFilter ? `AND ${observationFilterRes.query}` : ""}
@@ -338,16 +338,14 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
            SELECT
              project_id,
              trace_id,
-             -- For numeric scores, use tuples of (name, avg_value)
-             groupArrayIf(
-               tuple(name, avg_value),
-               data_type IN ('NUMERIC', 'BOOLEAN')
-             ) AS scores_avg,
-             -- For categorical scores, use name:value format for improved query performance
-             groupArrayIf(
-               concat(name, ':', string_value),
-               data_type = 'CATEGORICAL' AND notEmpty(string_value)
-             ) AS score_categories,
+             -- For numeric scores, use JSON array of [name, avg_value] pairs
+             CAST(
+               CONCAT('[', GROUP_CONCAT(CASE WHEN data_type IN ('NUMERIC', 'BOOLEAN') THEN CONCAT('["', name, '",', CAST(avg_value AS CHAR), ']') ELSE NULL END SEPARATOR ','), ']')
+             AS JSON) AS scores_avg,
+             -- For categorical scores, use JSON array of name:value strings
+             CAST(
+               CONCAT('[', GROUP_CONCAT(CASE WHEN data_type = 'CATEGORICAL' AND string_value IS NOT NULL AND string_value <> '' THEN CONCAT('"', name, ':', string_value, '"') ELSE NULL END SEPARATOR ','), ']')
+             AS JSON) AS score_categories,
              ${scoreBooleansAggregation()} AS score_booleans
            FROM (
                   SELECT
@@ -357,7 +355,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
                     data_type,
                     string_value,
                     avg(value) as avg_value
-                  FROM scores s FINAL
+                  FROM scores s
                   WHERE
                     project_id = {projectId: String}
                     ${timeStampFilter ? `AND s.timestamp >= {traceTimestamp: DateTime64(3)} - ${SCORE_TO_TRACE_OBSERVATIONS_INTERVAL}` : ""}
@@ -377,8 +375,8 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
   let sqlSelect: string;
   switch (select) {
     case "count":
-      // Using uniqExact here as we need the correct count to handle pagination right
-      sqlSelect = "uniqExact(t.id) as count";
+      // Using COUNT(DISTINCT) for MySQL (replaces ClickHouse uniqExact)
+      sqlSelect = "COUNT(DISTINCT t.id) as count";
       break;
     case "metrics":
       sqlSelect = `
@@ -433,7 +431,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
   const orderByCols = [
     ...tracesTableUiColumnDefinitions,
     {
-      analyticsSelect: "toDate(t.timestamp)",
+      analyticsSelect: "DATE(t.timestamp)",
       uiTableName: "timestamp_to_date",
       uiTableId: "timestamp_to_date",
       analyticsTableName: "traces",
@@ -483,7 +481,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
   const limitByClause =
     ["metrics", "rows", "identifiers"].includes(select) &&
     usesNonFinalTraceReadPath
-      ? "LIMIT 1 BY id, project_id"
+      ? ""
       : "";
   const limitClause =
     limit !== undefined && traceDeleteCursorOrder
@@ -494,7 +492,7 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
 
   // complex query ahead:
   // - we only join scores and observations if we really need them to speed up default views
-  // - we use FINAL on traces only in case we not need to order by something different than time. Otherwise we cannot guarantee correct reads.
+  // - we use on traces only in case we not need to order by something different than time. Otherwise we cannot guarantee correct reads.
   // - we filter the observations and scores as much as possible before joining them to traces.
   // - we order by todate(timestamp), event_ts desc per default and do not use FINAL.
   //   In this case, CH is able to read the data only from the latest date from disk and filtering them in memory. No need to read all data e.g. for 1 month from disk.
@@ -503,8 +501,8 @@ async function getTracesTableGeneric(props: FetchTracesTableProps) {
     ${observationsAndScoresCTE}
 
     SELECT ${sqlSelect}
-    -- FINAL is used for non default ordering.
-    FROM traces t  ${usesNonFinalTraceReadPath || select === "count" ? "" : "FINAL"}
+    -- is used for non default ordering.
+    FROM traces t  
     ${select === "metrics" || requiresObservationsJoin ? `LEFT JOIN observations_stats o on o.project_id = t.project_id and o.trace_id = t.id` : ""}
     ${select === "metrics" || requiresScoresJoin ? `LEFT JOIN scores_avg s on s.project_id = t.project_id and s.trace_id = t.id` : ""}
     WHERE t.project_id = {projectId: String}

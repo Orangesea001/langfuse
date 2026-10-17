@@ -4,7 +4,7 @@ import { UiColumnMappings } from "../../tableDefinitions";
 // matches the lowercase options offered by the scores view's Boolean Value
 // facet. Shared with mapScoresColumnsTable so the two mappings cannot drift.
 export const SCORE_BOOLEAN_VALUE_SQL =
-  "if(s.data_type = 'BOOLEAN' AND notEmpty(s.string_value), lowerUTF8(s.string_value), '')";
+  "IF(s.data_type = 'BOOLEAN' AND LENGTH(s.string_value) > 0, LOWER(s.string_value), '')";
 
 export const scoresTableUiColumnDefinitions: UiColumnMappings = [
   {

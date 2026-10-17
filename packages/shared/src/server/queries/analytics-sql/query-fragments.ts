@@ -141,7 +141,7 @@ export const eventsTracesAggregation = (
  * per-row columns like `id` or `comment`.
  */
 export const scoreBooleansAggregation = (columnPrefix = ""): string =>
-  `groupUniqArrayIf(concat(${columnPrefix}name, ':', LOWER(${columnPrefix}string_value)), ${columnPrefix}data_type = 'BOOLEAN' AND (LENGTH(${columnPrefix}string_value) > 0))`;
+  `CAST(CONCAT('[', GROUP_CONCAT(DISTINCT CASE WHEN ${columnPrefix}data_type = 'BOOLEAN' AND (LENGTH(${columnPrefix}string_value) > 0) THEN CONCAT('"', ${columnPrefix}name, ':', LOWER(${columnPrefix}string_value), '"') ELSE NULL END SEPARATOR ','), ']') AS JSON)`;
 
 interface BaseScoresParams {
   projectId: string;

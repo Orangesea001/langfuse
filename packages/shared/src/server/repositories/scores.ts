@@ -968,7 +968,7 @@ export const getScoresGroupedByNameSourceType = async ({
     ${toTimestamp ? `AND s.timestamp <= {toTimestamp: DateTime64(3)}` : ""}
     AND s.data_type IN ({dataTypes: Array(String)})
     GROUP BY name, source, data_type
-    ORDER BY count() desc
+    ORDER BY COUNT(*) desc
     LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
   `;
 
@@ -1028,10 +1028,10 @@ export const getNumericScoresGroupedByName = async (
         name as name
       from scores s
       WHERE s.project_id = {projectId: String}
-      AND JSON_CONTAINS(['NUMERIC', CAST('BOOLEAN'], s.data_type AS JSON))
+      AND s.data_type IN ('NUMERIC', 'BOOLEAN')
       ${filterRes?.query ? `AND ${filterRes.query}` : ""}
       GROUP BY name
-      ORDER BY count() desc
+      ORDER BY COUNT(*) desc
       LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
     `;
 
@@ -1074,7 +1074,7 @@ export const getBooleanScoresGroupedByName = async (
       AND s.string_value != ''
       ${filterRes?.query ? `AND ${filterRes.query}` : ""}
       GROUP BY name
-      ORDER BY count() desc
+      ORDER BY COUNT(*) desc
       LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
     `;
 
@@ -1112,13 +1112,13 @@ export const getCategoricalScoresGroupedByName = async (
   const query = `
     SELECT
       name AS label,
-      JSON_ARRAYAGG(DISTINCT ${FILTER_OPTION_CATEGORICAL_VALUE_LIMIT})(string_value) AS values
+      SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT string_value SEPARATOR ',,'), ',,', ${FILTER_OPTION_CATEGORICAL_VALUE_LIMIT}) AS values
     FROM scores s
     WHERE s.project_id = {projectId: String}
     AND s.data_type = 'CATEGORICAL'
     ${filterRes?.query ? `AND ${filterRes.query}` : ""}
     GROUP BY name
-    ORDER BY count() DESC
+    ORDER BY COUNT(*) DESC
     LIMIT ${FILTER_OPTION_SCORE_NAME_LIMIT};
   `;
 
@@ -1331,7 +1331,6 @@ const getScoresUiGeneric = async <T>(props: {
       : `
         s.id,
         s.project_id,
-        s.environment,
         s.name,
         s.value,
         s.string_value,
@@ -1339,30 +1338,26 @@ const getScoresUiGeneric = async <T>(props: {
         s.source,
         s.data_type,
         s.comment,
-        ${excludeMetadata ? "" : "s.metadata,"}
         s.trace_id,
         s.session_id,
-        s.dataset_run_id,
         s.observation_id,
         s.author_user_id,
         t.user_id,
-        t.name,
-        t.tags,
+        t.name as trace_name,
+        t.tags as trace_tags,
         s.created_at,
         s.updated_at,
-        s.source,
         s.config_id,
         s.queue_id,
-        s.execution_trace_id,
-        s.ingestion_api_key,
-        s.ingestion_sdk_name,
-        s.ingestion_sdk_version,
         s.is_deleted,
         s.event_ts,
-        t.user_id,
-        t.name as trace_name,
-        t.tags as trace_tags
-        ${includeHasMetadataFlag ? ",length(mapKeys(s.metadata)) > 0 AS has_metadata" : ""}
+        '' as environment,
+        '' as dataset_run_id,
+        '' as execution_trace_id,
+        '' as ingestion_api_key,
+        '' as ingestion_sdk_name,
+        '' as ingestion_sdk_version
+        ${includeHasMetadataFlag ? ",0 AS has_metadata" : ""}
       `;
 
   const { scoresFilter } = getProjectIdDefaultFilter(projectId, {
@@ -1836,7 +1831,7 @@ export const getScoreNames = async (
       ${timestampFilterRes?.query ? `AND ${timestampFilterRes.query}` : ""}
       AND s.data_type IN ({dataTypes: Array(String)})
       GROUP BY name
-      ORDER BY count() desc
+      ORDER BY COUNT(*) desc
       LIMIT 1000;
     `;
 
@@ -1885,7 +1880,7 @@ export const getScoreStringValues = async (
       AND s.data_type != 'TEXT'
       ${timestampFilterRes?.query ? `AND ${timestampFilterRes.query}` : ""}
       GROUP BY string_value
-      ORDER BY count() desc
+      ORDER BY COUNT(*) desc
       LIMIT 1000;
     `;
 
@@ -3011,7 +3006,7 @@ export const _handleGetScoresCountForPublicApi = async ({
 
   const query = `
       SELECT
-        count() as count
+        COUNT(*) as count
       FROM
         scores s
           ${needsTraceJoin ? "LEFT JOIN __TRACE_TABLE__ t ON s.trace_id = t.id AND s.project_id = t.project_id" : ""}

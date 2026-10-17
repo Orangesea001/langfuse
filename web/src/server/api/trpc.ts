@@ -85,6 +85,7 @@ import { ZodError } from "zod";
 import { setUpSuperjson } from "@/src/utils/superjson";
 import {
   getTraceById,
+  getTraceByIdFromTracesTable,
   getTraceByIdFromEventsTable,
   logger,
   addUserToSpan,
@@ -522,10 +523,9 @@ const enforceTraceAccess = (readSource: "v3" | "v4") =>
     const projectId = result.data.projectId;
     const verbosity = result.data.verbosity;
 
-    // V3 legacy trace-table reads were removed — this deployment is v4-only
-    // (events_only write mode), so every read goes to the events tables.
-    const useEventsTraceSource =
-      env.LANGFUSE_MIGRATION_V4_WRITE_MODE !== "legacy";
+    // MySQL backend does not have events_core/events_full tables.
+    // Always read from traces table when on MySQL.
+    const useEventsTraceSource = false;
 
     let clickhouseTrace = traceId
       ? useEventsTraceSource
@@ -539,7 +539,16 @@ const enforceTraceAccess = (readSource: "v3" | "v4") =>
               shouldJsonParse: false,
             },
           })
-        : null
+        : await getTraceByIdFromTracesTable({
+            traceId,
+            projectId,
+            excludeInputOutput: true,
+            excludeMetadata: true,
+            renderingProps: {
+              truncated: true,
+              shouldJsonParse: false,
+            },
+          })
       : null;
 
     // In dual write mode the lookup above reads the legacy traces table, but

@@ -1380,7 +1380,7 @@ export const getObservationsWithPromptName = async (
   }: { fromTimestamp?: Date; toTimestamp?: Date } = {},
 ) => {
   const query = `
-  SELECT uniq(id) as count, prompt_name
+  SELECT COUNT(DISTINCT id) as count, prompt_name
   FROM observations
   WHERE project_id = {projectId: String}
   AND prompt_name IN ({promptNames: Array(String)})

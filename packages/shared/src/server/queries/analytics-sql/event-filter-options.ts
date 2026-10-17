@@ -504,7 +504,9 @@ export const buildEventsFilterOptionsForColumnsQuery = (params: {
 
   aggregatedOptionsBuilder.selectRaw(
     ...columns.map(optionTopKSelectExpression),
-    ...(includeApproxTotal ? ["uniq(e.span_id) AS approx_total_count"] : []),
+    ...(includeApproxTotal
+      ? ["COUNT(DISTINCT e.span_id) AS approx_total_count"]
+      : []),
     ...(sampled ? [EVENTS_SAMPLE_FACTOR_SELECT] : []),
   );
   aggregatedOptionsBuilder.sampleRows(sampleRows);

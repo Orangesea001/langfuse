@@ -113,7 +113,7 @@ const EVENTS_FIELDS = {
   // uniq() is the approximate distinct aggregate (HLL-based, bounded memory);
   // uniqExact would build an unbounded hash set when the filtered set spans
   // millions of traces.
-  uniqueTraceCount: 'uniq(e.trace_id) as "unique_trace_count"',
+  uniqueTraceCount: 'COUNT(DISTINCT e.trace_id) as "unique_trace_count"',
 
   // Identity & basic fields
   id: "e.span_id as id",
@@ -203,9 +203,9 @@ const EVENTS_FIELDS = {
 
   // Calculated fields
   latency:
-    "if(isNull(e.end_time), NULL, date_diff('millisecond', e.start_time, e.end_time)) as latency",
+    "IF(e.end_time IS NULL, NULL, TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) DIV 1000) as latency",
   timeToFirstToken:
-    "if(isNull(e.completion_start_time), NULL, date_diff('millisecond', e.start_time, e.completion_start_time)) as \"time_to_first_token\"",
+    'IF(e.completion_start_time IS NULL, NULL, TIMESTAMPDIFF(MICROSECOND, e.start_time, e.completion_start_time) DIV 1000) as "time_to_first_token"',
 } as const;
 
 const EVENTS_FIELD_ORDER_INDEX = new Map(
@@ -534,31 +534,33 @@ const EVENTS_AGGREGATION_FIELDS = {
   name: `${eventsTableTraceNameAggregationSql} AS name`,
   timestamp: "min(start_time) as timestamp",
   environment:
-    "argMaxIf(environment, event_ts, environment <> '') AS environment",
-  version: "argMaxIf(version, event_ts, version <> '') AS version",
-  session_id: "argMaxIf(session_id, event_ts, session_id <> '') AS session_id",
-  user_id: "argMaxIf(user_id, event_ts, user_id <> '') AS user_id",
-  input: "argMaxIf(input, event_ts, parent_span_id = '') AS input",
-  output: "argMaxIf(output, event_ts, parent_span_id = '') AS output",
+    "MAX(CASE WHEN environment <> '' THEN environment ELSE NULL END) AS environment",
+  version: "MAX(CASE WHEN version <> '' THEN version ELSE NULL END) AS version",
+  session_id:
+    "MAX(CASE WHEN session_id <> '' THEN session_id ELSE NULL END) AS session_id",
+  user_id: "MAX(CASE WHEN user_id <> '' THEN user_id ELSE NULL END) AS user_id",
+  input: "MAX(CASE WHEN parent_span_id = '' THEN input ELSE NULL END) AS input",
+  output:
+    "MAX(CASE WHEN parent_span_id = '' THEN output ELSE NULL END) AS output",
   // Note: events_core/events_full tables don't have input_truncated/output_truncated columns.
   // Truncation is handled by the materialized view for events_core, or by leftUTF8() at query time.
   metadata:
-    "argMaxIf(mapFromArrays(arrayReverse(e.metadata_names), arrayReverse(e.metadata_values)), event_ts, parent_span_id = '') AS metadata",
+    "MAX(CASE WHEN parent_span_id = '' THEN JSON_OBJECT() ELSE NULL END) AS metadata",
   created_at: "min(created_at) AS created_at",
   updated_at: "max(updated_at) AS updated_at",
   total_cost: "sum(total_cost) AS total_cost",
   latency_milliseconds:
-    "TIMESTAMPDIFF(MICROSECOND, min(start_time), greatest(max(start_time) / 1000, max(end_time))) AS latency_milliseconds",
+    "TIMESTAMPDIFF(MICROSECOND, min(start_time), GREATEST(max(start_time), max(end_time))) AS latency_milliseconds",
   observation_ids:
-    "groupUniqArrayIf(span_id, span_id <> '') AS observation_ids",
+    "GROUP_CONCAT(DISTINCT CASE WHEN span_id <> '' THEN span_id ELSE NULL END) AS observation_ids",
   observation_count:
-    "length(groupUniqArrayIf(span_id, span_id <> '' AND span_id <> concat('t-', trace_id))) AS observation_count",
+    "COUNT(DISTINCT CASE WHEN span_id <> '' AND span_id <> CONCAT('t-', trace_id) THEN span_id ELSE NULL END) AS observation_count",
 
   bookmarked:
-    "argMaxIf(bookmarked, event_ts, parent_span_id = '') AS bookmarked",
+    "MAX(CASE WHEN parent_span_id = '' THEN bookmarked ELSE NULL END) AS bookmarked",
   public: "max(public) AS public",
   experiment_item_id:
-    "argMaxIf(experiment_item_id, event_ts, experiment_item_id <> '') AS experiment_item_id",
+    "MAX(CASE WHEN experiment_item_id <> '' THEN experiment_item_id ELSE NULL END) AS experiment_item_id",
 
   // Observation-level aggregations for filtering support
   usage_details: "usage_details as usage_details",
@@ -570,14 +572,14 @@ const EVENTS_AGGREGATION_FIELDS = {
   default_count: "SUM(IF(level = 'DEFAULT', 1, 0)) as default_count",
   debug_count: "SUM(IF(level = 'DEBUG', 1, 0)) as debug_count",
 
-  tags: "argMaxIf(tags, event_ts, (LENGTH(tags) > 0)) AS tags",
-  release: "argMaxIf(release, event_ts, release <> '') AS release",
+  tags: "MAX(CASE WHEN (LENGTH(tags) > 0) THEN tags ELSE NULL END) AS tags",
+  release: "MAX(CASE WHEN release <> '' THEN release ELSE NULL END) AS release",
 
   // Evaluator execution fields are stamped on every internal evaluation span.
   evaluator_id:
-    "argMaxIf(evaluator_id, event_ts, evaluator_id <> '') AS evaluator_id",
+    "MAX(CASE WHEN evaluator_id <> '' THEN evaluator_id ELSE NULL END) AS evaluator_id",
   evaluation_rule_id:
-    "argMaxIf(evaluation_rule_id, event_ts, evaluation_rule_id <> '') AS evaluation_rule_id",
+    "MAX(CASE WHEN evaluation_rule_id <> '' THEN evaluation_rule_id ELSE NULL END) AS evaluation_rule_id",
 
   // experiment fields
   experiment_id: "any(experiment_id) as experiment_id",
@@ -1485,17 +1487,16 @@ const EVENTS_SESSION_AGGREGATION_FIELDS = {
   min_timestamp: "min(start_time) AS min_timestamp",
   trace_ids: "JSON_ARRAYAGG(DISTINCT trace_id) AS trace_ids",
   user_ids:
-    "groupUniqArrayIf(user_id, user_id IS NOT NULL AND user_id != '') AS user_ids",
-  trace_count: "uniq(trace_id) AS trace_count",
-  trace_tags: "groupUniqArrayArrayIf(tags, (LENGTH(tags) > 0)) AS trace_tags",
+    "GROUP_CONCAT(DISTINCT CASE WHEN user_id IS NOT NULL AND user_id != '' THEN user_id ELSE NULL END) AS user_ids",
+  trace_count: "COUNT(DISTINCT trace_id) AS trace_count",
+  trace_tags:
+    "GROUP_CONCAT(DISTINCT CASE WHEN (LENGTH(tags) > 0) THEN CAST(tags AS CHAR) ELSE NULL END) AS trace_tags",
   environment:
-    "argMaxIf(environment, event_ts, environment <> '') AS environment",
-  metadata_names:
-    "argMax(metadata_names, tuple(start_time, event_ts, span_id)) AS metadata_names",
-  metadata_values:
-    "argMax(metadata_values, tuple(start_time, event_ts, span_id)) AS metadata_values",
+    "MAX(CASE WHEN environment <> '' THEN environment ELSE NULL END) AS environment",
+  metadata_names: "MAX(metadata_names) AS metadata_names",
+  metadata_values: "MAX(metadata_values) AS metadata_values",
   total_observations:
-    "uniqIf(span_id, parent_span_id != '') AS total_observations",
+    "COUNT(DISTINCT CASE WHEN parent_span_id != '' THEN span_id ELSE NULL END) AS total_observations",
   duration:
     "TIMESTAMPDIFF(SECOND, min(start_time), max(if(isNull(end_time), start_time, end_time))) AS duration",
   session_usage_details: "usage_details AS session_usage_details",
@@ -1967,19 +1968,20 @@ const EXPERIMENTS_AGGREGATION_FIELDS = {
   experimentDatasetId:
     "NULLIF(any(e.experiment_dataset_id), '') AS experiment_dataset_id",
   startTime: "min(e.start_time) AS start_time",
-  itemCount: "uniq(e.experiment_item_id) AS item_count",
+  itemCount: "COUNT(DISTINCT e.experiment_item_id) AS item_count",
   // Distinct items that carry any ERROR event, so the number matches the
   // items-view Status=ERROR list the badge opens.
-  errorCount: "uniqIf(e.experiment_item_id, e.level = 'ERROR') AS error_count",
+  errorCount:
+    "COUNT(DISTINCT CASE WHEN e.level = 'ERROR' THEN e.experiment_item_id ELSE NULL END) AS error_count",
   prompts:
-    "groupUniqArrayIf(tuple(e.prompt_name, e.prompt_version), e.prompt_name != '') AS prompts",
+    "GROUP_CONCAT(DISTINCT CASE WHEN e.prompt_name != '' THEN JSON_ARRAY(e.prompt_name, e.prompt_version) ELSE NULL END) AS prompts",
   experimentMetadata:
     "any(mapFromArrays(e.experiment_metadata_names, e.experiment_metadata_values)) AS experiment_metadata",
 
   // Metrics fields
   totalCost: "SUM(e.total_cost) AS total_cost",
   latencyAvg:
-    "avgIf(TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) / 1000, e.span_id = e.experiment_item_root_span_id AND e.end_time IS NOT NULL) AS latency_avg",
+    "AVG(CASE WHEN e.span_id = e.experiment_item_root_span_id AND e.end_time IS NOT NULL THEN TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) / 1000 ELSE NULL END) AS latency_avg",
 } as const;
 
 /**

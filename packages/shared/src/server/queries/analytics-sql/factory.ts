@@ -293,6 +293,7 @@ export function getProjectIdDefaultFilter(
         field: "project_id",
         operator: "=",
         value: projectId,
+        tablePrefix: "s",
       }),
     ]),
     observationsFilter: new FilterList([

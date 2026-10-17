@@ -83,7 +83,7 @@ export const tracesTableUiColumnDefinitions: UiColumnMappings = [
     uiTableName: "Rule ID",
     uiTableId: "ruleId",
     analyticsTableName: "traces",
-    analyticsSelect: `if(notEmpty(t.metadata['${EvalExecutionMetadataKey.EVALUATION_RULE_ID}']), t.metadata['${EvalExecutionMetadataKey.EVALUATION_RULE_ID}'], t.metadata['${EvalExecutionMetadataKey.JOB_CONFIGURATION_ID}'])`,
+    analyticsSelect: `COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(t.metadata, '$.${EvalExecutionMetadataKey.EVALUATION_RULE_ID}')), ''), JSON_UNQUOTE(JSON_EXTRACT(t.metadata, '$.${EvalExecutionMetadataKey.JOB_CONFIGURATION_ID}')))`,
   },
   {
     uiTableName: "Version",
@@ -170,7 +170,7 @@ export const tracesTableUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "totalTokens",
     analyticsTableName: "observations",
     analyticsSelect:
-      "if(mapExists((k, v) -> (k = 'total'), o.usage_details), o.usage_details['total'], NULL)",
+      "IF(JSON_EXTRACT(o.usage_details, '$.total') IS NOT NULL, JSON_EXTRACT(o.usage_details, '$.total'), NULL)",
     analyticsTypeOverwrite: "Decimal64(3)",
   },
   {
@@ -178,7 +178,7 @@ export const tracesTableUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "tokens",
     analyticsTableName: "observations",
     analyticsSelect:
-      "if(mapExists((k, v) -> (k = 'total'), o.usage_details), o.usage_details['total'], NULL)",
+      "IF(JSON_EXTRACT(o.usage_details, '$.total') IS NOT NULL, JSON_EXTRACT(o.usage_details, '$.total'), NULL)",
     analyticsTypeOverwrite: "Decimal64(3)",
   },
   // Scores column duplicated to allow renaming column name. Will be removed once session storage cache is outdated

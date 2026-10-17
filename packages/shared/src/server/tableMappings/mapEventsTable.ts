@@ -90,7 +90,7 @@ export const eventsTableNativeUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "timeToFirstToken",
     analyticsTableName: "events_proto",
     analyticsSelect:
-      "if(isNull(e.completion_start_time), NULL,  date_diff('millisecond', e.start_time, e.completion_start_time) / 1000)",
+      "IF(e.completion_start_time IS NULL, NULL, TIMESTAMPDIFF(MICROSECOND, e.start_time, e.completion_start_time) / 1000000)",
     // If we use the default of Decimal64(12), we cannot filter for more than ~40min due to an overflow
     analyticsTypeOverwrite: "Decimal64(3)",
   },
@@ -99,7 +99,7 @@ export const eventsTableNativeUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "latency",
     analyticsTableName: "events_proto",
     analyticsSelect:
-      "if(isNull(e.end_time), NULL, date_diff('millisecond', e.start_time, e.end_time) / 1000)",
+      "IF(e.end_time IS NULL, NULL, TIMESTAMPDIFF(MICROSECOND, e.start_time, e.end_time) / 1000000)",
     // If we use the default of Decimal64(12), we cannot filter for more than ~40min due to an overflow
     analyticsTypeOverwrite: "Decimal64(3)",
   },
@@ -108,7 +108,7 @@ export const eventsTableNativeUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "tokensPerSecond",
     analyticsTableName: "events_proto",
     analyticsSelect:
-      "(arraySum(mapValues(mapFilter(x -> positionCaseInsensitive(x.1, 'output') > 0, usage_details))) / (date_diff('millisecond', start_time, end_time) / 1000))",
+      "(JSON_EXTRACT(usage_details, '$.output') / (TIMESTAMPDIFF(MICROSECOND, start_time, end_time) / 1000000))",
   },
   {
     uiTableName: "Input Cost ($)",
@@ -135,7 +135,7 @@ export const eventsTableNativeUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "totalCost",
     analyticsTableName: "events_proto",
     analyticsSelect:
-      "if(mapExists((k, v) -> (k = 'total'), cost_details), cost_details['total'], NULL)",
+      "IF(JSON_EXTRACT(cost_details, '$.total') IS NOT NULL, JSON_EXTRACT(cost_details, '$.total'), NULL)",
   },
   {
     uiTableName: "Status",
@@ -197,7 +197,7 @@ export const eventsTableNativeUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "totalTokens",
     analyticsTableName: "events_proto",
     analyticsSelect:
-      "if(mapExists((k, v) -> (k = 'total'), usage_details), usage_details['total'], NULL)",
+      "IF(JSON_EXTRACT(usage_details, '$.total') IS NOT NULL, JSON_EXTRACT(usage_details, '$.total'), NULL)",
     analyticsTypeOverwrite: "Decimal64(3)",
   },
   {
@@ -205,7 +205,7 @@ export const eventsTableNativeUiColumnDefinitions: UiColumnMappings = [
     uiTableId: "tokens",
     analyticsTableName: "events_proto",
     analyticsSelect:
-      "if(mapExists((k, v) -> (k = 'total'), usage_details), usage_details['total'], NULL)",
+      "IF(JSON_EXTRACT(usage_details, '$.total') IS NOT NULL, JSON_EXTRACT(usage_details, '$.total'), NULL)",
     analyticsTypeOverwrite: "Decimal64(3)",
   },
   {

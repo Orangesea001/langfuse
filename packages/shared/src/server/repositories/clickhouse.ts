@@ -17,6 +17,7 @@ import {
 } from "../mysql/queryExecutor.js";
 import {
   translateQuery,
+  quoteReservedWords,
   parseAnalyticsUTCDateTimeFormat as parseDate,
 } from "../mysql/sqlTranslator.js";
 import { logger } from "../logger";
@@ -92,16 +93,18 @@ export type ClickhouseQueryOpts = {
 export async function queryAnalytics<T>(
   opts: ClickhouseQueryOpts,
 ): Promise<T[]> {
+  const transformedQuery = quoteReservedWords(opts.query ?? "");
   try {
     return await queryMySql<T>({
-      query: opts.query,
+      query: transformedQuery,
       params: opts.params,
       tags: opts.tags,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error("MySQL query error (queryAnalytics)", err, {
-      query: opts.query?.substring(0, 200),
+      originalQuery: opts.query?.substring(0, 500),
+      transformedQuery: transformedQuery?.substring(0, 500),
     });
     throw err;
   }

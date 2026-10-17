@@ -49,8 +49,39 @@ export async function queryMySql<T>(opts: MySqlQueryOpts): Promise<T[]> {
       }
 
       const pool = getMySqlPool();
-      const [rows] = await pool.query<RowDataPacket[]>(sql, params);
-      return rows as unknown as T[];
+      try {
+        const [rows] = await pool.query<RowDataPacket[]>(sql, params);
+        return rows as unknown as T[];
+      } catch (queryErr) {
+        logger.error(
+          "MySQL query execution error",
+          queryErr instanceof Error ? queryErr : new Error(String(queryErr)),
+          {
+            sql: sql.substring(0, 1000),
+            paramsCount: params.length,
+          },
+        );
+        // Write SQL error to file for debugging
+        try {
+          const fs = require("fs");
+          fs.appendFileSync(
+            "/tmp/mysql_query_errors.log",
+            new Date().toISOString() +
+              "\n" +
+              (queryErr instanceof Error
+                ? queryErr.message
+                : String(queryErr)) +
+              "\n" +
+              "SQL: " +
+              sql.substring(0, 2000) +
+              "\n" +
+              "Params: [" +
+              params.length +
+              " items]\n---\n",
+          );
+        } catch {}
+        throw queryErr;
+      }
     },
   );
 }

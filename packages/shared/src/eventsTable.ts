@@ -8,7 +8,7 @@ export const eventsTableIsRootObservationSqlForAlias = (alias: string) => {
 export const eventsTableIsRootObservationSql =
   eventsTableIsRootObservationSqlForAlias("e");
 export const eventsTableTraceNameSqlForAlias = (alias: string) =>
-  `COALESCE(nullIf(${alias}.trace_name, ''), if(${eventsTableIsRootObservationSqlForAlias(alias)}, nullIf(${alias}.name, ''), NULL))`;
+  `COALESCE(NULLIF(${alias}.trace_name, ''), IF(${eventsTableIsRootObservationSqlForAlias(alias)}, NULLIF(${alias}.name, ''), NULL))`;
 export const eventsTableTraceNameSql = eventsTableTraceNameSqlForAlias("e");
 // Row-projection variant. The fallback above is Nullable(String), but
 // events_core.trace_name is a non-null String. Projecting the nullable
@@ -19,7 +19,7 @@ export const eventsTableTraceNameSql = eventsTableTraceNameSqlForAlias("e");
 // keeps the alias — an export/stream wire name — stable. "no trace name" is
 // therefore '' on the wire; JS consumers map it back to null.
 export const eventsTableTraceNameSelectSqlForAlias = (alias: string) =>
-  `ifNull(${eventsTableTraceNameSqlForAlias(alias)}, '')`;
+  `IFNULL(${eventsTableTraceNameSqlForAlias(alias)}, '')`;
 export const eventsTableTraceNameSelectSql =
   eventsTableTraceNameSelectSqlForAlias("e");
 /**
@@ -37,7 +37,7 @@ export const normalizeEventsTraceName = (
   traceName: string | null | undefined,
 ): string | null => traceName || null;
 export const eventsTableTraceNameAggregationSqlForAlias = (alias: string) =>
-  `COALESCE(nullIf(argMaxIf(${alias}.trace_name, ${alias}.event_ts, ${alias}.trace_name <> ''), ''), nullIf(argMaxIf(${alias}.name, ${alias}.event_ts, ${eventsTableIsRootObservationSqlForAlias(alias)} AND ${alias}.name <> ''), ''))`;
+  `COALESCE(NULLIF(MAX(CASE WHEN ${alias}.trace_name <> '' THEN ${alias}.trace_name ELSE NULL END), ''), NULLIF(MAX(CASE WHEN ${eventsTableIsRootObservationSqlForAlias(alias)} AND ${alias}.name <> '' THEN ${alias}.name ELSE NULL END), ''))`;
 export const eventsTableTraceNameAggregationSql =
   eventsTableTraceNameAggregationSqlForAlias("e");
 

@@ -657,7 +657,7 @@ export const getObservationsWithPromptNameFromEvents = async (
   }: { fromTimestamp?: Date; toTimestamp?: Date } = {},
 ) => {
   const query = `
-  SELECT uniq(span_id) as count, prompt_name
+  SELECT COUNT(DISTINCT span_id) as count, prompt_name
   FROM events_core
   WHERE project_id = {projectId: String}
   AND prompt_name IN ({promptNames: Array(String)})
@@ -3027,7 +3027,7 @@ export const getUsersFromEventsTable = async (
   const queryBuilder = new EventsAggQueryBuilder({
     projectId,
     groupByColumn: "e.user_id",
-    selectExpression: "e.user_id as user, uniq(e.trace_id) as count",
+    selectExpression: "e.user_id as user, COUNT(DISTINCT e.trace_id) as count",
   })
     .where(appliedEventsFilter)
     .whereRaw("e.user_id IS NOT NULL AND length(e.user_id) > 0")
@@ -3068,7 +3068,7 @@ export const getUsersCountFromEventsTable = async (
     : "";
 
   const query = `
-    SELECT uniq(e.user_id) AS totalCount
+    SELECT COUNT(DISTINCT e.user_id) AS totalCount
     FROM events_core e
     WHERE e.project_id = {projectId: String}
     AND e.user_id IS NOT NULL
