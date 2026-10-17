@@ -1,8 +1,8 @@
 import { readFileSync } from "fs";
 import path from "path";
 import { prisma } from "../../../src/db";
-import { clickhouseClient } from "../../../src/server";
-import { ClickHouseQueryBuilder } from "../utils/clickhouse-builder";
+import { analyticsClient } from "../../../src/server";
+import { AnalyticsQueryBuilder } from "../utils/analytics-builder";
 import {
   ScenarioContext,
   ScenarioDefinition,
@@ -16,7 +16,7 @@ const SESSION_POOL_SIZE = 100;
 
 /**
  * Loads the bundled large fixtures, sliced exactly like SeederOrchestrator so
- * the inline INSERT ... SELECT FROM numbers() SQL stays under ClickHouse's
+ * the inline INSERT ... SELECT FROM numbers() SQL stays under Analytics's
  * max_query_size.
  */
 const loadFileContent = () => {
@@ -70,7 +70,7 @@ const run = async (
     );
   }
 
-  const builder = new ClickHouseQueryBuilder();
+  const builder = new AnalyticsQueryBuilder();
   const fileContent = richPayloads ? loadFileContent() : undefined;
   const counts: Record<string, number> = {
     sessions: SESSION_POOL_SIZE,
@@ -83,7 +83,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "many-traces",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -170,9 +170,9 @@ const run = async (
   });
 
   for (const query of queries) {
-    await clickhouseClient().command({
+    await analyticsClient().command({
       query,
-      clickhouse_settings: { wait_end_of_query: 1 },
+      analytics_settings: { wait_end_of_query: 1 },
     });
   }
 
@@ -225,7 +225,7 @@ const run = async (
 
   return {
     scenario: "many-traces",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,
@@ -245,7 +245,7 @@ const run = async (
 export const manyTracesScenario: ScenarioDefinition = {
   name: "many-traces",
   description:
-    "Bulk traces/observations/scores for trace-list and filter performance work: ClickHouse numbers() SQL, fast even for 100k+ traces, deterministic ids so re-runs do not duplicate.",
+    "Bulk traces/observations/scores for trace-list and filter performance work: Analytics numbers() SQL, fast even for 100k+ traces, deterministic ids so re-runs do not duplicate.",
   supportsV4: false,
   flags: [
     {

@@ -234,7 +234,7 @@ const run = async (
   const withV4 = params.v4 === true;
   const traceId = `${ctx.idPrefix}-t0`;
   // Anchored on today's UTC midnight, never the wall clock: these land in
-  // ClickHouse ORDER BY keys and a re-run must overwrite in place.
+  // Analytics ORDER BY keys and a re-run must overwrite in place.
   const traceTimestamp = utcDayStartMs() - 30 * 60 * 1000;
 
   const generationPlan = [
@@ -257,7 +257,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "custom-models",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -436,7 +436,7 @@ const run = async (
 
   return {
     scenario: "custom-models",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

@@ -175,7 +175,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "agent-timeline",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -382,7 +382,7 @@ const run = async (
 
   return {
     scenario: "agent-timeline",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

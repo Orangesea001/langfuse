@@ -882,7 +882,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "timeline-shapes",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -1055,7 +1055,7 @@ const run = async (
 
   return {
     scenario: "timeline-shapes",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

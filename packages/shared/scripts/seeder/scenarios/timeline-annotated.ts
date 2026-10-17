@@ -244,7 +244,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "timeline-annotated",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -375,7 +375,7 @@ const run = async (
     ]);
   }
 
-  // Comments live in Postgres, not ClickHouse — the timeline reads a count per
+  // Comments live in Postgres, not Analytics — the timeline reads a count per
   // observation, so what matters here is how MANY hang off a row.
   const comments = SPANS.flatMap((span) =>
     Array.from({ length: span.comments ?? 0 }, (_, index) => ({
@@ -415,13 +415,13 @@ const run = async (
   if (verified.observations < observations.length) {
     throw new SeedError(
       `wrote ${observations.length} observations, read back ${verified.observations}`,
-      "re-run; if it persists, check the ClickHouse the CLI is pointed at",
+      "re-run; if it persists, check the Analytics the CLI is pointed at",
     );
   }
 
   return {
     scenario: "timeline-annotated",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

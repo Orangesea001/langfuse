@@ -80,7 +80,7 @@ const run = async (
       utcDayStartMs() - windowMinutes * 60 * 1000 + jitter(ctx.seed, 0, 500);
     return {
       scenario: "long-session",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -121,7 +121,7 @@ const run = async (
 
   for (let t = 0; t < traceCount; t++) {
     const traceId = `${ctx.idPrefix}-t${t}`;
-    // jitter() not rng: these timestamps land in ClickHouse ORDER BY keys
+    // jitter() not rng: these timestamps land in Analytics ORDER BY keys
     // (events_full start_time); stream-position randomness would re-key rows
     // when unrelated flags change between re-runs with the same id prefix.
     const timestamp =
@@ -430,7 +430,7 @@ const run = async (
 
   return {
     scenario: "long-session",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

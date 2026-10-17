@@ -11,18 +11,18 @@ import {
   createObservationsCh,
   createScoresCh,
 } from "../../../src/server";
-// InsertResult from @clickhouse/client removed (MySQL backend)
+// InsertResult from @analytics/client removed (MySQL backend)
 type InsertResult = unknown;
 
 /**
- * Builds or executes ClickHouse SQL INSERT queries for seeding test data.
+ * Builds or executes Analytics SQL INSERT queries for seeding test data.
  *
  * Use executeXxxInsert() for custom curated data with detailed control.
  * Use buildBulkXxxInsert() for large datasets (>1000 items) for random distribution of data.
  */
-export class ClickHouseQueryBuilder {
+export class AnalyticsQueryBuilder {
   private escapeString(str: string): string {
-    // Backslashes first: ClickHouse treats them as escape sequences inside
+    // Backslashes first: Analytics treats them as escape sequences inside
     // single-quoted literals, so unescaped ones corrupt the stored value or
     // break the statement (e.g. a JSON fixture's \" or an --id-prefix 'a\').
     return str.replace(/\\/g, "\\\\").replace(/'/g, "''");
@@ -84,7 +84,7 @@ export class ClickHouseQueryBuilder {
   }
 
   /**
-   * Creates INSERT using ClickHouse numbers() function.
+   * Creates INSERT using Analytics numbers() function.
    * Use for: Large datasets (>1000 traces), realistic timestamps, bulk generation.
    */
   buildBulkTracesInsert(
@@ -121,7 +121,7 @@ export class ClickHouseQueryBuilder {
     const seedSalt = (opts.seed ?? 0) >>> 0;
 
     // Timestamps derive from `number` and anchor to midnight UTC (computed
-    // in TS, independent of the ClickHouse server timezone) so same-day
+    // in TS, independent of the Analytics server timezone) so same-day
     // re-runs produce identical ORDER BY tuples (toDate(timestamp) is a
     // sorting key) and ReplacingMergeTree dedups instead of duplicating.
     // NOTE: the INSERT relies on positional column order — keep the SELECT

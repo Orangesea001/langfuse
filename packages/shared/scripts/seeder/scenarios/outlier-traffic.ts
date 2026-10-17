@@ -131,7 +131,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "outlier-traffic",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -178,7 +178,7 @@ const run = async (
       const traceId = `${ctx.idPrefix}-d${d}-t${i}`;
 
       const hour = diurnalHour(ctx.seed, g * 7 + 1);
-      // jitter() not rng: these land in ClickHouse ORDER BY keys (start_time);
+      // jitter() not rng: these land in Analytics ORDER BY keys (start_time);
       // see the seeder rules on stream-position randomness.
       const timestamp =
         dayStart + hour * 3_600_000 + jitter(ctx.seed, g * 13 + 2, 3_599_000);
@@ -404,7 +404,7 @@ const run = async (
 
   return {
     scenario: "outlier-traffic",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

@@ -114,7 +114,7 @@ const run = async (
   const withV4 = params.v4 === true;
 
   // Anchor on utcDayStartMs() (today's UTC midnight), NOT Date.now(): these
-  // timestamps land in ClickHouse ORDER BY keys, and the seeder contract
+  // timestamps land in Analytics ORDER BY keys, and the seeder contract
   // requires them to be deterministic so re-runs with the same flags overwrite
   // in place (a wall-clock anchor would shift every row and duplicate under
   // ReplacingMergeTree). The window spans the 6h before midnight; jitter()
@@ -131,7 +131,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "scored-traces",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -506,7 +506,7 @@ const run = async (
 
   return {
     scenario: "scored-traces",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

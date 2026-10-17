@@ -657,7 +657,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "support-agent",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -714,7 +714,7 @@ const run = async (
     const inputCost = prices ? usageInput * prices.input : 0;
     const outputCost = prices ? usageOutput * prices.output : 0;
 
-    // Direct ClickHouse writes bypass ingestion, so run the same tool
+    // Direct Analytics writes bypass ingestion, so run the same tool
     // extraction the ingestion pipeline applies — otherwise the tool_calls /
     // tool_call_names columns (dashboard tool-call measures) stay empty even
     // though the generation outputs contain OpenAI-style tool_calls.
@@ -856,7 +856,7 @@ const run = async (
 
   return {
     scenario: "support-agent",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

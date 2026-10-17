@@ -11,7 +11,7 @@ export const utcDayStartMs = (): number =>
   Math.floor(Date.now() / 86_400_000) * 86_400_000;
 
 /**
- * Stateless per-index jitter for values that land in ClickHouse ORDER BY
+ * Stateless per-index jitter for values that land in Analytics ORDER BY
  * keys (e.g. event start_time). Unlike Rng, the result depends only on
  * (seed, index) — not on how much of the rng stream earlier code consumed —
  * so changing unrelated flags (payload size, observation count) does not

@@ -842,7 +842,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "session-shapes",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -983,7 +983,7 @@ const run = async (
 
   return {
     scenario: "session-shapes",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

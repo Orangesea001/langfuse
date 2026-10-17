@@ -111,7 +111,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "session-variety",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -148,7 +148,7 @@ const run = async (
     const sessionId = sessionIds[s];
     const environment = environments[s % environments.length];
 
-    // jitter() not rng for anything landing in a ClickHouse ORDER BY key:
+    // jitter() not rng for anything landing in a Analytics ORDER BY key:
     // stream-position randomness re-keys rows when an unrelated flag changes
     // how much rng earlier code consumed.
     const sessionStart =
@@ -413,7 +413,7 @@ const run = async (
   }
 
   // Re-runs with the same id prefix would otherwise stack duplicate comments;
-  // ClickHouse rows dedupe by id, Postgres comments do not.
+  // Analytics rows dedupe by id, Postgres comments do not.
   await prisma.comment.deleteMany({
     where: {
       projectId: ctx.projectId,
@@ -493,7 +493,7 @@ const run = async (
 
   return {
     scenario: "session-variety",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

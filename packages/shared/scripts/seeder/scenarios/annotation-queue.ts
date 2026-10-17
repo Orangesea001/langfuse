@@ -198,7 +198,7 @@ const run = async (
   if (ctx.dryRun) {
     return {
       scenario: "annotation-queue",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -294,7 +294,7 @@ const run = async (
   });
   edgeQueueId = edgeQueue.id;
 
-  // --- 3. ClickHouse rows + queue items -----------------------------------
+  // --- 3. Analytics rows + queue items -----------------------------------
   const traces: TraceRecordInsertType[] = [];
   const observations: ObservationRecordInsertType[] = [];
   const scores: ScoreRecordInsertType[] = [];
@@ -588,7 +588,7 @@ const run = async (
     });
   }
 
-  // --- 5. Persist ClickHouse rows -----------------------------------------
+  // --- 5. Persist Analytics rows -----------------------------------------
   ctx.log(
     `writing ${CONFIG_DEFS.length} score configs, 2 queues, ${items.length} items, ${traces.length} traces, ${observations.length} observations, ${scores.length} scores${withV4 ? `, ${events.length} events` : ""}`,
   );
@@ -640,7 +640,7 @@ const run = async (
 
   return {
     scenario: "annotation-queue",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

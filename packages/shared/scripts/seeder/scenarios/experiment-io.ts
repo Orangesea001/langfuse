@@ -222,7 +222,7 @@ export const experimentIoScenario: ScenarioDefinition = {
 
     return {
       scenario: "experiment-io",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,

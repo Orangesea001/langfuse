@@ -1,5 +1,5 @@
 import { prisma } from "../../src/db";
-import { clickhouseClient, redis } from "../../src/server";
+import { analyticsClient, redis } from "../../src/server";
 import { SeedError } from "./scenarios/types";
 
 type CheckStatus = "pass" | "warn" | "fail";
@@ -46,9 +46,9 @@ const checkEnvFile = (): CheckResult => {
   // (matches the bootstrap precheck in ../cli.ts)
   const missing = [
     "DATABASE_URL",
-    "CLICKHOUSE_URL",
-    "CLICKHOUSE_USER",
-    "CLICKHOUSE_PASSWORD",
+    "ANALYTICS_URL",
+    "ANALYTICS_USER",
+    "ANALYTICS_PASSWORD",
   ].filter((name) => process.env[name] === undefined);
   return missing.length === 0
     ? { name: "env", status: "pass", detail: "required env vars present" }
@@ -139,7 +139,7 @@ const checkProject = async (projectId: string): Promise<CheckResult> => {
 
 const fetchClickhouseTables = async (): Promise<Set<string>> => {
   const result = await withTimeout(
-    clickhouseClient().query({
+    analyticsClient().query({
       query: `SELECT name FROM system.tables WHERE database = currentDatabase() AND name IN ('traces', 'observations', 'scores', 'events_full', 'events_core')`,
       format: "JSONEachRow",
     }),
@@ -159,22 +159,22 @@ const checkClickhouse = async (): Promise<{
     tables = await fetchClickhouseTables();
   } catch (error) {
     const fail: CheckResult = {
-      name: "clickhouse",
+      name: "analytics",
       status: "fail",
-      detail: `cannot reach ClickHouse: ${(error as Error).message}`,
+      detail: `cannot reach Analytics: ${(error as Error).message}`,
       fix: FIX.infraUp,
     };
     return {
       connectivity: fail,
       legacyTables: {
-        name: "clickhouse-tables",
+        name: "analytics-tables",
         status: "fail",
         detail: "skipped (no connection)",
-        // migration commands need a reachable ClickHouse; fix the root cause
+        // migration commands need a reachable Analytics; fix the root cause
         fix: FIX.infraUp,
       },
       v4Tables: {
-        name: "clickhouse-v4-tables",
+        name: "analytics-v4-tables",
         status: "warn",
         detail: "skipped (no connection)",
         fix: FIX.infraUp,
@@ -190,16 +190,16 @@ const checkClickhouse = async (): Promise<{
   );
 
   return {
-    connectivity: { name: "clickhouse", status: "pass", detail: "reachable" },
+    connectivity: { name: "analytics", status: "pass", detail: "reachable" },
     legacyTables:
       legacyMissing.length === 0
         ? {
-            name: "clickhouse-tables",
+            name: "analytics-tables",
             status: "pass",
             detail: "traces/observations/scores present",
           }
         : {
-            name: "clickhouse-tables",
+            name: "analytics-tables",
             status: "fail",
             detail: `missing tables: ${legacyMissing.join(", ")} — migrations not applied`,
             fix: FIX.chMigrate,
@@ -207,12 +207,12 @@ const checkClickhouse = async (): Promise<{
     v4Tables:
       v4Missing.length === 0
         ? {
-            name: "clickhouse-v4-tables",
+            name: "analytics-v4-tables",
             status: "pass",
             detail: "events_full/events_core present",
           }
         : {
-            name: "clickhouse-v4-tables",
+            name: "analytics-v4-tables",
             status: "warn",
             detail: `missing v4 dev tables: ${v4Missing.join(", ")} — --v4 scenarios unavailable`,
             fix: FIX.chDevTables,
@@ -223,7 +223,7 @@ const checkClickhouse = async (): Promise<{
 const checkClickhouseMemory = async (): Promise<CheckResult> => {
   try {
     const result = await withTimeout(
-      clickhouseClient().query({
+      analyticsClient().query({
         query: `SELECT
           anyIf(value, metric = 'MemoryResident') AS resident,
           greatest(anyIf(value, metric = 'CGroupMemoryTotal'), anyIf(value, metric = 'OSMemoryTotal')) AS total
@@ -238,7 +238,7 @@ const checkClickhouseMemory = async (): Promise<CheckResult> => {
     const total = Number(rows[0]?.total ?? 0);
     if (total <= 0) {
       return {
-        name: "clickhouse-memory",
+        name: "analytics-memory",
         status: "pass",
         detail: "memory metrics unavailable (skipped)",
       };
@@ -248,16 +248,16 @@ const checkClickhouseMemory = async (): Promise<CheckResult> => {
     // Long-running local servers accumulate memory and large seeds then die
     // with MEMORY_LIMIT_EXCEEDED even though connectivity checks pass.
     return ratio < 0.7
-      ? { name: "clickhouse-memory", status: "pass", detail: summary }
+      ? { name: "analytics-memory", status: "pass", detail: summary }
       : {
-          name: "clickhouse-memory",
+          name: "analytics-memory",
           status: "warn",
           detail: `${summary} — large seeds may hit MEMORY_LIMIT_EXCEEDED`,
-          fix: "docker restart langfuse-clickhouse  (frees memory; data persists on the volume)",
+          fix: "docker restart langfuse-analytics  (frees memory; data persists on the volume)",
         };
   } catch {
     return {
-      name: "clickhouse-memory",
+      name: "analytics-memory",
       status: "pass",
       detail: "memory metrics unavailable (skipped)",
     };
@@ -343,8 +343,8 @@ export const runDoctor = async (
     postgres,
     migrations,
     project,
-    clickhouse,
-    clickhouseMemory,
+    analytics,
+    analyticsMemory,
     redisCheck,
     minio,
     web,
@@ -369,10 +369,10 @@ export const runDoctor = async (
     postgres,
     migrations,
     project,
-    clickhouse.connectivity,
-    clickhouse.legacyTables,
-    clickhouse.v4Tables,
-    clickhouseMemory,
+    analytics.connectivity,
+    analytics.legacyTables,
+    analytics.v4Tables,
+    analyticsMemory,
     redisCheck,
     minio,
     web,
@@ -394,7 +394,7 @@ export const preflight = async (opts: {
     throw new SeedError(env.detail, env.fix);
   }
 
-  const [postgres, project, clickhouse] = await Promise.all([
+  const [postgres, project, analytics] = await Promise.all([
     checkPostgres(),
     checkProject(opts.projectId),
     checkClickhouse(),
@@ -403,16 +403,16 @@ export const preflight = async (opts: {
   const required: CheckResult[] = [
     postgres,
     project,
-    clickhouse.connectivity,
-    clickhouse.legacyTables,
+    analytics.connectivity,
+    analytics.legacyTables,
   ];
   if (opts.needV4) {
     required.push({
-      ...clickhouse.v4Tables,
+      ...analytics.v4Tables,
       status:
-        clickhouse.v4Tables.status === "warn"
+        analytics.v4Tables.status === "warn"
           ? "fail"
-          : clickhouse.v4Tables.status,
+          : analytics.v4Tables.status,
     });
   }
 
@@ -423,5 +423,5 @@ export const preflight = async (opts: {
       failed.fix,
     );
   }
-  opts.log("preflight ok (postgres, project, clickhouse)");
+  opts.log("preflight ok (postgres, project, analytics)");
 };

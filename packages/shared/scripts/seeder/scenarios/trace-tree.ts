@@ -224,7 +224,7 @@ const run = async (
     // counts are derivable from the flags — skip payload/array generation
     return {
       scenario: "trace-tree",
-      target: "clickhouse",
+      target: "analytics",
       params,
       projectId: ctx.projectId,
       environment: ctx.environment,
@@ -680,7 +680,7 @@ const run = async (
 
   return {
     scenario: "trace-tree",
-    target: "clickhouse",
+    target: "analytics",
     params,
     projectId: ctx.projectId,
     environment: ctx.environment,

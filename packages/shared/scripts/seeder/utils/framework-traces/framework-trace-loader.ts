@@ -11,7 +11,7 @@ import {
 } from "../../../../src/server";
 
 /**
- * Loads framework traces from JSON files and converts them to ClickHouse insert types.
+ * Loads framework traces from JSON files and converts them to Analytics insert types.
  * Expected JSON structure:
  * {
  *   trace: { trace data without observations },

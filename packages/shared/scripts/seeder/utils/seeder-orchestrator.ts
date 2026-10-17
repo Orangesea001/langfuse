@@ -4,7 +4,7 @@ import {
   getTotalObservationsForMode,
 } from "./types";
 import { DataGenerator } from "./data-generators";
-import { ClickHouseQueryBuilder } from "./clickhouse-builder";
+import { AnalyticsQueryBuilder } from "./analytics-builder";
 import { FrameworkTraceLoader } from "./framework-traces/framework-trace-loader";
 import { EVAL_TRACE_COUNT, SEED_DATASETS } from "./postgres-seed-constants";
 import {
@@ -13,7 +13,7 @@ import {
   seedMediaTraces,
 } from "../seed-media";
 import {
-  clickhouseClient,
+  analyticsClient,
   createTrace,
   DatasetRunItemRecordInsertType,
   logger,
@@ -32,7 +32,7 @@ const DATASET_RUN_SCORE_NAMES = [
 ];
 
 /**
- * Orchestrates seeding operations across ClickHouse and PostgreSQL.
+ * Orchestrates seeding operations across Analytics and PostgreSQL.
  *
  * Use createXxxData() for specific data types:
  * - createDatasetExperimentData(): Dataset runs in langfuse-prompt-experiment env
@@ -42,12 +42,12 @@ const DATASET_RUN_SCORE_NAMES = [
  */
 export class SeederOrchestrator {
   private dataGenerator: DataGenerator;
-  private queryBuilder: ClickHouseQueryBuilder;
+  private queryBuilder: AnalyticsQueryBuilder;
   private fileContent: FileContent | null = null;
 
   constructor() {
     this.dataGenerator = DataGenerator.getInstance();
-    this.queryBuilder = new ClickHouseQueryBuilder();
+    this.queryBuilder = new AnalyticsQueryBuilder();
     this.loadFileContent();
   }
 
@@ -359,9 +359,9 @@ export class SeederOrchestrator {
 
   private async executeQuery(query: string): Promise<void> {
     try {
-      await clickhouseClient().command({
+      await analyticsClient().command({
         query,
-        clickhouse_settings: {
+        analytics_settings: {
           wait_end_of_query: 1,
         },
       });
@@ -390,7 +390,7 @@ export class SeederOrchestrator {
           ORDER BY count() desc
         `;
 
-        const result = await clickhouseClient().query({
+        const result = await analyticsClient().query({
           query,
           format: "TabSeparated",
         });

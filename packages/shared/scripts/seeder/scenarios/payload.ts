@@ -202,7 +202,7 @@ const BASE64_ALPHABET =
  */
 const buildBase64Payload = (rng: Rng, targetBytes: number): string => {
   // Random 4KB blocks tiled to size: deterministic via the rng stream, and
-  // varied enough that ClickHouse compression doesn't collapse the payload
+  // varied enough that Analytics compression doesn't collapse the payload
   // into something unrealistically small on disk.
   const blocks: string[] = [];
   const blockCount = Math.ceil(targetBytes / 4096);

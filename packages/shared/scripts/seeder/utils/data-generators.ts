@@ -12,7 +12,7 @@ import {
   REALISTIC_EVALUATOR_NAMES,
   REALISTIC_EMBEDDING_NAMES,
   REALISTIC_GUARDRAIL_NAMES,
-} from "./clickhouse-seed-constants";
+} from "./analytics-seed-constants";
 import {
   generateDatasetItemId,
   generateDatasetRunItemId,

@@ -1,4 +1,4 @@
-import { clickhouseClient } from "../../../src/server";
+import { analyticsClient } from "../../../src/server";
 import { ScenarioContext } from "./types";
 
 /**
@@ -11,7 +11,7 @@ export const countRows = async (
   params: Record<string, string | number | string[]>,
   countExpr = "count()",
 ): Promise<number> => {
-  const result = await clickhouseClient().query({
+  const result = await analyticsClient().query({
     query: `SELECT ${countExpr} AS c FROM ${table} WHERE ${whereSql}`,
     query_params: params,
     format: "JSONEachRow",

@@ -6,7 +6,7 @@
   "files": [
     "dist/**",
     "prisma/**",
-    "clickhouse/**",
+    "analytics-client/**",
     "scripts/cleanup.sql"
   ],
   "main": "./dist/src/index.js",
@@ -31,13 +31,13 @@
       "import": "./dist/src/server/index.js",
       "require": "./dist/src/server/index.js"
     },
-    "./src/server/clickhouse": {
-      "import": "./dist/src/server/clickhouse/index.js",
-      "require": "./dist/src/server/clickhouse/index.js"
+    "./src/server/analytics-client": {
+      "import": "./dist/src/server/analytics-client/index.js",
+      "require": "./dist/src/server/analytics-client/index.js"
     },
-    "./src/server/clickhouse/clickhouseIdentifiers": {
-      "import": "./dist/src/server/clickhouse/clickhouseIdentifiers.js",
-      "require": "./dist/src/server/clickhouse/clickhouseIdentifiers.js"
+    "./src/server/analytics-client/analyticsIdentifiers": {
+      "import": "./dist/src/server/analytics-client/analyticsIdentifiers.js",
+      "require": "./dist/src/server/analytics-client/analyticsIdentifiers.js"
     },
     "./src/server/llm/llmText": {
       "import": "./dist/src/server/llm/llmText.js",
@@ -161,15 +161,15 @@
     "db:generate": "dotenv -e ../../.env -- npx prisma generate --no-hints",
     "db:seed:examples": "dotenv -e ../../.env -- npx prisma db seed -- --environment examples",
     "db:seed:load": "dotenv -e ../../.env -- npx prisma db seed -- --environment load",
-    "ch:migrations:materialize": "node clickhouse/scripts/prepare-migrations.mjs materialize clickhouse/migrations",
-    "ch:migrations:clean": "node clickhouse/scripts/prepare-migrations.mjs clean clickhouse/migrations",
-    "ch:up": "sh clickhouse/scripts/up.sh",
-    "ch:down": "sh clickhouse/scripts/down.sh",
-    "ch:drop": "bash clickhouse/scripts/drop.sh",
-    "ch:dev-tables": "bash clickhouse/scripts/dev-tables.sh",
+    "ch:migrations:materialize": "node analytics-client/scripts/prepare-migrations.mjs materialize analytics-client/migrations",
+    "ch:migrations:clean": "node analytics-client/scripts/prepare-migrations.mjs clean analytics-client/migrations",
+    "ch:up": "sh analytics-client/scripts/up.sh",
+    "ch:down": "sh analytics-client/scripts/down.sh",
+    "ch:drop": "bash analytics-client/scripts/drop.sh",
+    "ch:dev-tables": "bash analytics-client/scripts/dev-tables.sh",
     "ch:reset": "pnpm run ch:down && pnpm run ch:up && pnpm run ch:seed && pnpm run ch:dev-tables",
-    "ch:seed": "dotenv -e ../../.env -- tsx scripts/seeder/seed-clickhouse.ts",
-    "load:setup": "dotenv -e ../../.env -- tsx scripts/seeder/load-seed-clickhouse.ts",
+    "ch:seed": "dotenv -e ../../.env -- tsx scripts/seeder/seed-analytics.ts",
+    "load:setup": "dotenv -e ../../.env -- tsx scripts/seeder/load-seed-analytics.ts",
     "seed:scenario": "dotenv -e ../../.env -- tsx scripts/seeder/cli.ts"
   },
   "prisma": {

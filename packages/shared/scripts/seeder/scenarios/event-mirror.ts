@@ -15,7 +15,7 @@ const sortedMetadata = (metadata: Record<string, string>) => {
 
 /**
  * Mirrors v3 rows into v4 events_full following the canonical v3 -> v4
- * mapping in clickhouse/scripts/dev-tables.sh: one synthetic trace span per
+ * mapping in analytics/scripts/dev-tables.sh: one synthetic trace span per
  * trace (span_id = `t-<traceId>`, parent_span_id = '') carries the trace's
  * name/input/output/metadata — v4 trace-level queries aggregate with
  * `argMaxIf(..., parent_span_id = '')` — and every observation row points at
