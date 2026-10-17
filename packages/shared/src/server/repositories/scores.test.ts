@@ -8,7 +8,7 @@ vi.mock("./analytics", () => ({
   queryAnalyticsExecRaw: vi.fn(),
   commandAnalytics: vi.fn(),
   upsertAnalytics: vi.fn(),
-  parseClickhouseUTCDateTimeFormat: vi.fn(),
+  parseAnalyticsUTCDateTimeFormat: vi.fn(),
   analyticsCompliantRandomCharacters: vi.fn(() => "x"),
   BLOB_EXPORT_PARQUET_CLICKHOUSE_SETTINGS: {},
 }));

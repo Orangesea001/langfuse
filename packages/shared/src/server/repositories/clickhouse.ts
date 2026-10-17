@@ -17,7 +17,7 @@ import {
 } from "../mysql/queryExecutor.js";
 import {
   translateQuery,
-  parseClickhouseUTCDateTimeFormat as parseDate,
+  parseAnalyticsUTCDateTimeFormat as parseDate,
 } from "../mysql/sqlTranslator.js";
 import { logger } from "../logger";
 import { randomUUID } from "crypto";
@@ -258,7 +258,7 @@ export const BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS: AnalyticsSettings = {};
  * Parse datetime string to Date.
  * Preserved for compatibility — works with both CH and MySQL datetime strings.
  */
-export { parseDate as parseClickhouseUTCDateTimeFormat };
+export { parseDate as parseAnalyticsUTCDateTimeFormat };
 
 /**
  * Generate random characters (for unique IDs, etc.).

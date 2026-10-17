@@ -26,7 +26,7 @@ import {
 } from "../tableMappings/mapSessionTable";
 import { sessionsEventsViewCols } from "../../tableDefinitions/sessionsView";
 import { findUiColumnMapping } from "../../tableDefinitions";
-import { parseClickhouseUTCDateTimeFormat } from "../repositories/clickhouse";
+import { parseAnalyticsUTCDateTimeFormat } from "../repositories/clickhouse";
 
 type SessionEventsBaseReturnType = {
   session_id: string;
@@ -104,7 +104,7 @@ export const getSessionTracesFromEvents = async (props: {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp),
     environment: row.environment,
     userId: row.user_id,
     observationCount: Number(row.observation_count),

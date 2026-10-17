@@ -9,7 +9,7 @@ vi.mock("./analytics", () => ({
   commandAnalytics: vi.fn(),
   queryAnalyticsStream: vi.fn(),
   upsertAnalytics: vi.fn(),
-  parseClickhouseUTCDateTimeFormat: vi.fn(),
+  parseAnalyticsUTCDateTimeFormat: vi.fn(),
   // Return unique names per call so filter parameter variables don't collide
   analyticsCompliantRandomCharacters: vi.fn(() => `x${++charCounter}`),
 }));

@@ -28,7 +28,7 @@ import {
   DatasetItemDomainWithoutIO,
   type DatasetItemMediaField,
 } from "../../domain";
-import { parseClickhouseUTCDateTimeFormat, queryAnalytics } from "./clickhouse";
+import { parseAnalyticsUTCDateTimeFormat, queryAnalytics } from "./clickhouse";
 import { postgresSearchCondition } from "../queries";
 import { TracingSearchType } from "../../interfaces/search";
 
@@ -2033,7 +2033,7 @@ export async function getDatasetVersionForRun(params: {
         maxCreatedAtResult[0]?.max_dataset_item_version ?? null;
 
       if (maxDatasetItemVersion) {
-        return parseClickhouseUTCDateTimeFormat(maxDatasetItemVersion);
+        return parseAnalyticsUTCDateTimeFormat(maxDatasetItemVersion);
       }
 
       if (!maxCreatedAt) {
@@ -2042,7 +2042,7 @@ export async function getDatasetVersionForRun(params: {
 
       // dataset item version takes precedence over created_at
       // max_created_at as fallback for experiments that ran before dataset item versioning was introduced
-      const formattedTimestamp = parseClickhouseUTCDateTimeFormat(maxCreatedAt);
+      const formattedTimestamp = parseAnalyticsUTCDateTimeFormat(maxCreatedAt);
       // Step 2: Resolve to dataset version using temporal query (PostgreSQL)
       const result = await prisma.$queryRaw<Array<{ valid_from: Date | null }>>(
         Prisma.sql`

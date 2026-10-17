@@ -86,7 +86,7 @@ import {
 } from "../../domain/observation-field-groups";
 import {
   commandAnalytics,
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   queryAnalytics,
   queryAnalyticsStream,
   queryAnalyticsStreamRawText,
@@ -639,8 +639,8 @@ export const getObservationMetricsForPromptsFromEvents = async (
     count: Number(row.count),
     promptId: row.prompt_id,
     promptVersion: row.prompt_version,
-    firstObservation: parseClickhouseUTCDateTimeFormat(row.first_observation),
-    lastObservation: parseClickhouseUTCDateTimeFormat(row.last_observation),
+    firstObservation: parseAnalyticsUTCDateTimeFormat(row.first_observation),
+    lastObservation: parseAnalyticsUTCDateTimeFormat(row.last_observation),
     medianInputUsage: Number(row.median_input_usage),
     medianOutputUsage: Number(row.median_output_usage),
     medianTotalCost: Number(row.median_total_cost),
@@ -741,7 +741,7 @@ export const getTraceDeleteCursorPageFromEvents = async (props: {
   return rows.map((row) => ({
     id: row.id,
     traceId: row.trace_id,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.start_time).toISOString(),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.start_time).toISOString(),
   }));
 };
 
@@ -1326,7 +1326,7 @@ export const getLastTraceTimestampsByProjectsFromEventsTable = async ({
 
   return rows.map((row) => ({
     projectId: row.project_id,
-    lastTraceAt: parseClickhouseUTCDateTimeFormat(row.last_trace_at),
+    lastTraceAt: parseAnalyticsUTCDateTimeFormat(row.last_trace_at),
   }));
 };
 
@@ -3170,8 +3170,8 @@ export const getUserMetricsFromEventsTable = async (
   return rows.map((row) => ({
     userId: row.user_id,
     environment: row.environment,
-    maxTimestamp: parseClickhouseUTCDateTimeFormat(row.max_timestamp),
-    minTimestamp: parseClickhouseUTCDateTimeFormat(row.min_timestamp),
+    maxTimestamp: parseAnalyticsUTCDateTimeFormat(row.max_timestamp),
+    minTimestamp: parseAnalyticsUTCDateTimeFormat(row.min_timestamp),
     inputUsage: Number(row.input_usage),
     outputUsage: Number(row.output_usage),
     totalUsage: Number(row.total_usage),
@@ -3710,7 +3710,7 @@ export const getRecentEvaluatorExecutionTraces = async (
     id: row.id,
     evaluatorId: row.evaluator_id,
     level: row.level,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp),
   }));
 };
 
@@ -3753,7 +3753,7 @@ export const getRecentRuleExecutionTraces = async (
     id: row.id,
     ruleId: row.evaluation_rule_id,
     level: row.level,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp),
   }));
 };
 
@@ -3946,7 +3946,7 @@ export const getTracesIdentifierForSessionFromEvents = async (
     id: row.id,
     userId: row.user_id,
     name: row.name,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp),
     environment: row.environment,
   }));
 };

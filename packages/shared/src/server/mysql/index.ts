@@ -9,7 +9,7 @@ export {
 } from "./queryExecutor";
 export {
   translateQuery,
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   convertDateToMySqlDateTime,
   type TranslatedQuery,
 } from "./sqlTranslator";

@@ -14,7 +14,7 @@ import {
   StringOptionsFilter,
 } from "../queries";
 import {
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   queryAnalytics,
   type AnalyticsClientConfigOptions,
 } from "./clickhouse";
@@ -192,7 +192,7 @@ const convertDatasetRunsRowsRecord = (
     id: record.dataset_run_id,
     name: record.dataset_run_name,
     projectId: record.project_id,
-    createdAt: parseClickhouseUTCDateTimeFormat(record.dataset_run_created_at),
+    createdAt: parseAnalyticsUTCDateTimeFormat(record.dataset_run_created_at),
     datasetId: record.dataset_id,
     description: record.dataset_run_description,
     metadata: record.dataset_run_metadata,

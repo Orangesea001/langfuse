@@ -24,7 +24,7 @@ import { ScoreAggregate } from "../../features/scores";
 import {
   OBSERVATIONS_TO_TRACE_INTERVAL,
   SCORE_TO_TRACE_OBSERVATIONS_INTERVAL,
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   queryAnalytics,
   reduceUsageOrCostDetails,
 } from "../repositories";
@@ -98,7 +98,7 @@ export const convertToUiTableRows = (
   return {
     id: row.id,
     projectId: row.project_id,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp),
     tags: row.tags,
     bookmarked: row.bookmarked,
     name: row.name ?? null,
@@ -656,7 +656,7 @@ export const getTraceIdentifiers = async (props: {
   return identifiers.map((row) => ({
     id: row.id,
     projectId: row.projectId,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp),
   }));
 };
 
@@ -692,6 +692,6 @@ export const getTraceDeleteCursorPageFromTraces = async (props: {
 
   return identifiers.map((row) => ({
     traceId: row.id,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp).toISOString(),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp).toISOString(),
   }));
 };

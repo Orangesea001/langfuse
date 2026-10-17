@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
 import {
   commandAnalytics,
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   queryAnalytics,
   queryAnalyticsStream,
   queryAnalyticsExecRaw,
@@ -195,7 +195,7 @@ export const checkTraceExistsAndGetTimestamp = async ({
     exists: rows.length > 0,
     timestamp:
       rows.length > 0
-        ? parseClickhouseUTCDateTimeFormat(rows[0].timestamp)
+        ? parseAnalyticsUTCDateTimeFormat(rows[0].timestamp)
         : undefined,
   };
 };
@@ -430,7 +430,7 @@ export const getLastTraceTimestampsByProjectsFromTracesTable = async ({
 
   return rows.map((row) => ({
     projectId: row.project_id,
-    lastTraceAt: parseClickhouseUTCDateTimeFormat(row.last_trace_at),
+    lastTraceAt: parseAnalyticsUTCDateTimeFormat(row.last_trace_at),
   }));
 };
 
@@ -842,7 +842,7 @@ export const getTracesIdentifierForSessionFromTracesTable = async (
     id: row.id,
     userId: row.user_id,
     name: row.name,
-    timestamp: parseClickhouseUTCDateTimeFormat(row.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(row.timestamp),
     environment: row.environment,
   }));
 };
@@ -1183,8 +1183,8 @@ export const getUserMetrics = async (
   return rows.map((row) => ({
     userId: row.user_id,
     environment: row.environment,
-    maxTimestamp: parseClickhouseUTCDateTimeFormat(row.max_timestamp),
-    minTimestamp: parseClickhouseUTCDateTimeFormat(row.min_timestamp),
+    maxTimestamp: parseAnalyticsUTCDateTimeFormat(row.max_timestamp),
+    minTimestamp: parseAnalyticsUTCDateTimeFormat(row.min_timestamp),
     inputUsage: Number(row.input_usage),
     outputUsage: Number(row.output_usage),
     totalUsage: Number(row.total_usage),

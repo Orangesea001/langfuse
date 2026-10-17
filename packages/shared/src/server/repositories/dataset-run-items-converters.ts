@@ -1,7 +1,7 @@
 import { DatasetRunItemDomain } from "../../domain/dataset-run-items";
 import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import { parseMetadataCHRecordToDomain } from "../utils/metadata_conversion";
-import { parseClickhouseUTCDateTimeFormat } from "./clickhouse";
+import { parseAnalyticsUTCDateTimeFormat } from "./clickhouse";
 import {
   DatasetRunItemRecordReadType,
   DatasetRunItemRecord,
@@ -78,15 +78,15 @@ export function convertDatasetRunItemClickhouseToDomain<
     datasetRunId: row.dataset_run_id,
     datasetRunName: row.dataset_run_name,
     datasetRunDescription: row.dataset_run_description ?? null,
-    datasetRunCreatedAt: parseClickhouseUTCDateTimeFormat(
+    datasetRunCreatedAt: parseAnalyticsUTCDateTimeFormat(
       row.dataset_run_created_at,
     ),
     datasetItemId: row.dataset_item_id,
     datasetItemVersion: row.dataset_item_version
-      ? parseClickhouseUTCDateTimeFormat(row.dataset_item_version)
+      ? parseAnalyticsUTCDateTimeFormat(row.dataset_item_version)
       : null,
-    createdAt: parseClickhouseUTCDateTimeFormat(row.created_at),
-    updatedAt: parseClickhouseUTCDateTimeFormat(row.updated_at),
+    createdAt: parseAnalyticsUTCDateTimeFormat(row.created_at),
+    updatedAt: parseAnalyticsUTCDateTimeFormat(row.updated_at),
     datasetId: row.dataset_id,
     error: row.error ?? null,
   };

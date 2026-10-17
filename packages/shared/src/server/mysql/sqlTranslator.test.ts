@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   translateQuery,
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   convertDateToMySqlDateTime,
 } from "./sqlTranslator";
 
@@ -89,19 +89,19 @@ describe("translateQuery", () => {
   });
 });
 
-describe("parseClickhouseUTCDateTimeFormat", () => {
+describe("parseAnalyticsUTCDateTimeFormat", () => {
   it("parses valid datetime string", () => {
-    const result = parseClickhouseUTCDateTimeFormat("2024-01-15 10:30:00");
+    const result = parseAnalyticsUTCDateTimeFormat("2024-01-15 10:30:00");
     expect(result).not.toBeNull();
     expect(result!.toISOString()).toBe("2024-01-15T10:30:00.000Z");
   });
 
   it("returns null for empty string", () => {
-    expect(parseClickhouseUTCDateTimeFormat("")).toEqual(new Date(0));
+    expect(parseAnalyticsUTCDateTimeFormat("")).toEqual(new Date(0));
   });
 
   it("returns null for invalid date", () => {
-    expect(parseClickhouseUTCDateTimeFormat("not-a-date")).toBeInstanceOf(Date);
+    expect(parseAnalyticsUTCDateTimeFormat("not-a-date")).toBeInstanceOf(Date);
   });
 });
 

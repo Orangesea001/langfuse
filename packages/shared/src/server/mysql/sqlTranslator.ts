@@ -58,7 +58,7 @@ export function translateQuery(
  * Parse ClickHouse UTC datetime format string to a Date object.
  * Preserved for compatibility with existing callers.
  */
-export function parseClickhouseUTCDateTimeFormat(dateTimeStr: string): Date {
+export function parseAnalyticsUTCDateTimeFormat(dateTimeStr: string): Date {
   if (!dateTimeStr) return new Date(0);
   const date = new Date(dateTimeStr + "Z");
   return isNaN(date.getTime()) ? new Date(dateTimeStr) : date;

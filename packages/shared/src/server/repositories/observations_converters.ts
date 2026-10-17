@@ -1,4 +1,4 @@
-import { parseClickhouseUTCDateTimeFormat } from "./clickhouse";
+import { parseAnalyticsUTCDateTimeFormat } from "./clickhouse";
 import { normalizeEventsTraceName } from "../../eventsTable";
 import {
   ObservationRecordReadType,
@@ -110,9 +110,9 @@ function ensureObservationCoreFields(
   return {
     id: record.id!,
     traceId: record.trace_id ?? null,
-    startTime: parseClickhouseUTCDateTimeFormat(record.start_time!),
+    startTime: parseAnalyticsUTCDateTimeFormat(record.start_time!),
     endTime: record.end_time
-      ? parseClickhouseUTCDateTimeFormat(record.end_time)
+      ? parseAnalyticsUTCDateTimeFormat(record.end_time)
       : null,
     projectId: record.project_id!,
     parentObservationId: record.parent_observation_id ?? null,
@@ -197,7 +197,7 @@ export function convertObservationPartial(
     ...(record.type !== undefined && { type: record.type as ObservationType }),
     ...(record.end_time !== undefined && {
       endTime: record.end_time
-        ? parseClickhouseUTCDateTimeFormat(record.end_time)
+        ? parseAnalyticsUTCDateTimeFormat(record.end_time)
         : null,
     }),
 
@@ -217,14 +217,14 @@ export function convertObservationPartial(
     // Time fields
     ...(record.completion_start_time !== undefined && {
       completionStartTime: record.completion_start_time
-        ? parseClickhouseUTCDateTimeFormat(record.completion_start_time)
+        ? parseAnalyticsUTCDateTimeFormat(record.completion_start_time)
         : null,
     }),
     ...(record.created_at !== undefined && {
-      createdAt: parseClickhouseUTCDateTimeFormat(record.created_at),
+      createdAt: parseAnalyticsUTCDateTimeFormat(record.created_at),
     }),
     ...(record.updated_at !== undefined && {
-      updatedAt: parseClickhouseUTCDateTimeFormat(record.updated_at),
+      updatedAt: parseAnalyticsUTCDateTimeFormat(record.updated_at),
     }),
 
     // IO fields
@@ -314,8 +314,8 @@ export function convertObservationPartial(
     ...((record.end_time !== undefined || record.start_time !== undefined) && {
       latency:
         record.end_time && record.start_time
-          ? (parseClickhouseUTCDateTimeFormat(record.end_time).getTime() -
-              parseClickhouseUTCDateTimeFormat(record.start_time).getTime()) /
+          ? (parseAnalyticsUTCDateTimeFormat(record.end_time).getTime() -
+              parseAnalyticsUTCDateTimeFormat(record.start_time).getTime()) /
             1000
           : null,
     }),
@@ -323,10 +323,10 @@ export function convertObservationPartial(
       record.start_time !== undefined) && {
       timeToFirstToken:
         record.completion_start_time && record.start_time
-          ? (parseClickhouseUTCDateTimeFormat(
+          ? (parseAnalyticsUTCDateTimeFormat(
               record.completion_start_time,
             ).getTime() -
-              parseClickhouseUTCDateTimeFormat(record.start_time).getTime()) /
+              parseAnalyticsUTCDateTimeFormat(record.start_time).getTime()) /
             1000
           : null,
     }),

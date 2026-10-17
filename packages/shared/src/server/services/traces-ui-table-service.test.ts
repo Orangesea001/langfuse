@@ -8,7 +8,7 @@ vi.mock("../repositories", () => ({
   OBSERVATIONS_TO_TRACE_INTERVAL: "INTERVAL 2 DAY",
   SCORE_TO_TRACE_OBSERVATIONS_INTERVAL: "INTERVAL 1 HOUR",
   analyticsCompliantRandomCharacters: mockClickhouseCompliantRandomCharacters,
-  parseClickhouseUTCDateTimeFormat: (date: string) => new Date(date),
+  parseAnalyticsUTCDateTimeFormat: (date: string) => new Date(date),
   queryAnalytics: mockQueryClickhouse,
   reduceUsageOrCostDetails: (details: Record<string, number>) => details,
 }));

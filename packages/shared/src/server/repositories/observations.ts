@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
 import {
   commandAnalytics,
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   queryAnalytics,
   queryAnalyticsStream,
   queryAnalyticsStreamRawText,
@@ -1482,8 +1482,8 @@ export const getObservationMetricsForPrompts = async (
     count: Number(r.count),
     promptId: r.prompt_id,
     promptVersion: r.prompt_version,
-    firstObservation: parseClickhouseUTCDateTimeFormat(r.first_observation),
-    lastObservation: parseClickhouseUTCDateTimeFormat(r.last_observation),
+    firstObservation: parseAnalyticsUTCDateTimeFormat(r.first_observation),
+    lastObservation: parseAnalyticsUTCDateTimeFormat(r.last_observation),
     medianInputUsage: Number(r.median_input_usage),
     medianOutputUsage: Number(r.median_output_usage),
     medianTotalCost: Number(r.median_total_cost),

@@ -1,4 +1,4 @@
-import { parseClickhouseUTCDateTimeFormat } from "./clickhouse";
+import { parseAnalyticsUTCDateTimeFormat } from "./clickhouse";
 import { TraceRecordExtraFieldsType, TraceRecordReadType } from "./definitions";
 import { convertDateToAnalyticsDateTime } from "../analytics-client/client";
 import { TraceDomain } from "../../domain";
@@ -43,7 +43,7 @@ export const convertClickhouseToDomain = (
     id: record.id,
     projectId: record.project_id,
     name: record.name ?? null,
-    timestamp: parseClickhouseUTCDateTimeFormat(record.timestamp),
+    timestamp: parseAnalyticsUTCDateTimeFormat(record.timestamp),
     environment: record.environment,
     tags: record.tags,
     bookmarked: record.bookmarked,
@@ -55,8 +55,8 @@ export const convertClickhouseToDomain = (
     input: applyInputOutputRendering(record.input, renderingProps),
     output: applyInputOutputRendering(record.output, renderingProps),
     metadata: parseMetadataCHRecordToDomain(record.metadata),
-    createdAt: parseClickhouseUTCDateTimeFormat(record.created_at),
-    updatedAt: parseClickhouseUTCDateTimeFormat(record.updated_at),
+    createdAt: parseAnalyticsUTCDateTimeFormat(record.created_at),
+    updatedAt: parseAnalyticsUTCDateTimeFormat(record.updated_at),
   };
 };
 

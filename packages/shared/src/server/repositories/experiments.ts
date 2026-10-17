@@ -29,7 +29,7 @@ import {
   scoreBooleansAggregation,
 } from "../queries/analytics-sql/query-fragments";
 import {
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   queryAnalytics,
 } from "../repositories/clickhouse";
 import { experimentItemsTableNativeUiColumnDefinitions } from "../tableMappings/mapExperimentItemsTable";
@@ -115,7 +115,7 @@ export const getDatasetExperimentMetricsFromEvents = async (props: {
   return rows.map((row) => ({
     datasetId: row.experiment_dataset_id,
     countDatasetRuns: Number(row.count_dataset_runs),
-    lastRunAt: parseClickhouseUTCDateTimeFormat(row.last_run_at),
+    lastRunAt: parseAnalyticsUTCDateTimeFormat(row.last_run_at),
   }));
 };
 
@@ -339,7 +339,7 @@ export const getExperimentsFromEvents = async (props: {
     errorCount: Number(row.error_count),
     prompts: row.prompts || [],
     metadata: row.experiment_metadata || {},
-    startTime: parseClickhouseUTCDateTimeFormat(row.start_time),
+    startTime: parseAnalyticsUTCDateTimeFormat(row.start_time),
   }));
 };
 
@@ -1321,7 +1321,7 @@ export const getExperimentItemsFromEvents = async (
   const minStartTime = new Date(
     Math.min(
       ...itemIdsResult.map((r) =>
-        parseClickhouseUTCDateTimeFormat(r.start_time).getTime(),
+        parseAnalyticsUTCDateTimeFormat(r.start_time).getTime(),
       ),
     ),
   );
@@ -1380,7 +1380,7 @@ export const getExperimentItemsFromEvents = async (
     const data: ExperimentItemData = {
       experimentId: row.experiment_id,
       level: row.level,
-      startTime: parseClickhouseUTCDateTimeFormat(row.start_time),
+      startTime: parseAnalyticsUTCDateTimeFormat(row.start_time),
       totalCost: row.total_cost !== null ? Number(row.total_cost) : null,
       latencyMs: row.latency_ms !== null ? Number(row.latency_ms) : null,
       observationId: row.observation_id,
@@ -1582,6 +1582,6 @@ export const getExperimentNamesFromEvents = async (props: {
     experimentId: row.experimentId,
     experimentName: row.experimentName,
     datasetId: row.datasetId,
-    startTime: parseClickhouseUTCDateTimeFormat(row.startTime),
+    startTime: parseAnalyticsUTCDateTimeFormat(row.startTime),
   }));
 };

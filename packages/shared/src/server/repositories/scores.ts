@@ -27,7 +27,7 @@ import {
   queryAnalyticsExecRaw,
   BLOB_EXPORT_PARQUET_ANALYTICS_SETTINGS,
   upsertAnalytics,
-  parseClickhouseUTCDateTimeFormat,
+  parseAnalyticsUTCDateTimeFormat,
   analyticsCompliantRandomCharacters,
   type AnalyticsClientConfigOptions,
 } from "./clickhouse";
@@ -3444,7 +3444,7 @@ export async function listScoresV3ForPublicApi(
     const last = pageRecords[pageRecords.length - 1];
     nextCursor = encodeCursorV3({
       v: 1,
-      lastTimestamp: parseClickhouseUTCDateTimeFormat(String(last.timestamp)),
+      lastTimestamp: parseAnalyticsUTCDateTimeFormat(String(last.timestamp)),
       lastId: last.id,
     });
   }
