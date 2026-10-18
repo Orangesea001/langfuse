@@ -5,8 +5,7 @@
 // We wait for 110 seconds to allow the app to finish processing requests. There is no native way to do this in Next.js.
 
 import {
-  ClickHouseClientManager,
-  logger,
+    logger,
   redis,
 } from "@langfuse/shared/src/server";
 import { prisma } from "@langfuse/shared/src/db";
@@ -47,7 +46,7 @@ export const drainAndClose = (): Promise<void> => {
     setTimeout(async () => {
       RateLimitService.shutdown();
 
-      await ClickHouseClientManager.getInstance().closeAllConnections();
+      await /* ClickHouseClientManager */ Object.getInstance().closeAllConnections();
 
       logger.info(`Redis status ${redis?.status}`);
       if (redis && redis.status !== "end") {

@@ -10,10 +10,10 @@ import { InvalidRequestError } from "../errors";
 const operatorReplacements = {
   "any of": "IN",
   "none of": "NOT IN",
-  contains: "ILIKE",
-  "does not contain": "NOT ILIKE",
-  "starts with": "ILIKE",
-  "ends with": "ILIKE",
+  contains: "LIKE",
+  "does not contain": "NOT LIKE",
+  "starts with": "LIKE",
+  "ends with": "LIKE",
 };
 
 const arrayOperatorReplacements = {
@@ -87,7 +87,7 @@ export function tableColumnsToSqlFilter(
     let valuePrisma: Prisma.Sql;
     switch (filter.type) {
       case "datetime":
-        valuePrisma = Prisma.sql`${filter.value}::timestamp with time zone at time zone 'UTC'`;
+        valuePrisma = Prisma.sql`${filter.value}`;
         break;
       case "number":
       case "numberObject":
@@ -135,7 +135,7 @@ export function tableColumnsToSqlFilter(
     ) {
       // Key presence, mirroring the ClickHouse `has`/`mapContains` semantics.
       // COALESCE handles a NULL column (no metadata at all) as "key absent".
-      const keyExists = Prisma.sql`COALESCE(jsonb_exists(${filterAndColumn.internalColumn}::jsonb, ${filter.key}), false)`;
+      const keyExists = Prisma.sql`COALESCE(JSON_CONTAINS(${filterAndColumn.internalColumn}, ${filter.key}), false)`;
       return filter.operator === "is set"
         ? keyExists
         : Prisma.sql`NOT ${keyExists}`;
@@ -209,7 +209,7 @@ export const datetimeFilterToPrismaSql = (
 
   return Prisma.sql`AND ${Prisma.raw(safeColumn)} ${Prisma.raw(
     operator,
-  )} ${value}::timestamp with time zone at time zone 'UTC'`;
+  )} ${value}`;
 };
 
 export const datetimeFilterToPrisma = (

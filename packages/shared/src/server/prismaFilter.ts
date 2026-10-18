@@ -7,22 +7,19 @@ type PrismaFilterType = PrismaFilter["type"];
 
 export type PrismaFilterColumnHandlers<TWhere> = {
   [Type in PrismaFilterType]?: (
-    filter: Extract<PrismaFilter, { type: Type }>,
-  ) => TWhere;
+    filter: Extract<PrismaFilter, { type: Type }>) => TWhere;
 };
 
 export function compilePrismaFilters<TWhere>(
   filters: FilterState,
-  handlers: Record<string, PrismaFilterColumnHandlers<TWhere>>,
-): TWhere[] {
+  handlers: Record<string, PrismaFilterColumnHandlers<TWhere>>): TWhere[] {
   return filters.map((filter) => {
     const handler = handlers[filter.column]?.[filter.type] as
       | ((filter: PrismaFilter) => TWhere)
       | undefined;
     if (!handler) {
       throw new InvalidRequestError(
-        `Unsupported Prisma filter: ${filter.column} (${filter.type})`,
-      );
+        `Unsupported Prisma filter: ${filter.column} (${filter.type})`);
     }
     return handler(filter);
   });
@@ -31,9 +28,8 @@ export function compilePrismaFilters<TWhere>(
 type StringFilter = Extract<PrismaFilter, { type: "string" }>;
 
 export function stringFilterToPrisma(
-  filter: StringFilter,
-): Prisma.StringFilter {
-  const insensitive = { mode: "insensitive" as const };
+  filter: StringFilter): Prisma.StringFilter {
+  const insensitive = { };
 
   switch (filter.operator) {
     case "=":
@@ -54,9 +50,8 @@ export function stringFilterToPrisma(
 type StringOptionsFilter = Extract<PrismaFilter, { type: "stringOptions" }>;
 
 export function stringOptionsFilterToPrisma(
-  filter: StringOptionsFilter,
-): Prisma.StringFilter {
+  filter: StringOptionsFilter): Prisma.StringFilter {
   return filter.operator === "any of"
-    ? { in: filter.value, mode: "insensitive" }
-    : { notIn: filter.value, mode: "insensitive" };
+    ? { in: filter.value}
+    : { notIn: filter.value};
 }

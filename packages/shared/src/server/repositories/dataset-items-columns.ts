@@ -32,7 +32,7 @@ export const datasetItemsFilterCols: ColumnDefinition[] = [
     name: "Status",
     id: "status",
     type: "stringOptions",
-    internal: "di.status::text",
+    internal: "di.status",
     options: Object.values(DatasetStatus).map((value) => ({ value })),
   },
   {

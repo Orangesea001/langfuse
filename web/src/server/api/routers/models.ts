@@ -73,7 +73,7 @@ export const modelRouter = createTRPCRouter({
                           WHERE
                             p.pricing_tier_id = mpt.id
                         ),
-                        '{}'::jsonb
+                        '{}'
                       )
                     )
                     ORDER BY mpt.priority ASC
@@ -114,7 +114,7 @@ export const modelRouter = createTRPCRouter({
 
       const searchStringTemplate = `%${searchString}%`;
       const searchStringCondition = searchString
-        ? Prisma.sql`AND model_name ILIKE ${searchStringTemplate}`
+        ? Prisma.sql`AND model_name LIKE ${searchStringTemplate}`
         : Prisma.sql`AND 1=1`;
 
       const [allModelsQueryResult, totalCountQuery] = await Promise.all([
@@ -146,7 +146,7 @@ export const modelRouter = createTRPCRouter({
                           WHERE
                             p.pricing_tier_id = mpt.id
                         ),
-                        '{}'::jsonb
+                        '{}'
                       )
                     )
                     ORDER BY mpt.priority ASC

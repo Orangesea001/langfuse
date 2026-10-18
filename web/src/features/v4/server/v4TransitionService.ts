@@ -203,7 +203,7 @@ export const getTraceLevelEvalSummaries = async ({
       projectId: { in: projectIds },
       targetObject: { in: [TRACE_EVAL_TARGET, DATASET_EVAL_TARGET] },
       status: "ACTIVE",
-      timeScope: { has: "NEW" },
+      timeScope: { array_contains: "NEW" },
     },
     _count: { _all: true },
   });

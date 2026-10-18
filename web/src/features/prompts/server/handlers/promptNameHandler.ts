@@ -82,7 +82,7 @@ const deletePromptNameHandler = async (
     projectId: authCheck.scope.projectId,
     name: promptName,
     ...(version ? { version } : {}),
-    ...(label ? { labels: { has: label } } : {}),
+    ...(label ? { labels: { array_contains: label } } : {}),
   };
 
   const prompts = await prisma.prompt.findMany({ where });

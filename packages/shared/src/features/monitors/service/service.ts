@@ -201,13 +201,13 @@ export class MonitorService {
     evaluators: { value: string; displayValue: string }[];
   }> {
     const evaluatorFilterMatch = evaluatorFilterMatchesSql(
-      Prisma.raw("filter_row"),
+      Prisma.raw("jt.filter_row"),
       Prisma.raw("e.id"),
     );
     const [tags, evaluators] = await Promise.all([
       prisma.$queryRaw<{ value: string }[]>`
         SELECT tags.tag AS value
-        FROM monitors, UNNEST(monitors.tags) AS tags(tag)
+        FROM monitors, JSON_TABLE(monitors.tags, '$[*]' COLUMNS(tag VARCHAR(191) PATH '$')) AS tags
         WHERE monitors.project_id = ${input.projectId}
         GROUP BY tags.tag
         ORDER BY tags.tag ASC;
@@ -217,7 +217,7 @@ export class MonitorService {
           e.id AS value,
           e.name AS "displayValue"
         FROM monitors AS m
-        CROSS JOIN LATERAL jsonb_array_elements(m.filters) AS filter_row
+        JOIN JSON_TABLE(m.filters, '$[*]' COLUMNS(jt.filter_row JSON PATH '$')) AS jt ON TRUE
         JOIN evaluators AS e
           ON e.project_id = m.project_id
           AND ${evaluatorFilterMatch}

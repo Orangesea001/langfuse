@@ -214,7 +214,7 @@ async function posthogTelemetry({
         substring(email FROM position('@' in email) + 1) as domain,
         count(id)::int as "userCount"
       FROM users
-      WHERE email ILIKE '%@%'
+      WHERE email LIKE '%@%'
       GROUP BY 1
       ORDER BY count(id) desc
       LIMIT 30

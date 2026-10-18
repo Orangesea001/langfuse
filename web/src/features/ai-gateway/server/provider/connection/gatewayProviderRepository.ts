@@ -76,7 +76,7 @@ export class GatewayProviderRepository {
     status: GatewayConnectionStatus;
   }) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${params.organizationId}))`;
+      await tx.$executeRaw`SELECT GET_LOCK(CRC32(${params.organizationId}), 0)`;
       const aggregate = await tx.gatewayAiConnection.aggregate({
         where: { organizationId: params.organizationId },
         _max: { routingPriority: true },
@@ -146,7 +146,7 @@ export class GatewayProviderRepository {
   }
 
   private lockOrganization(tx: DatabaseClient, organizationId: string) {
-    return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${organizationId}))`;
+    return tx.$executeRaw`SELECT GET_LOCK(CRC32(${organizationId}), 0)`;
   }
 
   /**

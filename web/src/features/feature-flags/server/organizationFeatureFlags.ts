@@ -217,7 +217,7 @@ async function setUserFeaturePreviewInTransaction({
   ) {
     await tx.user.update({
       where: { id: userId },
-      data: { featureFlags: { set: nextFeatureFlags } },
+      data: { featureFlags: nextFeatureFlags },
     });
   }
 
@@ -337,7 +337,7 @@ export async function setOrganizationFeatureFlagDefault({
 
     await tx.organization.update({
       where: { id: orgId },
-      data: { featureFlagOrgDefaults: { set: nextStoredDefaults } },
+      data: { featureFlagOrgDefaults: nextStoredDefaults },
     });
 
     return {

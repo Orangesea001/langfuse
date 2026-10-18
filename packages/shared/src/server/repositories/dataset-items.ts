@@ -1871,7 +1871,7 @@ async function countDatasetItemVariableMatchesInternal(params: {
   const objectKeyCounts = await prisma.$queryRaw<
     Array<{ obj_key: string; count: bigint }>
   >(Prisma.sql`
-    SELECT obj_key, COUNT(*)::bigint AS count
+    SELECT obj_key, COUNT(*) AS count
     FROM dataset_items di
     CROSS JOIN LATERAL jsonb_object_keys(di.input::jsonb) AS obj_key
     WHERE di.project_id = ${params.projectId}
@@ -1893,13 +1893,13 @@ async function countDatasetItemVariableMatchesInternal(params: {
     const variable = params.variables[0];
     const stringCounts = await prisma.$queryRaw<Array<{ count: bigint }>>(
       Prisma.sql`
-        SELECT COUNT(*)::bigint AS count
+        SELECT COUNT(*) AS count
         FROM dataset_items di
         WHERE di.project_id = ${params.projectId}
           AND di.is_deleted = false
           AND di.input IS NOT NULL
-          AND jsonb_typeof(di.input::jsonb) = 'string'
-          AND coalesce(di.input #>> '{}', '') <> ''
+          AND JSON_TYPE(di.input) = 'STRING'
+          AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(di.input, '$')), '') <> ''
           ${versionCondition}
           ${filterCondition}
       `,

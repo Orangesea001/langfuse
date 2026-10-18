@@ -40,8 +40,7 @@ export async function getObjectIdsByCommentCount({
   projectId,
   objectType,
   operator,
-  value,
-}: {
+  value}: {
   prisma: PrismaClient;
   projectId: string;
   objectType: CommentObjectType;
@@ -93,8 +92,7 @@ export async function getObjectIdsByCommentContent({
   projectId,
   objectType,
   searchQuery,
-  operator = "contains",
-}: {
+  operator = "contains"}: {
   prisma: PrismaClient;
   projectId: string;
   objectType: CommentObjectType;
@@ -130,46 +128,32 @@ export async function getObjectIdsByCommentContent({
       objectType,
       NOT: {
         content: {
-          contains: searchQuery,
-          mode: "insensitive",
-        },
-      },
-    };
+          contains: searchQuery}}};
   } else if (operator === "starts with") {
     whereCondition = {
       projectId,
       objectType,
       content: {
-        startsWith: searchQuery,
-        mode: "insensitive",
-      },
-    };
+        startsWith: searchQuery}};
   } else if (operator === "ends with") {
     whereCondition = {
       projectId,
       objectType,
       content: {
-        endsWith: searchQuery,
-        mode: "insensitive",
-      },
-    };
+        endsWith: searchQuery}};
   } else {
     // Default to contains (for "=" operator which maps to exact match in string filters)
     whereCondition = {
       projectId,
       objectType,
       content: {
-        contains: searchQuery,
-        mode: "insensitive",
-      },
-    };
+        contains: searchQuery}};
   }
 
   const comments = await prisma.comment.findMany({
     where: whereCondition,
     select: { objectId: true },
-    distinct: ["objectId"],
-  });
+    distinct: ["objectId"]});
 
   return comments.map((c) => c.objectId);
 }

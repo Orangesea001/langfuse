@@ -169,7 +169,7 @@ const resolveSearchCondition = (searchQuery?: string | null) => {
   if (!searchQuery || searchQuery.trim() === "") return Prisma.empty;
 
   // Add case-insensitive search condition
-  return Prisma.sql`AND d.name ILIKE ${`%${searchQuery}%`}`;
+  return Prisma.sql`AND d.name LIKE ${`%${searchQuery}%`}`;
 };
 
 const buildPathPrefixFilter = (pathPrefix?: string): Prisma.Sql => {
@@ -276,7 +276,7 @@ const generateDatasetQuery = ({
         d.input_schema,
         d.expected_output_schema,
         2 as sort_priority, -- Individual datasets second
-        'dataset'::text as row_type  -- Mark as individual dataset
+        'dataset' as row_type  -- Mark as individual dataset
       FROM filtered_datasets d
       WHERE SUBSTRING(d.name, CHAR_LENGTH(${pathPrefix}) + 2) NOT LIKE '%/%'
         AND SUBSTRING(d.name, CHAR_LENGTH(${pathPrefix}) + 2) != ''  -- Exclude datasets that match prefix exactly
@@ -295,7 +295,7 @@ const generateDatasetQuery = ({
         d.input_schema,
         d.expected_output_schema,
         1 as sort_priority, -- Folders first
-        'folder'::text as row_type, -- Mark as folder representative
+        'folder' as row_type, -- Mark as folder representative
         ROW_NUMBER() OVER (
           PARTITION BY SPLIT_PART(SUBSTRING(d.name, CHAR_LENGTH(${pathPrefix}) + 2), '/', 1)
           ORDER BY LENGTH(d.name) - LENGTH(REPLACE(d.name, '/', '')) ASC, d.created_at DESC
@@ -326,7 +326,7 @@ const generateDatasetQuery = ({
     WITH ${datasetsCTE},
     individual_datasets AS (
       /* Individual datasets without folders */
-      SELECT d.id, d.name, d.description, d.metadata, d.project_id, d.updated_at, d.created_at, d.input_schema, d.expected_output_schema, 'dataset'::text as row_type
+      SELECT d.id, d.name, d.description, d.metadata, d.project_id, d.updated_at, d.created_at, d.input_schema, d.expected_output_schema, 'dataset' as row_type
       FROM filtered_datasets d
       WHERE d.name NOT LIKE '%/%'
     ),
@@ -342,7 +342,7 @@ const generateDatasetQuery = ({
         d.created_at,
         d.input_schema,
         d.expected_output_schema,
-        'folder'::text as row_type, -- Mark as folder representative
+        'folder' as row_type, -- Mark as folder representative
         ROW_NUMBER() OVER (PARTITION BY SPLIT_PART(d.name, '/', 1) ORDER BY LENGTH(d.name) ASC, d.updated_at DESC) AS rn
       FROM filtered_datasets d
       WHERE d.name LIKE '%/%'

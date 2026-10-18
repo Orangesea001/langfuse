@@ -28,7 +28,7 @@ const JOB_CONFIG_STATES = [
 const evaluatorDisplayStatusSql = `CASE
   WHEN jc."status" = 'INACTIVE' THEN 'INACTIVE'
   WHEN jc."blocked_at" IS NOT NULL THEN 'PAUSED'
-  ELSE jc."status"::text
+  ELSE jc."status"
 END`;
 
 const evaluatorStatusSortRankSql = `CASE

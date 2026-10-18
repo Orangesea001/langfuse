@@ -84,7 +84,7 @@ export const backfillValidToForDatasetItems = async (
         LEAD(valid_from) OVER (PARTITION BY id ORDER BY valid_from ASC) as next_valid_from
       FROM dataset_items
       WHERE project_id = ${projectId}
-        AND id = ANY(${idArray}::text[])
+        AND id = ANY(${idArray}[])
     )
     SELECT id, project_id, valid_from, next_valid_from
     FROM all_versions_with_lead
@@ -104,7 +104,7 @@ export const backfillValidToForDatasetItems = async (
           ${Prisma.join(
             rowsToUpdate.map(
               (row) =>
-                Prisma.sql`(${row.project_id}::text, ${row.id}::text, ${row.valid_from}::timestamp, ${row.next_valid_from}::timestamp)`,
+                Prisma.sql`(${row.project_id}, ${row.id}, ${row.valid_from}, ${row.next_valid_from})`,
             ),
           )}
       ) AS updates(project_id, id, valid_from, next_valid_from)

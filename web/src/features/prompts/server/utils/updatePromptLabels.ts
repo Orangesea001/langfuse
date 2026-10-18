@@ -18,7 +18,7 @@ export const removeLabelsFromPreviousPromptVersions = async ({
     where: {
       projectId,
       name: promptName,
-      labels: { hasSome: labelsToRemove },
+      labels: { array_contains: labelsToRemove },
     },
     orderBy: [{ version: "desc" }],
   });

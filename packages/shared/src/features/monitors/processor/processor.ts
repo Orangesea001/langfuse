@@ -108,7 +108,7 @@ export class MonitorProcessor {
     now: Date,
   ): Promise<Monitor[]> {
     if (event.monitors.length === 0) return [];
-    const prismaMonitors = await this.db.monitor.updateManyAndReturn({
+    await this.db.monitor.updateMany({
       where: {
         id: { in: event.monitors.map((m) => m.monitorId) },
         projectId: event.projectId,
@@ -132,6 +132,13 @@ export class MonitorProcessor {
         ],
       },
       data: { lastClaimedAt: now },
+    });
+    const prismaMonitors = await this.db.monitor.findMany({
+      where: {
+        id: { in: event.monitors.map((m) => m.monitorId) },
+        projectId: event.projectId,
+        lastClaimedAt: now,
+      },
     });
     return prismaMonitors.map(monitorFromPrisma);
   }
@@ -206,7 +213,6 @@ export class MonitorProcessor {
     if (args.completions.length === 0) return;
     await this.db.$transaction([
       // tz-naive columns are read back as UTC by Prisma; pin the session so raw casts store UTC wall-clock
-      this.db.$executeRawUnsafe(`SET LOCAL TIME ZONE 'UTC'`),
       this.db.$executeRaw(
         buildCompleteQuery({
           projectId: args.projectId,
@@ -489,7 +495,7 @@ function buildCompleteQuery(args: {
   const valueRows = Prisma.join(
     args.completions.map(
       (c) =>
-        Prisma.sql`(${c.monitorId}, ${c.lastClaimedAt}::timestamptz, ${c.lastCompletedAt}::timestamptz, ${c.publishedAt}::timestamptz, ${c.status}::"MonitorStatus", ${c.severity}::"MonitorSeverity", ${c.severityChangedAt}::timestamptz, ${c.alertedAt}::timestamptz)`,
+        Prisma.sql`(${c.monitorId}, ${c.lastClaimedAt}, ${c.lastCompletedAt}, ${c.publishedAt}, ${c.status}, ${c.severity}, ${c.severityChangedAt}, ${c.alertedAt})`,
     ),
     ", ",
   );

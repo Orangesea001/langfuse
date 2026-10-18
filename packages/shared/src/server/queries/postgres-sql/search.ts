@@ -51,7 +51,7 @@ export function postgresSearchCondition(params: {
   if (types.includes("id")) {
     for (const column of metadataColumns) {
       searchConditions.push(
-        Prisma.sql`${Prisma.raw(`${prefix}${column}`)} ILIKE ${`%${searchQuery}%`}`,
+        Prisma.sql`${Prisma.raw(`${prefix}${column}`)} LIKE ${`%${searchQuery}%`}`,
       );
     }
   }
@@ -64,7 +64,7 @@ export function postgresSearchCondition(params: {
   ) {
     for (const column of contentColumns.content) {
       searchConditions.push(
-        Prisma.sql`${Prisma.raw(`${prefix}${column}`)}::text ILIKE ${`%${searchQuery}%`}`,
+        Prisma.sql`${Prisma.raw(`${prefix}${column}`)} LIKE ${`%${searchQuery}%`}`,
       );
     }
   }
@@ -72,14 +72,14 @@ export function postgresSearchCondition(params: {
   // Search input only (only if column is defined)
   if (types.includes("input") && contentColumns.input) {
     searchConditions.push(
-      Prisma.sql`${Prisma.raw(`${prefix}${contentColumns.input}`)}::text ILIKE ${`%${searchQuery}%`}`,
+      Prisma.sql`${Prisma.raw(`${prefix}${contentColumns.input}`)} LIKE ${`%${searchQuery}%`}`,
     );
   }
 
   // Search output only (only if column is defined)
   if (types.includes("output") && contentColumns.output) {
     searchConditions.push(
-      Prisma.sql`${Prisma.raw(`${prefix}${contentColumns.output}`)}::text ILIKE ${`%${searchQuery}%`}`,
+      Prisma.sql`${Prisma.raw(`${prefix}${contentColumns.output}`)} LIKE ${`%${searchQuery}%`}`,
     );
   }
 

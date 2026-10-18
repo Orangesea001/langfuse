@@ -181,7 +181,7 @@ export class ChbBillingService {
    *
    * Returns the number of rows claimed; 0 means another caller won the race.
    *
-   * Both `COALESCE`s pass through `NULLIF(…, 'null'::jsonb)`: a JSON-null is not
+   * Both `COALESCE`s pass through `NULLIF(…, 'null')`: a JSON-null is not
    * a SQL NULL, so `COALESCE` alone does not catch it. The guard counts a stored
    * `{"analytics": null}` as unclaimed — correctly, it holds no CHB state — so
    * the merge has to accept that value too, and `||` against a JSON-null scalar
@@ -196,21 +196,21 @@ export class ChbBillingService {
   ): Promise<number> {
     return await this.ctx.prisma.$executeRaw`
       UPDATE organizations
-      SET cloud_config = jsonb_set(
-            COALESCE(NULLIF(cloud_config, 'null'::jsonb), '{}'::jsonb),
+      SET cloud_config = JSON_SET(
+            COALESCE(NULLIF(cloud_config, 'null'), '{}'),
             '{clickhouse}',
             COALESCE(
-              NULLIF(cloud_config -> 'analytics', 'null'::jsonb),
-              '{}'::jsonb
+              NULLIF(cloud_config -> 'analytics', 'null'),
+              '{}'
             )
-              || jsonb_build_object('organizationId', ${chOrganizationId}::text),
+              || JSON_OBJECT('organizationId', ${chOrganizationId}),
             true
           )
       WHERE id = ${orgId}
         AND COALESCE(
               cloud_config -> 'analytics' -> 'organizationId',
-              'null'::jsonb
-            ) = 'null'::jsonb
+              'null'
+            ) = 'null'
     `;
   }
 

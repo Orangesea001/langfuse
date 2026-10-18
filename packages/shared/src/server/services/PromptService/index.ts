@@ -119,7 +119,7 @@ export class PromptService {
           projectId,
           name: promptName,
           labels: {
-            has: label,
+            array_contains: label,
           },
         },
       });
@@ -333,7 +333,7 @@ export class PromptService {
                 name: dep.name,
                 ...(dep.type === "version"
                   ? { version: dep.version }
-                  : { labels: { has: dep.label } }),
+                  : { labels: { array_contains: dep.label } }),
               },
             });
 
@@ -364,7 +364,7 @@ export class PromptService {
             );
 
             const versionPattern = `@@@langfusePrompt:name=${escapeRegex(depPrompt.name)}\\|version=${escapeRegex(depPrompt.version)}@@@`;
-            const labelPatterns = depPrompt.labels.map(
+            const labelPatterns = (depPrompt.labels as string[]).map(
               (label) =>
                 `@@@langfusePrompt:name=${escapeRegex(depPrompt.name)}\\|label=${escapeRegex(label)}@@@`,
             );

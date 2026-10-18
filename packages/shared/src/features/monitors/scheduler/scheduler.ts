@@ -36,12 +36,7 @@ export class MonitorScheduler {
    * advances the schedule to the next run.
    */
   async schedule(scheduledAt: Date): Promise<number> {
-    const [, , results] = await this.db.$transaction([
-      this.db.$executeRawUnsafe(
-        `SET LOCAL statement_timeout = ${MonitorScheduler.claimTimeoutMs}`,
-      ),
-      // tz-naive columns are read back as UTC by Prisma; pin the session so raw casts store UTC wall-clock
-      this.db.$executeRawUnsafe(`SET LOCAL TIME ZONE 'UTC'`),
+    const [results] = await this.db.$transaction([
       this.db.$queryRaw<MonitorBatchResult[]>(
         buildScheduleQuery({
           tick: scheduledAt,
@@ -95,7 +90,7 @@ function buildScheduleQuery({
   const calculateRunAt = (source: "monitors" | "due"): Prisma.Sql => Prisma.sql`
     TIMESTAMPTZ 'epoch' + (
       (
-        ((EXTRACT(EPOCH FROM ${tick}::timestamptz) * 1000)::bigint
+        ((UNIX_TIMESTAMP(${tick}) * 1000)
           - (${Prisma.raw(source)}.scheduler_batch_id % 60) * 1000) -- ms since the beginning of time
           / ${Prisma.raw(source)}.cadence_ms * ${Prisma.raw(source)}.cadence_ms -- rounded down to the last cadence
         + (${Prisma.raw(source)}.scheduler_batch_id % 60) * 1000 -- plus some second jitter for better load distribution
@@ -115,7 +110,7 @@ function buildScheduleQuery({
       due.last_completed_at IS NULL -- worker never reported completion
       OR due.last_completed_at < due.last_published_at -- last run still in flight
     )
-    AND ${tick}::timestamptz - due.last_published_at
+    AND ${tick} - due.last_published_at
       <= ${monitorProcessorTtl} * INTERVAL '1 millisecond' -- before TTL
   `;
 
@@ -134,11 +129,11 @@ function buildScheduleQuery({
         last_completed_at,
         status,
         CASE
-          WHEN next_run_at IS NULL THEN ${tick}::timestamptz
+          WHEN next_run_at IS NULL THEN ${tick}
           ELSE ${calculateRunAt("monitors")}
         END AS run_at
       FROM monitors
-      WHERE (scheduler_batch_id % ${totalSchedulers}::bigint) = ${schedulerId}::bigint
+      WHERE (scheduler_batch_id % ${totalSchedulers}) = ${schedulerId}
         AND status = 'ACTIVE'
         AND (
           -- due
@@ -151,7 +146,7 @@ function buildScheduleQuery({
               last_completed_at IS NULL
               OR last_completed_at < last_published_at
             )
-            AND ${tick}::timestamptz - last_published_at
+            AND ${tick} - last_published_at
               > ${monitorProcessorTtl} * INTERVAL '1 millisecond'
           )
         )
@@ -164,7 +159,7 @@ function buildScheduleQuery({
         next_run_at = ${calculateNextRunAt},
         last_published_at = CASE
           WHEN ${runIsPending} THEN monitors.last_published_at
-          ELSE ${tick}::timestamptz
+          ELSE ${tick}
         END
       FROM due
       WHERE monitors.id = due.id

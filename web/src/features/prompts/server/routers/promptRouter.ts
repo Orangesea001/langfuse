@@ -785,9 +785,7 @@ export const promptRouter = createTRPCRouter({
                   projectId: input.projectId,
                 },
                 data: {
-                  labels: {
-                    push: LATEST_PROMPT_LABEL,
-                  },
+                  labels: [LATEST_PROMPT_LABEL]  // TODO: MySQL json array append - should read existing + append,
                 },
               }),
             );
@@ -942,7 +940,7 @@ export const promptRouter = createTRPCRouter({
           where: {
             projectId,
             name: promptName,
-            labels: { hasSome: newLabels },
+            labels: { array_contains: newLabels },
             id: { not: input.promptId },
           },
           orderBy: [{ version: "desc" }],
@@ -1128,9 +1126,7 @@ export const promptRouter = createTRPCRouter({
             projectId,
           },
           data: {
-            tags: {
-              set: input.tags,
-            },
+            tags: input.tags,
           },
         });
 

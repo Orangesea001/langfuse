@@ -3033,7 +3033,7 @@ export const getUsersFromEventsTable = async (
     .whereRaw("e.user_id IS NOT NULL AND length(e.user_id) > 0")
     .whereRaw("e.is_deleted = 0")
     .when(Boolean(searchQuery), (b) =>
-      b.whereRaw("e.user_id ILIKE {searchQuery: String}", {
+      b.whereRaw("e.user_id LIKE {searchQuery: String}", {
         searchQuery: `%${searchQuery}%`,
       }),
     )
@@ -3064,7 +3064,7 @@ export const getUsersCountFromEventsTable = async (
   const appliedEventsFilter = eventsFilter.apply();
 
   const searchCondition = searchQuery
-    ? `AND e.user_id ILIKE {searchQuery: String}`
+    ? `AND e.user_id LIKE {searchQuery: String}`
     : "";
 
   const query = `

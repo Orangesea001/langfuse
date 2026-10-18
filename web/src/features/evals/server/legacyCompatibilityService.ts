@@ -660,7 +660,7 @@ export class LegacyEvalCompatibilityService {
       : Prisma.empty;
     const search = params.searchQuery?.trim();
     const searchCondition = search
-      ? Prisma.sql`AND (jc."score_name" ILIKE ${`%${search}%`} OR jc."rule_name" ILIKE ${`%${search}%`})`
+      ? Prisma.sql`AND (jc."score_name" LIKE ${`%${search}%`} OR jc."rule_name" LIKE ${`%${search}%`})`
       : Prisma.empty;
     const paginationCondition =
       params.limit !== undefined

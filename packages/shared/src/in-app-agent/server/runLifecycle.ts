@@ -41,7 +41,7 @@ export async function claimQueuedRun(params: {
   runId: string;
 }): Promise<InAppAgentRun | null> {
   const now = new Date();
-  const rows = await params.prisma.inAppAgentRun.updateManyAndReturn({
+  await params.prisma.inAppAgentRun.updateMany({
     where: {
       id: params.runId,
       projectId: params.projectId,
@@ -52,6 +52,13 @@ export async function claimQueuedRun(params: {
       status: InAppAgentRunStatus.RUNNING,
       claimedAt: now,
       heartbeatAt: now,
+    },
+  });
+  const rows = await params.prisma.inAppAgentRun.findMany({
+    where: {
+      id: params.runId,
+      projectId: params.projectId,
+      status: InAppAgentRunStatus.RUNNING,
     },
   });
 
@@ -67,13 +74,20 @@ export async function heartbeatClaimedRun(params: {
   projectId: string;
   runId: string;
 }): Promise<HeartbeatResult> {
-  const rows = await params.prisma.inAppAgentRun.updateManyAndReturn({
+  await params.prisma.inAppAgentRun.updateMany({
     where: {
       id: params.runId,
       projectId: params.projectId,
       status: InAppAgentRunStatus.RUNNING,
     },
     data: { heartbeatAt: new Date() },
+  });
+  const rows = await params.prisma.inAppAgentRun.findMany({
+    where: {
+      id: params.runId,
+      projectId: params.projectId,
+      status: InAppAgentRunStatus.RUNNING,
+    },
     select: { cancelRequestedAt: true },
   });
 
@@ -329,7 +343,7 @@ export async function decideToolApproval(params: {
       });
 
       if (
-        !conversation?.alwaysAllowedTools.includes(params.alwaysAllowToolName)
+        !((conversation?.alwaysAllowedTools ?? []) as string[]).includes(params.alwaysAllowToolName)
       ) {
         await tx.inAppAgentConversation.update({
           where: {
@@ -338,7 +352,7 @@ export async function decideToolApproval(params: {
               projectId: params.projectId,
             },
           },
-          data: { alwaysAllowedTools: { push: params.alwaysAllowToolName } },
+          data: { alwaysAllowedTools: /* mysql: no push, handled separately */ params.alwaysAllowToolName },
         });
       }
     }

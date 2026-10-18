@@ -22,22 +22,19 @@ import {
   PostDatasetRunItemsV1Response,
   transformDbDatasetItemDomainToAPIDatasetItem,
   transformDbDatasetRunToAPIDatasetRun,
-  transformDbDatasetToAPIDataset,
-} from "@/src/features/public-api/server";
+  transformDbDatasetToAPIDataset} from "@/src/features/public-api/server";
 import {
   ApiError,
   type JSONValue,
   LangfuseConflictError,
   LangfuseNotFoundError,
   Prisma,
-  UnauthorizedError,
-} from "@langfuse/shared";
+  UnauthorizedError} from "@langfuse/shared";
 import { prisma } from "@langfuse/shared/src/db";
 import { env } from "@/src/env.mjs";
 import {
   datasetItemMediaReferenceKey,
-  resolveDatasetItemMediaReferences,
-} from "@/src/features/media/server/datasetItemMediaReferences";
+  resolveDatasetItemMediaReferences} from "@/src/features/media/server/datasetItemMediaReferences";
 import { upsertDataset } from "./actions/createDataset";
 import {
   addToDeleteDatasetQueue,
@@ -52,8 +49,7 @@ import {
   logger,
   processEventBatch,
   type AuthHeaderValidVerificationResultIngestion,
-  upsertDatasetItem,
-} from "@langfuse/shared/src/server";
+  upsertDatasetItem} from "@langfuse/shared/src/server";
 import type { z } from "zod";
 
 type DatasetAuditScope = {
@@ -160,17 +156,14 @@ const resolveMetadata = (metadata: JSONValue): Record<string, unknown> => {
 
 const getDatasetByNameOrThrow = async ({
   projectId,
-  datasetName,
-}: {
+  datasetName}: {
   projectId: string;
   datasetName: string;
 }) => {
   const dataset = await prisma.dataset.findFirst({
     where: {
       name: datasetName,
-      projectId,
-    },
-  });
+      projectId}});
 
   if (!dataset) {
     throw new LangfuseNotFoundError("Dataset not found");
@@ -181,8 +174,7 @@ const getDatasetByNameOrThrow = async ({
 
 const getDatasetByIdOrThrow = async ({
   projectId,
-  datasetId,
-}: {
+  datasetId}: {
   projectId: string;
   datasetId: string;
 }) => {
@@ -190,10 +182,7 @@ const getDatasetByIdOrThrow = async ({
     where: {
       id_projectId: {
         id: datasetId,
-        projectId,
-      },
-    },
-  });
+        projectId}}});
 
   if (!dataset) {
     throw new LangfuseNotFoundError("Dataset not found");
@@ -206,8 +195,7 @@ const getDatasetRunRecordOrThrow = async ({
   projectId,
   datasetName,
   runName,
-  duplicateErrorMessage = "Found more than one dataset run with this name",
-}: {
+  duplicateErrorMessage = "Found more than one dataset run with this name"}: {
   projectId: string;
   datasetName: string;
   runName: string;
@@ -219,17 +207,11 @@ const getDatasetRunRecordOrThrow = async ({
       name: runName,
       dataset: {
         name: datasetName,
-        projectId,
-      },
-    },
+        projectId}},
     include: {
       dataset: {
         select: {
-          name: true,
-        },
-      },
-    },
-  });
+          name: true}}}});
 
   if (datasetRuns.length > 1) {
     throw new ApiError(duplicateErrorMessage);
@@ -245,24 +227,18 @@ const getDatasetRunRecordOrThrow = async ({
 export const createDatasetForApi = async ({
   input,
   projectId,
-  auditScope,
-}: CreateDatasetInput) => {
+  auditScope}: CreateDatasetInput) => {
   const existingDataset = auditScope
     ? await prisma.dataset.findUnique({
         where: input.id
           ? {
               id_projectId: {
                 id: input.id,
-                projectId,
-              },
-            }
+                projectId}}
           : {
               projectId_name: {
                 projectId,
-                name: input.name,
-              },
-            },
-      })
+                name: input.name}}})
     : null;
 
   const dataset = await upsertDataset({
@@ -272,10 +248,8 @@ export const createDatasetForApi = async ({
       description: input.description ?? undefined,
       metadata: input.metadata ?? undefined,
       inputSchema: input.inputSchema,
-      expectedOutputSchema: input.expectedOutputSchema,
-    },
-    projectId,
-  });
+      expectedOutputSchema: input.expectedOutputSchema},
+    projectId});
 
   if (auditScope) {
     await auditLog({
@@ -286,8 +260,7 @@ export const createDatasetForApi = async ({
       orgId: auditScope.orgId,
       apiKeyId: auditScope.apiKeyId,
       before: existingDataset ?? undefined,
-      after: dataset,
-    });
+      after: dataset});
   }
 
   return transformDbDatasetToAPIDataset(dataset);
@@ -296,24 +269,17 @@ export const createDatasetForApi = async ({
 const getDatasetRunRecordByIdOrThrow = async ({
   projectId,
   datasetId,
-  datasetRunId,
-}: GetDatasetRunByIdInput) => {
+  datasetRunId}: GetDatasetRunByIdInput) => {
   const datasetRun = await prisma.datasetRuns.findUnique({
     where: {
       id_projectId: {
         id: datasetRunId,
-        projectId,
-      },
-    },
+        projectId}},
     include: {
       dataset: {
         select: {
           id: true,
-          name: true,
-        },
-      },
-    },
-  });
+          name: true}}}});
 
   if (!datasetRun || datasetRun.datasetId !== datasetId) {
     throw new LangfuseNotFoundError("Dataset run not found");
@@ -326,12 +292,10 @@ export const listDatasetsForApi = async ({
   projectId,
   name,
   page,
-  limit,
-}: ListDatasetsInput) => {
+  limit}: ListDatasetsInput) => {
   const where: Prisma.DatasetWhereInput = {
     projectId,
-    ...(name ? { name: { contains: name, mode: "insensitive" } } : {}),
-  };
+    ...(name ? { name: { contains: name} } : {})};
 
   const [datasets, totalItems] = await Promise.all([
     prisma.dataset.findMany({
@@ -344,13 +308,11 @@ export const listDatasetsForApi = async ({
         projectId: true,
         createdAt: true,
         updatedAt: true,
-        id: true,
-      },
+        id: true},
       where,
       orderBy: [{ createdAt: "desc" }, { id: "asc" }],
       take: limit,
-      skip: (page - 1) * limit,
-    }),
+      skip: (page - 1) * limit}),
     prisma.dataset.count({ where }),
   ]);
 
@@ -360,15 +322,12 @@ export const listDatasetsForApi = async ({
       page,
       limit,
       totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  };
+      totalPages: Math.ceil(totalItems / limit)}};
 };
 
 export const getDatasetByIdForApi = async ({
   projectId,
-  datasetId,
-}: {
+  datasetId}: {
   projectId: string;
   datasetId: string;
 }) => {
@@ -379,8 +338,7 @@ export const getDatasetByIdForApi = async ({
 export const listDatasetsByProjectForApi = async ({
   projectId,
   page,
-  limit,
-}: ListDatasetsV1Input) => {
+  limit}: ListDatasetsV1Input) => {
   const shouldReadLegacyDatasetRuns =
     env.LANGFUSE_MIGRATION_V4_WRITE_MODE !== "events_only";
   const datasets = await prisma.dataset.findMany({
@@ -398,27 +356,20 @@ export const listDatasetsByProjectForApi = async ({
         ? {
             datasetRuns: {
               select: {
-                name: true,
-              },
-              orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-            },
-          }
-        : {}),
-    },
+                name: true},
+              orderBy: [{ createdAt: "desc" }, { id: "asc" }]}}
+        : {})},
     where: { projectId },
     orderBy: [{ createdAt: "desc" }, { id: "asc" }],
     take: limit,
-    skip: (page - 1) * limit,
-  });
+    skip: (page - 1) * limit});
 
   const datasetItems = await getDatasetItems({
     projectId,
     filterState: createDatasetItemFilterState({
       datasetIds: datasets.map(({ id }) => id),
-      status: "ACTIVE",
-    }),
-    includeIO: false,
-  });
+      status: "ACTIVE"}),
+    includeIO: false});
 
   // create Map of dataset id to dataset item ids
   const datasetItemIdsMap = new Map<string, string[]>();
@@ -430,47 +381,36 @@ export const listDatasetsByProjectForApi = async ({
   }
 
   const totalItems = await prisma.dataset.count({
-    where: { projectId },
-  });
+    where: { projectId }});
 
   return {
     data: datasets.map(({ datasetRuns = [], ...rest }) => ({
       ...rest,
       items: datasetItemIdsMap.get(rest.id) || [],
-      runs: datasetRuns.map(({ name }) => name),
-    })),
+      runs: datasetRuns.map(({ name }) => name)})),
     meta: {
       page,
       limit,
       totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  };
+      totalPages: Math.ceil(totalItems / limit)}};
 };
 
 export const getDatasetByNameForApi = async ({
   projectId,
-  name,
-}: GetDatasetV1Input) => {
+  name}: GetDatasetV1Input) => {
   const shouldReadLegacyDatasetRuns =
     env.LANGFUSE_MIGRATION_V4_WRITE_MODE !== "events_only";
   const dataset = await prisma.dataset.findFirst({
     where: {
       name,
-      projectId,
-    },
+      projectId},
     include: {
       ...(shouldReadLegacyDatasetRuns
         ? {
             datasetRuns: {
               select: {
-                name: true,
-              },
-            },
-          }
-        : {}),
-    },
-  });
+                name: true}}}
+        : {})}});
 
   if (!dataset) {
     throw new LangfuseNotFoundError("Dataset not found");
@@ -480,20 +420,17 @@ export const getDatasetByNameForApi = async ({
     projectId,
     filterState: createDatasetItemFilterState({
       datasetIds: [dataset.id],
-      status: "ACTIVE",
-    }),
+      status: "ACTIVE"}),
     includeDatasetName: true,
     limit: LEGACY_DATASET_ITEM_LIMIT,
-    page: 0,
-  });
+    page: 0});
 
   const { datasetRuns = [], ...params } = dataset;
 
   return {
     ...transformDbDatasetToAPIDataset(params),
     items: datasetItems.map(transformDbDatasetItemDomainToAPIDatasetItem),
-    runs: datasetRuns.map(({ name }) => name),
-  };
+    runs: datasetRuns.map(({ name }) => name)};
 };
 
 export const listDatasetItemsForApi = async ({
@@ -504,8 +441,7 @@ export const listDatasetItemsForApi = async ({
   sourceObservationId,
   version,
   page,
-  limit,
-}: ListDatasetItemsInput) => {
+  limit}: ListDatasetItemsInput) => {
   let datasetId = inputDatasetId;
 
   if (datasetId) {
@@ -519,8 +455,7 @@ export const listDatasetItemsForApi = async ({
     ...(datasetId ? { datasetIds: [datasetId] } : {}),
     sourceTraceId: sourceTraceId ?? undefined,
     sourceObservationId: sourceObservationId ?? undefined,
-    status: "ACTIVE",
-  });
+    status: "ACTIVE"});
 
   const [items, totalItems] = await Promise.all([
     getDatasetItems({
@@ -529,43 +464,35 @@ export const listDatasetItemsForApi = async ({
       version: version ?? undefined,
       includeDatasetName: true,
       limit,
-      page: page - 1,
-    }),
+      page: page - 1}),
     getDatasetItemsCount({
       projectId,
       filterState,
-      version: version ?? undefined,
-    }),
+      version: version ?? undefined}),
   ]);
 
   const mediaReferences = await resolveDatasetItemMediaReferences({
     projectId,
-    items,
-  });
+    items});
 
   return {
     data: items.map((item) => ({
       ...transformDbDatasetItemDomainToAPIDatasetItem(item),
       mediaReferences:
-        mediaReferences.get(datasetItemMediaReferenceKey(item)) ?? [],
-    })),
+        mediaReferences.get(datasetItemMediaReferenceKey(item)) ?? []})),
     meta: {
       page,
       limit,
       totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  };
+      totalPages: Math.ceil(totalItems / limit)}};
 };
 
 export const getDatasetItemForApi = async ({
   projectId,
-  datasetItemId,
-}: GetDatasetItemInput) => {
+  datasetItemId}: GetDatasetItemInput) => {
   const datasetItem = await getDatasetItemById({
     projectId,
-    datasetItemId,
-  });
+    datasetItemId});
 
   if (!datasetItem) {
     throw new LangfuseNotFoundError("Dataset item not found");
@@ -575,11 +502,8 @@ export const getDatasetItemForApi = async ({
     where: {
       id_projectId: {
         projectId,
-        id: datasetItem.datasetId,
-      },
-    },
-    select: { name: true },
-  });
+        id: datasetItem.datasetId}},
+    select: { name: true }});
 
   // Note that we cascade items on delete, so returning a 404 here is expected.
   if (!dataset) {
@@ -588,25 +512,21 @@ export const getDatasetItemForApi = async ({
 
   const mediaReferences = await resolveDatasetItemMediaReferences({
     projectId,
-    items: [datasetItem],
-  });
+    items: [datasetItem]});
 
   return {
     ...transformDbDatasetItemDomainToAPIDatasetItem({
       ...datasetItem,
       status: datasetItem.status ?? "ACTIVE",
-      datasetName: dataset.name,
-    }),
+      datasetName: dataset.name}),
     mediaReferences:
-      mediaReferences.get(datasetItemMediaReferenceKey(datasetItem)) ?? [],
-  };
+      mediaReferences.get(datasetItemMediaReferenceKey(datasetItem)) ?? []};
 };
 
 export const createDatasetItemForApi = async ({
   input,
   projectId,
-  auditScope,
-}: CreateDatasetItemInput) => {
+  auditScope}: CreateDatasetItemInput) => {
   const datasetIdentifierForLog =
     "datasetId" in input ? input.datasetId : input.datasetName;
 
@@ -614,8 +534,7 @@ export const createDatasetItemForApi = async ({
     const existingDatasetItem = input.id
       ? await getDatasetItemById({
           projectId,
-          datasetItemId: input.id,
-        })
+          datasetItemId: input.id})
       : null;
 
     const datasetIdentifier =
@@ -634,8 +553,7 @@ export const createDatasetItemForApi = async ({
       sourceObservationId: input.sourceObservationId ?? undefined,
       status: input.status ?? undefined,
       normalizeOpts: { sanitizeControlChars: true },
-      validateOpts: { normalizeUndefinedToNull: !input.id },
-    });
+      validateOpts: { normalizeUndefinedToNull: !input.id }});
 
     if (auditScope) {
       await auditLog({
@@ -646,24 +564,20 @@ export const createDatasetItemForApi = async ({
         orgId: auditScope.orgId,
         apiKeyId: auditScope.apiKeyId,
         before: existingDatasetItem ?? undefined,
-        after: datasetItem,
-      });
+        after: datasetItem});
     }
 
     const mediaReferences = await resolveDatasetItemMediaReferences({
       projectId,
-      items: [datasetItem],
-    });
+      items: [datasetItem]});
 
     return {
       ...transformDbDatasetItemDomainToAPIDatasetItem({
         ...datasetItem,
         datasetName: datasetItem.datasetName,
-        status: datasetItem.status ?? "ACTIVE",
-      }),
+        status: datasetItem.status ?? "ACTIVE"}),
       mediaReferences:
-        mediaReferences.get(datasetItemMediaReferenceKey(datasetItem)) ?? [],
-    };
+        mediaReferences.get(datasetItemMediaReferenceKey(datasetItem)) ?? []};
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2025") {
@@ -700,12 +614,10 @@ export const deleteDatasetItemForApi = async ({
   projectId,
   orgId,
   apiKeyId,
-  datasetItemId,
-}: DeleteDatasetItemInput) => {
+  datasetItemId}: DeleteDatasetItemInput) => {
   const result = await deleteDatasetItem({
     projectId,
-    datasetItemId,
-  });
+    datasetItemId});
 
   await auditLog({
     action: "delete",
@@ -714,12 +626,10 @@ export const deleteDatasetItemForApi = async ({
     projectId,
     orgId,
     apiKeyId,
-    before: result.deletedItem,
-  });
+    before: result.deletedItem});
 
   return {
-    message: "Dataset item successfully deleted" as const,
-  };
+    message: "Dataset item successfully deleted" as const};
 };
 
 /**
@@ -739,8 +649,7 @@ export const deleteDatasetItemForApi = async ({
 export const createStableExperimentId = ({
   projectId,
   datasetId,
-  runName,
-}: {
+  runName}: {
   projectId: string;
   datasetId: string;
   runName: string;
@@ -768,8 +677,7 @@ export const createStableExperimentId = ({
  */
 export const buildStableDatasetRunItemResponseEventsOnly = async ({
   body,
-  auth,
-}: Pick<CreateDatasetRunItemInput, "body" | "auth">) => {
+  auth}: Pick<CreateDatasetRunItemInput, "body" | "auth">) => {
   const projectId = auth.scope.projectId;
 
   if (!projectId) {
@@ -782,8 +690,7 @@ export const buildStableDatasetRunItemResponseEventsOnly = async ({
     projectId,
     datasetItemId: body.datasetItemId,
     status: "ACTIVE",
-    version: body.datasetVersion ?? undefined,
-  });
+    version: body.datasetVersion ?? undefined});
 
   if (!datasetItem) {
     throw new LangfuseNotFoundError("Dataset item not found");
@@ -792,8 +699,7 @@ export const buildStableDatasetRunItemResponseEventsOnly = async ({
   const experimentId = createStableExperimentId({
     projectId,
     datasetId: datasetItem.datasetId,
-    runName: body.runName,
-  });
+    runName: body.runName});
   const createdAt = body.createdAt ? new Date(body.createdAt) : new Date();
 
   const datasetRunItem: APIDatasetRunItem = {
@@ -806,8 +712,7 @@ export const buildStableDatasetRunItemResponseEventsOnly = async ({
     traceId: body.traceId ?? "",
     observationId: body.observationId ?? null,
     createdAt,
-    updatedAt: createdAt,
-  };
+    updatedAt: createdAt};
 
   return datasetRunItem;
 };
@@ -816,8 +721,7 @@ export const createDatasetRunItemForApi = async ({
   body,
   auth,
   auditScope,
-  res,
-}: CreateDatasetRunItemInput) => {
+  res}: CreateDatasetRunItemInput) => {
   const { traceId, observationId, datasetItemId } = body;
   const projectId = auth.scope.projectId;
 
@@ -831,8 +735,7 @@ export const createDatasetRunItemForApi = async ({
     projectId,
     datasetItemId,
     status: "ACTIVE",
-    version: body.datasetVersion ?? undefined,
-  });
+    version: body.datasetVersion ?? undefined});
 
   if (!datasetItem) {
     throw new LangfuseNotFoundError("Dataset item not found");
@@ -846,8 +749,7 @@ export const createDatasetRunItemForApi = async ({
     const observation = await getObservationById({
       id: observationId,
       projectId,
-      fetchWithInputOutput: false,
-    });
+      fetchWithInputOutput: false});
     if (!observation) {
       throw new LangfuseNotFoundError("Observation not found");
     }
@@ -862,8 +764,7 @@ export const createDatasetRunItemForApi = async ({
     ...(body.metadata ? resolveMetadata(body.metadata) : {}),
     ...(body.datasetVersion
       ? { dataset_version: body.datasetVersion.toISOString() }
-      : {}),
-  };
+      : {})};
   const createdAt = body.createdAt ? new Date(body.createdAt) : new Date();
 
   const run = await createOrFetchDatasetRun({
@@ -872,8 +773,7 @@ export const createDatasetRunItemForApi = async ({
     metadata,
     projectId,
     datasetId: datasetItem.datasetId,
-    createdAt,
-  });
+    createdAt});
 
   const runItemId = v4();
 
@@ -890,15 +790,12 @@ export const createDatasetRunItemForApi = async ({
       datasetId: datasetItem.datasetId,
       runId: run.id,
       datasetItemId: datasetItem.id,
-      datasetVersion: datasetItem.validFrom.toISOString(),
-    },
-  };
+      datasetVersion: datasetItem.validFrom.toISOString()}};
 
   // Note: currently we do not accept user defined ids for dataset run items.
   const ingestionResult = await processEventBatch([event], auth, {
     attribution: createUnknownSdkIngestionAttribution({ authCheck: auth }),
-    isLangfuseInternal: true,
-  });
+    isLangfuseInternal: true});
 
   if (ingestionResult.errors.length > 0) {
     const error = ingestionResult.errors[0];
@@ -912,8 +809,7 @@ export const createDatasetRunItemForApi = async ({
 
   if (ingestionResult.successes.length !== 1) {
     logger.error("Failed to create dataset run item", {
-      result: ingestionResult,
-    });
+      result: ingestionResult});
     throw new Error("Failed to create dataset run item");
   }
 
@@ -925,8 +821,7 @@ export const createDatasetRunItemForApi = async ({
     traceId: finalTraceId,
     observationId: observationId ?? null,
     createdAt,
-    updatedAt: createdAt,
-  };
+    updatedAt: createdAt};
 
   if (auditScope) {
     await auditLog({
@@ -936,8 +831,7 @@ export const createDatasetRunItemForApi = async ({
       projectId,
       orgId: auditScope.orgId,
       apiKeyId: auditScope.apiKeyId,
-      after: datasetRunItem,
-    });
+      after: datasetRunItem});
   }
 
   await addDatasetRunItemsToEvalQueue({
@@ -945,8 +839,7 @@ export const createDatasetRunItemForApi = async ({
     datasetItemId: datasetItem.id,
     datasetItemValidFrom: datasetItem.validFrom,
     traceId: finalTraceId,
-    observationId: observationId ?? undefined,
-  });
+    observationId: observationId ?? undefined});
 
   return PostDatasetRunItemsV1Response.parse(datasetRunItem);
 };
@@ -956,8 +849,7 @@ export const listDatasetRunItemsForApi = async ({
   runName,
   projectId,
   limit,
-  page,
-}: {
+  page}: {
   datasetId: string;
   runName: string;
   projectId: string;
@@ -969,11 +861,8 @@ export const listDatasetRunItemsForApi = async ({
       datasetId_projectId_name: {
         datasetId,
         name: runName,
-        projectId,
-      },
-    },
-    select: { id: true, name: true },
-  });
+        projectId}},
+    select: { id: true, name: true }});
 
   if (!datasetRun) {
     throw new LangfuseNotFoundError(
@@ -988,18 +877,14 @@ export const listDatasetRunItemsForApi = async ({
         runId: datasetRun.id,
         projectId,
         limit,
-        page,
-      },
-    }),
+        page}}),
     getDatasetRunItemsCountForPublicApi({
       props: {
         datasetId,
         runId: datasetRun.id,
         projectId,
         limit,
-        page,
-      },
-    }),
+        page}}),
   ]);
 
   const totalItems = count || 0;
@@ -1010,9 +895,7 @@ export const listDatasetRunItemsForApi = async ({
       page,
       limit,
       totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  };
+      totalPages: Math.ceil(totalItems / limit)}};
 };
 
 export const listDatasetRunItemsByRunIdForApi = async ({
@@ -1020,8 +903,7 @@ export const listDatasetRunItemsByRunIdForApi = async ({
   datasetRunId,
   projectId,
   limit,
-  page,
-}: {
+  page}: {
   datasetId: string;
   datasetRunId: string;
   projectId: string;
@@ -1032,11 +914,8 @@ export const listDatasetRunItemsByRunIdForApi = async ({
     where: {
       id_projectId: {
         id: datasetRunId,
-        projectId,
-      },
-    },
-    select: { id: true, datasetId: true },
-  });
+        projectId}},
+    select: { id: true, datasetId: true }});
 
   if (!datasetRun || datasetRun.datasetId !== datasetId) {
     throw new LangfuseNotFoundError(
@@ -1051,18 +930,14 @@ export const listDatasetRunItemsByRunIdForApi = async ({
         runId: datasetRun.id,
         projectId,
         limit,
-        page,
-      },
-    }),
+        page}}),
     getDatasetRunItemsCountForPublicApi({
       props: {
         datasetId,
         runId: datasetRun.id,
         projectId,
         limit,
-        page,
-      },
-    }),
+        page}}),
   ]);
 
   const totalItems = count || 0;
@@ -1073,31 +948,24 @@ export const listDatasetRunItemsByRunIdForApi = async ({
       page,
       limit,
       totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  };
+      totalPages: Math.ceil(totalItems / limit)}};
 };
 
 export const listDatasetRunsForApi = async ({
   projectId,
   name,
   page,
-  limit,
-}: ListDatasetRunsInput) => {
+  limit}: ListDatasetRunsInput) => {
   const dataset = await prisma.dataset.findFirst({
     where: {
       name,
-      projectId,
-    },
+      projectId},
     include: {
       datasetRuns: {
         where: { projectId },
         take: limit,
         skip: (page - 1) * limit,
-        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-      },
-    },
-  });
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }]}}});
 
   if (!dataset) {
     throw new LangfuseNotFoundError("Dataset not found");
@@ -1106,9 +974,7 @@ export const listDatasetRunsForApi = async ({
   const totalItems = await prisma.datasetRuns.count({
     where: {
       datasetId: dataset.id,
-      projectId,
-    },
-  });
+      projectId}});
 
   return {
     data: dataset.datasetRuns
@@ -1118,35 +984,28 @@ export const listDatasetRunsForApi = async ({
       page,
       limit,
       totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  };
+      totalPages: Math.ceil(totalItems / limit)}};
 };
 
 export const listDatasetRunsByDatasetIdForApi = async ({
   projectId,
   datasetId,
   page,
-  limit,
-}: ListDatasetRunsByDatasetIdInput) => {
+  limit}: ListDatasetRunsByDatasetIdInput) => {
   const dataset = await getDatasetByIdOrThrow({ projectId, datasetId });
 
   const [datasetRuns, totalItems] = await Promise.all([
     prisma.datasetRuns.findMany({
       where: {
         datasetId,
-        projectId,
-      },
+        projectId},
       take: limit,
       skip: (page - 1) * limit,
-      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-    }),
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }]}),
     prisma.datasetRuns.count({
       where: {
         datasetId,
-        projectId,
-      },
-    }),
+        projectId}}),
   ]);
 
   return {
@@ -1157,65 +1016,51 @@ export const listDatasetRunsByDatasetIdForApi = async ({
       page,
       limit,
       totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  };
+      totalPages: Math.ceil(totalItems / limit)}};
 };
 
 export const getDatasetRunForApi = async ({
   projectId,
   name,
-  runName,
-}: GetDatasetRunInput) => {
+  runName}: GetDatasetRunInput) => {
   const { dataset, ...run } = await getDatasetRunRecordOrThrow({
     projectId,
     datasetName: name,
-    runName,
-  });
+    runName});
 
   const datasetRunItems = (await generateDatasetRunItemsForPublicApi({
     props: {
       datasetId: run.datasetId,
       runId: run.id,
-      projectId,
-    },
-  })) as APIDatasetRunItem[];
+      projectId}})) as APIDatasetRunItem[];
 
   return {
     ...transformDbDatasetRunToAPIDatasetRun({
       ...run,
-      datasetName: dataset.name,
-    }),
-    datasetRunItems,
-  };
+      datasetName: dataset.name}),
+    datasetRunItems};
 };
 
 export const getDatasetRunByIdForApi = async ({
   projectId,
   datasetId,
-  datasetRunId,
-}: GetDatasetRunByIdInput) => {
+  datasetRunId}: GetDatasetRunByIdInput) => {
   const { dataset, ...run } = await getDatasetRunRecordByIdOrThrow({
     projectId,
     datasetId,
-    datasetRunId,
-  });
+    datasetRunId});
 
   const datasetRunItems = (await generateDatasetRunItemsForPublicApi({
     props: {
       datasetId: run.datasetId,
       runId: run.id,
-      projectId,
-    },
-  })) as APIDatasetRunItem[];
+      projectId}})) as APIDatasetRunItem[];
 
   return {
     ...transformDbDatasetRunToAPIDatasetRun({
       ...run,
-      datasetName: dataset.name,
-    }),
-    datasetRunItems,
-  };
+      datasetName: dataset.name}),
+    datasetRunItems};
 };
 
 export const deleteDatasetRunForApi = async ({
@@ -1223,8 +1068,7 @@ export const deleteDatasetRunForApi = async ({
   orgId,
   apiKeyId,
   name,
-  runName,
-}: DeleteDatasetRunInput) => {
+  runName}: DeleteDatasetRunInput) => {
   // First get the dataset run to check if it exists
   const { dataset: _dataset, ...datasetRun } = await getDatasetRunRecordOrThrow(
     {
@@ -1232,18 +1076,14 @@ export const deleteDatasetRunForApi = async ({
       datasetName: name,
       runName,
       duplicateErrorMessage:
-        "Found more than one dataset run with this name and dataset",
-    },
+        "Found more than one dataset run with this name and dataset"},
   );
 
   await prisma.datasetRuns.delete({
     where: {
       id_projectId: {
         projectId,
-        id: datasetRun.id,
-      },
-    },
-  });
+        id: datasetRun.id}}});
 
   await auditLog({
     action: "delete",
@@ -1252,20 +1092,17 @@ export const deleteDatasetRunForApi = async ({
     projectId,
     orgId,
     apiKeyId,
-    before: datasetRun,
-  });
+    before: datasetRun});
 
   // Trigger async delete of dataset run items
   await addToDeleteDatasetQueue({
     deletionType: "dataset-runs",
     projectId,
     datasetRunIds: [datasetRun.id],
-    datasetId: datasetRun.datasetId,
-  });
+    datasetId: datasetRun.datasetId});
 
   return {
-    message: "Dataset run successfully deleted" as const,
-  };
+    message: "Dataset run successfully deleted" as const};
 };
 
 export const deleteDatasetRunByIdForApi = async ({
@@ -1273,23 +1110,18 @@ export const deleteDatasetRunByIdForApi = async ({
   orgId,
   apiKeyId,
   datasetId,
-  datasetRunId,
-}: DeleteDatasetRunByIdInput) => {
+  datasetRunId}: DeleteDatasetRunByIdInput) => {
   const { dataset: _dataset, ...datasetRun } =
     await getDatasetRunRecordByIdOrThrow({
       projectId,
       datasetId,
-      datasetRunId,
-    });
+      datasetRunId});
 
   await prisma.datasetRuns.delete({
     where: {
       id_projectId: {
         projectId,
-        id: datasetRun.id,
-      },
-    },
-  });
+        id: datasetRun.id}}});
 
   await auditLog({
     action: "delete",
@@ -1298,17 +1130,14 @@ export const deleteDatasetRunByIdForApi = async ({
     projectId,
     orgId,
     apiKeyId,
-    before: datasetRun,
-  });
+    before: datasetRun});
 
   await addToDeleteDatasetQueue({
     deletionType: "dataset-runs",
     projectId,
     datasetRunIds: [datasetRun.id],
-    datasetId: datasetRun.datasetId,
-  });
+    datasetId: datasetRun.datasetId});
 
   return {
-    message: "Dataset run successfully deleted" as const,
-  };
+    message: "Dataset run successfully deleted" as const};
 };

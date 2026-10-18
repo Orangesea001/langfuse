@@ -169,7 +169,7 @@ export async function bulkUpdateOrganizationsRawSQL(
       const valuesClauses = chunk
         .map((_, idx) => {
           const base = idx * 4; // 4 parameters per org
-          return `($${base + 1}, $${base + 2}::integer, $${base + 3}::timestamptz, $${base + 4})`;
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
         })
         .join(", ");
 
@@ -183,11 +183,11 @@ export async function bulkUpdateOrganizationsRawSQL(
       // Execute single bulk UPDATE for entire chunk
       await prisma.$executeRawUnsafe(
         `UPDATE organizations AS o SET
-          cloud_current_cycle_usage = v.usage::integer,
-          cloud_billing_cycle_updated_at = v.updated_at::timestamptz,
+          cloud_current_cycle_usage = v.usage,
+          cloud_billing_cycle_updated_at = v.updated_at,
           cloud_free_tier_usage_threshold_state = v.state
         FROM (VALUES ${valuesClauses}) AS v(id, usage, updated_at, state)
-        WHERE o.id::text = v.id::text`,
+        WHERE o.id = v.id`,
         ...params,
       );
 

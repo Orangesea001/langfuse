@@ -124,9 +124,7 @@ export const updatePrompt = async (params: UpdatePromptParams) => {
           projectId,
         },
         data: {
-          labels: {
-            set: Array.from(newLabelsSet),
-          },
+          labels: Array.from(newLabelsSet),
         },
       }),
     ]);

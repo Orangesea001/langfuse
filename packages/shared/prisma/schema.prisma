@@ -3,14 +3,13 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["views", "relationJoins", "metrics"]
+  previewFeatures = ["relationJoins", "metrics"]
 }
 
 datasource db {
-  provider          = "postgresql"
+  provider          = "mysql"
   url               = env("DATABASE_URL")
   directUrl         = env("DIRECT_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // Necessary for Next auth
@@ -62,7 +61,7 @@ model User {
   invitations               MembershipInvitation[]
   createdAt                 DateTime                    @default(now()) @map("created_at")
   updatedAt                 DateTime                    @default(now()) @updatedAt @map("updated_at")
-  featureFlags              String[]                    @default([]) @map("feature_flags")
+  featureFlags              Json                    @default("{}") @map("feature_flags")
   annotatedLockedItem       AnnotationQueueItem[]       @relation("LockedByUser")
   annotatedCompletedItem    AnnotationQueueItem[]       @relation("AnnotatorUser")
   dashboardWidgetsCreated   DashboardWidget[]           @relation("CreatedByUser")
@@ -110,7 +109,7 @@ model Organization {
   cloudFreeTierUsageThresholdState String?                  @map("cloud_free_tier_usage_threshold_state")
   aiFeaturesEnabled                Boolean                  @default(false) @map("ai_features_enabled")
   aiTelemetryEnabled               Boolean                  @default(true) @map("ai_telemetry_enabled")
-  featureFlagOrgDefaults           String[]                 @default([]) @map("feature_flag_org_defaults")
+  featureFlagOrgDefaults           Json                 @default("{}") @map("feature_flag_org_defaults")
   // SFDC Account / Organization ID returned by the Mulesoft org endpoint on
   // Langfuse Cloud. NULL for self-hosted or pre-integration orgs. A mismatch
   // between the stored value and a subsequently returned ID indicates an SFDC
@@ -286,7 +285,7 @@ model GatewayAiConnection {
 model GatewayApiKeyAssociation {
   apiKeyId String @id @map("api_key_id")
   apiKey   ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  metadata Json   @default("{}") @db.JsonB
+  metadata Json   @default("{}") @db.Json
 
   @@map("gateway_api_key_associations")
 }
@@ -307,7 +306,7 @@ model InAppAgentConversation {
   visibilityScope    InAppAgentConversationVisibilityScope @default(PERSONAL) @map("visibility_scope")
   providerSessionId  String?                               @map("provider_session_id")
   // Prefixed tool grants are revalidated against the registry and owner's role each run.
-  alwaysAllowedTools String[]                              @default([]) @map("always_allowed_tools")
+  alwaysAllowedTools Json                              @default("{}") @map("always_allowed_tools")
   deletedAt          DateTime?                             @map("deleted_at")
   createdAt          DateTime                              @default(now()) @map("created_at")
   updatedAt          DateTime                              @default(now()) @updatedAt @map("updated_at")
@@ -330,7 +329,7 @@ model InAppAgentEvent {
   run            InAppAgentRun          @relation(fields: [runId, projectId], references: [id, projectId], onDelete: Cascade)
   sequenceNumber Int                    @map("sequence_number")
   type           String
-  event          Json                   @db.JsonB
+  event          Json                   @db.Json
   createdAt      DateTime               @default(now()) @map("created_at")
 
   @@id([projectId, conversationId, sequenceNumber])
@@ -416,10 +415,10 @@ model LlmApiKeys {
   displaySecretKey  String   @map("display_secret_key")
   secretKey         String   @map("secret_key")
   baseURL           String?  @map("base_url")
-  customModels      String[] @default([]) @map("custom_models")
+  customModels      Json @default("{}") @map("custom_models")
   withDefaultModels Boolean  @default(true) @map("with_default_models")
   extraHeaders      String?  @map("extra_headers")
-  extraHeaderKeys   String[] @default([]) @map("extra_header_keys")
+  extraHeaderKeys   Json @default("{}") @map("extra_header_keys")
   config            Json?
 
   projectId       String            @map("project_id")
@@ -527,7 +526,6 @@ model ScoreConfig {
   @@index([dataType])
   @@index([isArchived])
   @@index([projectId])
-  @@index([categories])
   @@index([createdAt])
   @@index([updatedAt])
   @@map("score_configs")
@@ -544,7 +542,7 @@ model AnnotationQueue {
   id                        String                      @id @default(cuid())
   name                      String
   description               String?
-  scoreConfigIds            String[]                    @default([]) @map("score_config_ids")
+  scoreConfigIds            Json                    @default("{}") @map("score_config_ids")
   projectId                 String                      @map("project_id")
   project                   Project                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt                 DateTime                    @default(now()) @map("created_at")
@@ -672,9 +670,9 @@ model DatasetItem {
   @@id([id, projectId, validFrom])
   @@index([projectId, validTo])
   @@index([projectId, id, validFrom])
-  @@index([sourceTraceId], type: Hash)
-  @@index([sourceObservationId], type: Hash)
-  @@index([datasetId], type: Hash)
+  @@index([sourceTraceId])
+  @@index([sourceObservationId])
+  @@index([datasetId])
   @@index([createdAt])
   @@index([updatedAt])
   @@map("dataset_items")
@@ -698,7 +696,7 @@ model DatasetRuns {
 
   @@id([id, projectId])
   @@unique([datasetId, projectId, name])
-  @@index([datasetId], type: Hash)
+  @@index([datasetId])
   @@index([createdAt])
   @@index([updatedAt])
   @@map("dataset_runs")
@@ -721,9 +719,9 @@ model Comment {
   // path: Array of JSON Path expressions, e.g., ["$.messages[1].text"]
   // rangeStart/rangeEnd: parallel arrays for start/end offsets per path (exclusive end, UTF-16 code units)
   dataField  String?  @map("data_field")
-  path       String[] @default([]) @map("path")
-  rangeStart Int[]    @default([]) @map("range_start")
-  rangeEnd   Int[]    @default([]) @map("range_end")
+  path       Json @default("{}") @map("path")
+  rangeStart Json    @default("{}") @map("range_start")
+  rangeEnd   Json    @default("{}") @map("range_end")
 
   @@index([projectId, objectType, objectId])
   @@map("comments")
@@ -795,8 +793,8 @@ model Prompt {
   type             String             @default("text")
   isActive         Boolean?           @map("is_active") // Deprecated. To be removed once 'production' labels work as expected.
   config           Json               @default("{}") @db.Json
-  tags             String[]           @default([])
-  labels           String[]           @default([])
+  tags             Json           @default("{}")
+  labels           Json           @default("{}")
   commitMessage    String?            @map("commit_message")
   PromptDependency PromptDependency[]
 
@@ -804,7 +802,6 @@ model Prompt {
   @@index([projectId, id])
   @@index([createdAt])
   @@index([updatedAt])
-  @@index([tags(ops: ArrayOps)], type: Gin)
   @@map("prompts")
 }
 
@@ -895,7 +892,7 @@ model PricingTier {
   name       String  @map("name")
   isDefault  Boolean @default(false) @map("is_default")
   priority   Int     @map("priority")
-  conditions Json    @map("conditions") @db.JsonB
+  conditions Json    @map("conditions") @db.Json
 
   prices Price[]
 
@@ -954,9 +951,9 @@ model EvalTemplate {
   model              String?
   provider           String?
   modelParams        Json?                           @map("model_params")
-  vars               String[]                        @default([])
+  vars               Json                        @default("{}")
   outputDefinition   Json?                           @map("output_schema")
-  sourceCode         String?                         @map("source_code") @db.VarChar(262144)
+  sourceCode         String?                         @map("source_code") @db.LongText
   sourceCodeLanguage EvalTemplateSourceCodeLanguage? @map("source_code_language")
   JobConfiguration   JobConfiguration[]
 
@@ -1006,10 +1003,10 @@ model EvaluatorVersion {
   model              String?
   provider           String?
   modelParams        Json?                        @map("model_params")
-  vars               String[]                     @default([])
+  vars               Json                     @default("{}")
   variableMapping    Json?                        @map("variable_mapping")
   outputDefinition   Json?                        @map("output_definition")
-  sourceCode         String?                      @map("source_code") @db.VarChar(262144)
+  sourceCode         String?                      @map("source_code") @db.LongText
   sourceCodeLanguage EvaluatorSourceCodeLanguage? @map("source_code_language")
 
   @@unique([evaluatorId, version(sort: Desc)])
@@ -1075,7 +1072,7 @@ model JobConfiguration {
   variableMapping Json     @map("variable_mapping")
   sampling        Decimal // ratio of jobs that are executed for sampling (0..1)
   delay           Int // delay in milliseconds
-  timeScope       String[] @default(["NEW"]) @map("time_scope")
+  timeScope       Json @map("time_scope")
 
   @@index([projectId, id])
   @@map("job_configurations")
@@ -1097,7 +1094,7 @@ model EvaluationRule {
   filter          Json
   sampling        Decimal
   delay           Int
-  timeScope       String[]       @default(["NEW"]) @map("time_scope")
+  timeScope       Json @map("time_scope")
 
   assignments EvaluationRuleEvaluatorAssignment[]
 
@@ -1208,11 +1205,11 @@ model SsoConfig {
 // Domain ownership claim for an organization, verified via DNS TXT record.
 // Required before an SsoConfig can be created for that domain.
 model VerifiedDomain {
-  id                String       @id @default(uuid())
+  id                String       @id @default(cuid())
   organizationId    String       @map("organization_id")
   organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   domain            String
-  verificationToken String       @unique @default(uuid()) @map("verification_token")
+  verificationToken String       @unique @default(cuid()) @map("verification_token")
   verifiedAt        DateTime?    @map("verified_at")
   createdByUserId   String?      @map("created_by_user_id")
   createdAt         DateTime     @default(now()) @map("created_at")
@@ -1282,7 +1279,7 @@ model BlobStorageIntegration {
   exportMode        BlobStorageExportMode            @default(FULL_HISTORY) @map("export_mode")
   exportStartDate   DateTime?                        @map("export_start_date")
   exportSource      AnalyticsIntegrationExportSource @default(TRACES_OBSERVATIONS) @map("export_source")
-  exportFieldGroups String[]                         @default(["core", "basic", "time", "io", "metadata", "model", "usage", "prompt", "metrics", "tools", "trace_context"]) @map("export_field_groups")
+  exportFieldGroups Json @map("export_field_groups")
   compressed        Boolean                          @default(true) @map("compressed")
 
   // Per-project blob-export tuning (set via DB directly for now; no UI/tRPC
@@ -1319,7 +1316,7 @@ model WebCalloutEndpoint {
   enabled           Boolean  @default(true)
   toastMessage      String   @default("Callout sent") @map("toast_message")
   requestHeaders    String?  @map("request_headers")
-  requestHeaderKeys String[] @default([]) @map("request_header_keys")
+  requestHeaderKeys Json @default("{}") @map("request_header_keys")
 
   @@index([projectId])
   @@index([projectId, enabled])
@@ -1414,7 +1411,7 @@ model BatchAction {
 
 model Media {
   id               String
-  sha256Hash       String    @map("sha_256_hash") @db.Char(44)
+  sha256Hash       String    @map("sha_256_hash") @db.Char(88)
   projectId        String    @map("project_id")
   project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdAt        DateTime  @default(now()) @map("created_at")
@@ -1457,13 +1454,13 @@ model TraceMedia {
 
 model ObservationMedia {
   id            String                 @id @default(cuid())
-  projectId     String                 @map("project_id")
+  projectId     String                 @db.VarChar(150) @map("project_id")
   createdAt     DateTime               @default(now()) @map("created_at")
   updatedAt     DateTime               @default(now()) @updatedAt @map("updated_at")
-  mediaId       String                 @map("media_id")
-  traceId       String                 @map("trace_id")
-  observationId String                 @map("observation_id")
-  field         String                 @map("field")
+  mediaId       String                 @db.VarChar(150) @map("media_id")
+  traceId       String                 @db.VarChar(150) @map("trace_id")
+  observationId String                 @db.VarChar(150) @map("observation_id")
+  field         String                 @db.VarChar(150) @map("field")
   origin        MediaAssociationOrigin @default(UNKNOWN)
 
   @@unique([projectId, traceId, observationId, mediaId, field])
@@ -1708,7 +1705,7 @@ model Trigger {
 
   // When should this trigger fire
   eventSource  String // trace, prompt, etc.
-  eventActions String[] // created, updated, deleted
+  eventActions Json // created, updated, deleted
   filter       Json? // Filter conditions (format: { field: "name", operator: "equals", value: "my_trace" })
 
   // Additional attributes
@@ -1857,8 +1854,8 @@ model Monitor {
 
   // === Alerts ===
   name       String
-  tags       String[]  @default([])
-  triggerIds String[]  @default([]) @map("trigger_ids")
+  tags       Json  @default("{}")
+  triggerIds Json  @default("{}") @map("trigger_ids")
   alertedAt  DateTime? @map("alerted_at")
 
   @@index([projectId])

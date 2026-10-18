@@ -45,14 +45,14 @@ export const scoresTableCols: ColumnDefinition[] = [
     name: "Source",
     id: "source",
     type: "stringOptions",
-    internal: 's."source"::text',
+    internal: 's."source"',
     options: ScoreSourceArray.map((value) => ({ value })),
   },
   {
     name: "Data Type",
     id: "dataType",
     type: "stringOptions",
-    internal: 's."data_type"::text',
+    internal: 's."data_type"',
     options: ScoreDataTypeArray.map((value) => ({ value })),
   },
   {

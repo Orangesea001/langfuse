@@ -120,7 +120,7 @@ export const observationsTableCols: ColumnDefinition[] = [
     name: "Status",
     id: "level",
     type: "stringOptions",
-    internal: 'o."level"::text',
+    internal: 'o."level"',
     options: [
       { value: "DEBUG" },
       { value: "DEFAULT" },

@@ -1014,10 +1014,10 @@ const setActionLastFailingExecutionId = async ({
   await tx.$executeRaw`
     UPDATE actions
     SET
-      config = jsonb_set(
+      config = JSON_SET(
         config,
         '{lastFailingExecutionId}',
-        to_jsonb(${executionId}::text),
+        CAST(${executionId}),
         true
       ),
       updated_at = NOW()

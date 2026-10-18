@@ -238,7 +238,7 @@ export const commentsRouter = createTRPCRouter({
         WHERE
           c."project_id" = ${input.projectId}
           AND c."object_id" = ${input.objectId}
-          AND c."object_type"::text = ${input.objectType}
+          AND c."object_type" = ${input.objectType}
         ORDER BY
           c.created_at DESC
         `,
@@ -405,8 +405,8 @@ export const commentsRouter = createTRPCRouter({
           LEFT JOIN users u ON u.id = c.author_user_id
           WHERE
             c."project_id" = ${input.projectId}
-            AND c."object_type"::text = 'TRACE'
-            AND c."object_id" = ANY(${traceIds}::text[])
+            AND c."object_type" = 'TRACE'
+            AND c."object_id" = ANY(${traceIds}[])
           ORDER BY
             c.created_at ASC
         `,

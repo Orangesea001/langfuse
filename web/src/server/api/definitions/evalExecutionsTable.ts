@@ -17,7 +17,7 @@ export const evalExecutionsFilterCols: ColumnDefinition[] = [
     name: "Status",
     id: "status",
     type: "stringOptions",
-    internal: 'je."status"::text',
+    internal: 'je."status"',
     options: JOB_EXECUTION_STATUSES.filter(
       (value) => value !== "CANCELLED",
     ).map((value) => ({ value })),

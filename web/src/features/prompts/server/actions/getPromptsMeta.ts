@@ -38,13 +38,13 @@ export const getPromptsMeta = async (
       SELECT
         MAX(p.tags) AS tags,
         MAX(p.updated_at) AS "lastUpdatedAt",
-        array_agg(DISTINCT p.version) AS versions,
+        JSON_ARRAYAGG(p.version) AS versions,
         COALESCE(
-          array_agg(DISTINCT label) FILTER (WHERE label IS NOT NULL),
-          '{}'::text[]
+          JSON_ARRAYAGG(CASE WHEN jt_label.label IS NOT NULL THEN jt_label.label ELSE NULL END),
+          CAST('[]' AS JSON)
         ) AS labels
       FROM prompts p
-      LEFT JOIN LATERAL unnest(p.labels) AS label ON true
+      LEFT JOIN JSON_TABLE(p.labels, '$[*]' COLUMNS(label VARCHAR(191) PATH '$')) AS jt_label ON true
       WHERE p."project_id" = ${projectId}
         AND p.name = n.name
         ${getPromptsFilterCondition(params)}

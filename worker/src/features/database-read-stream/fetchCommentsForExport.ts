@@ -48,7 +48,7 @@ export async function fetchCommentsForExport(
     LEFT JOIN users u ON c.author_user_id = u.id
     WHERE c.project_id = ${projectId}
       AND c.object_type = ${objectType}::"CommentObjectType"
-      AND c.object_id = ANY(${objectIds}::text[])
+      AND c.object_id = ANY(${objectIds}[])
     ORDER BY c.created_at ASC
   `;
 

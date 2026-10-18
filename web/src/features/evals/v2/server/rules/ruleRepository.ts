@@ -60,7 +60,7 @@ const upgradeRequiredRuleCondition = {
     in: [EvalTargetObject.TRACE, EvalTargetObject.DATASET],
   },
   status: JobConfigState.ACTIVE,
-  timeScope: { has: "NEW" },
+  timeScope: { array_contains: "NEW" },
 } satisfies Prisma.EvaluationRuleWhereInput;
 
 function jsonValue(
@@ -111,7 +111,7 @@ function ruleWhere(params: {
   return {
     projectId: params.projectId,
     ...(params.search
-      ? { name: { contains: params.search, mode: "insensitive" as const } }
+      ? { name: { contains: params.search as const } }
       : {}),
     ...(params.enabled === undefined
       ? {}
