@@ -146,7 +146,7 @@ WITH selected AS (
     event_time,
     event_time_microseconds,
     splitByChar('?', JSONExtractString(log_comment, 'route'))[1] AS route_path
-  FROM ${systemTableRef("system.query_log")}
+  FROM ${"system.query_log"}
   WHERE
     event_time >= {fromTimestamp: DateTime64(3)}
     AND event_time <= {toTimestamp: DateTime64(3)}

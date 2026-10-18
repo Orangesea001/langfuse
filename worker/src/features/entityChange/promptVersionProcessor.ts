@@ -189,6 +189,8 @@ async function enqueueAutomationAction({
         type: "prompt-version",
         prompt: {
           ...promptData,
+          tags: (promptData.tags ?? []) as string[],
+          labels: (promptData.labels ?? []) as string[],
           prompt: jsonSchemaNullable.parse(promptData.prompt),
           config: jsonSchemaNullable.parse(promptData.config),
         },

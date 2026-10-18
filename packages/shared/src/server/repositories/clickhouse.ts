@@ -566,3 +566,83 @@ export const queryClickhouse = queryAnalytics;
 export const clickhouseExecRaw = queryAnalyticsExecRaw;
 /** @deprecated Use queryAnalyticsStream instead */
 export const queryClickhouseStream = queryAnalyticsStream;
+/** @deprecated Use upsertAnalytics instead */
+export const upsertClickhouse = upsertAnalytics;
+/** @deprecated Use commandAnalytics instead */
+export const commandClickhouse = commandAnalytics;
+
+// ─── Utility stubs for worker background migrations ───
+
+/** Sleep for the given number of milliseconds. */
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** @deprecated Build a log comment for analytics queries (stub). */
+export function buildClickHouseLogComment(_comment: string): string {
+  return "";
+}
+
+/** @deprecated Get query error message (stub). */
+export function getQueryError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+/** @deprecated Query status type (stub). */
+export type QueryStatus = {
+  status: string;
+  progress: number;
+  error?: string;
+};
+
+/** @deprecated Poll query status (stub). */
+export async function pollQueryStatus(
+  _queryId: string,
+  _maxAttempts: number = 60,
+  _delayMs: number = 1000,
+): Promise<QueryStatus> {
+  return { status: "complete", progress: 1 };
+}
+
+/** @deprecated Preferred analytics service enum (stub). */
+export type PreferredClickhouseService =
+  | "ReadWrite"
+  | "ReadOnly"
+  | "EventsReadOnly";
+
+export const PreferredClickhouseServiceValues = {
+  READ_WRITE: "ReadWrite" as PreferredClickhouseService,
+  READ_ONLY: "ReadOnly" as PreferredClickhouseService,
+  EVENTS_READ_ONLY: "EventsReadOnly" as PreferredClickhouseService,
+};
+
+/** @deprecated ClickHouse client manager (stub). */
+export class ClickHouseClientManager {
+  private static _instance: ClickHouseClientManager | null = null;
+  static getInstance(): ClickHouseClientManager {
+    if (!ClickHouseClientManager._instance) {
+      ClickHouseClientManager._instance = new ClickHouseClientManager();
+    }
+    return ClickHouseClientManager._instance;
+  }
+  getClient() {
+    return null;
+  }
+  async close() {}
+  async closeAllConnections() {}
+}
+
+/** @deprecated ClickHouse client singleton (stub). */
+export const clickhouseClient = null;
+
+/** @deprecated Convert date to analytics datetime format. */
+/** @deprecated Use queryAnalyticsWithProgress instead */
+export const queryClickhouseWithProgress = queryAnalyticsWithProgress;
+
+/** @deprecated System table reference (stub). */
+export const systemTableRef = {
+  observations: "observations",
+  traces: "traces",
+  scores: "scores",
+} as const;

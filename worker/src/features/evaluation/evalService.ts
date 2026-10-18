@@ -323,7 +323,7 @@ export const createEvalJobs = async ({
       // for dataset_run_item_upsert queue + trace queue, we do not want to execute evals on configs,
       // which were only allowed to run on historic data. Hence, we need to filter all configs which have "NEW" in the time_scope column.
       ...(enforcedJobTimeScope
-        ? { timeScope: { has: enforcedJobTimeScope } }
+        ? { timeScope: { array_contains: enforcedJobTimeScope } }
         : {}),
       // `some` picks which rules load, not which assignments. Filtering the nested assignments
       // would shrink a two-evaluator rule to the one assignment toTraceEvalConfig then runs.
@@ -1495,7 +1495,7 @@ export const evaluate = async ({
 
   const extractedVariables = await extractVariablesFromTracingData({
     projectId: event.projectId,
-    variables: template.vars,
+    variables: (template.vars ?? []) as string[],
     traceId: job.jobInputTraceId,
     traceTimestamp: job.jobInputTraceTimestamp ?? undefined,
     datasetItemId: job.jobInputDatasetItemId ?? undefined,

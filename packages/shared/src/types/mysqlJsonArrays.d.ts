@@ -12,7 +12,12 @@ export function asStringArray<T>(value: T): string[] {
   if (value === null || value === undefined) return [];
   if (Array.isArray(value)) return value as string[];
   if (typeof value === "string") {
-    try { const p = JSON.parse(value); return Array.isArray(p) ? p : []; } catch { return []; }
+    try {
+      const p = JSON.parse(value);
+      return Array.isArray(p) ? p : [];
+    } catch {
+      return [];
+    }
   }
   return [];
 }

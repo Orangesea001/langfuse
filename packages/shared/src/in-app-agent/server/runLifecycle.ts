@@ -343,7 +343,9 @@ export async function decideToolApproval(params: {
       });
 
       if (
-        !((conversation?.alwaysAllowedTools ?? []) as string[]).includes(params.alwaysAllowToolName)
+        !((conversation?.alwaysAllowedTools ?? []) as string[]).includes(
+          params.alwaysAllowToolName,
+        )
       ) {
         await tx.inAppAgentConversation.update({
           where: {
@@ -352,7 +354,10 @@ export async function decideToolApproval(params: {
               projectId: params.projectId,
             },
           },
-          data: { alwaysAllowedTools: /* mysql: no push, handled separately */ params.alwaysAllowToolName },
+          data: {
+            alwaysAllowedTools:
+              /* mysql: no push, handled separately */ params.alwaysAllowToolName,
+          },
         });
       }
     }

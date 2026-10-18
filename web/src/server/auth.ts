@@ -157,7 +157,7 @@ if (env.AUTH_DISABLE_USERNAME_PASSWORD !== "true") {
           email: dbUser.email,
           image: dbUser.image,
           emailVerified: dbUser.emailVerified?.toISOString(),
-          featureFlags: parseFlags(dbUser.featureFlags, {
+          featureFlags: parseFlags((dbUser.featureFlags ?? []) as string[], {
             email: dbUser.email,
             // The full session callback resolves deployment and rollout
             // availability before applying employee defaults.
@@ -977,7 +977,8 @@ export async function getAuthOptions(signupAttribution?: {
                             orgMembership.organization.aiTelemetryEnabled,
                           featureFlags: parseFlagsWithOrganizationDefaults(
                             dbUser.featureFlags,
-                            orgMembership.organization.featureFlagOrgDefaults,
+                            (orgMembership.organization
+                              .featureFlagOrgDefaults ?? []) as string[],
                             {
                               email: dbUser.email,
                               v4BetaEnabled,
@@ -1026,10 +1027,13 @@ export async function getAuthOptions(signupAttribution?: {
                       },
                     ),
                     emailVerified: dbUser.emailVerified?.toISOString(),
-                    featureFlags: parseFlags(dbUser.featureFlags, {
-                      email: dbUser.email,
-                      v4BetaEnabled,
-                    }),
+                    featureFlags: parseFlags(
+                      (dbUser.featureFlags ?? []) as string[],
+                      {
+                        email: dbUser.email,
+                        v4BetaEnabled,
+                      },
+                    ),
                     hasPassword: Boolean(dbUser.password),
                   }
                 : null,

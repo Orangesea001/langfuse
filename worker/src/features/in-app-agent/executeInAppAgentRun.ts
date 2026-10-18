@@ -337,7 +337,7 @@ export async function executeInAppAgentRun(params: {
     // Rebuild each run so grants invalidated by role changes drop out.
     const toolPolicy = createInAppAgentToolPolicy({
       userAccess,
-      alwaysAllowedTools: conversation.alwaysAllowedTools,
+      alwaysAllowedTools: (conversation.alwaysAllowedTools ?? []) as string[],
     });
 
     const allowedToolNames = getInAppAgentMcpAllowedToolNames(

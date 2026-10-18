@@ -22,12 +22,13 @@ const receivesFeaturePreviewsByDefault = (email: string | null | undefined) => {
 };
 
 export const parseFlags = (
-  dbFlags: string[],
+  dbFlags: string[] | unknown,
   context: FeaturePreviewAvailabilityContext & {
     email: string | null | undefined;
     aiGatewayEnabled?: boolean;
   },
 ): Flags => {
+  const flagsArray = Array.isArray(dbFlags) ? dbFlags : [];
   const parsedFlags = {} as Flags;
   const enableFeaturePreviewsByDefault = receivesFeaturePreviewsByDefault(
     context.email,
@@ -41,7 +42,7 @@ export const parseFlags = (
 
     if (
       isFeaturePreviewFlag(flag) &&
-      dbFlags.includes(getFeaturePreviewOptOutFlag(flag))
+      flagsArray.includes(getFeaturePreviewOptOutFlag(flag))
     ) {
       parsedFlags[flag] = false;
       return;
@@ -56,7 +57,7 @@ export const parseFlags = (
       return;
     }
 
-    parsedFlags[flag] = dbFlags.includes(flag);
+    parsedFlags[flag] = flagsArray.includes(flag);
   });
 
   if (!parsedFlags.modernSession) {
@@ -67,7 +68,7 @@ export const parseFlags = (
 };
 
 export const parseFlagsWithOrganizationDefaults = (
-  dbFlags: string[],
+  dbFlags: string[] | unknown,
   organizationDefaults: string[],
   context: FeaturePreviewAvailabilityContext & {
     email: string | null | undefined;
@@ -77,7 +78,7 @@ export const parseFlagsWithOrganizationDefaults = (
   const featurePreviewDefaults =
     filterFeaturePreviewFlags(organizationDefaults);
 
-  return parseFlags(dbFlags.concat(featurePreviewDefaults), context);
+  return parseFlags(flagsArray.concat(featurePreviewDefaults), context);
 };
 
 type ContextualFeatureFlagUser = {

@@ -6,7 +6,7 @@ import {
   isRow,
   isException,
   AnalyticsResourceError,
-    logger,
+  logger,
 } from "@langfuse/shared/src/server";
 import { RESOURCE_LIMIT_ERROR_MESSAGE } from "@langfuse/shared";
 
@@ -153,7 +153,9 @@ export default async function handler(
     });
     const chOpts = toClickhouseQueryOpts(prepared);
 
-    for await (const event of /* queryClickhouseWithProgress */ (() => { throw new Error("Not implemented for MySQL"); })<any>({
+    for await (const event of /* queryClickhouseWithProgress */ (() => {
+      throw new Error("Not implemented for MySQL");
+    })<any>({
       ...chOpts,
       analyticsSettings: {
         ...chOpts.analyticsSettings,

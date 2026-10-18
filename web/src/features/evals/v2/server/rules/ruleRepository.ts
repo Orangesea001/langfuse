@@ -110,9 +110,7 @@ function ruleWhere(params: {
 
   return {
     projectId: params.projectId,
-    ...(params.search
-      ? { name: { contains: params.search as const } }
-      : {}),
+    ...(params.search ? { name: { contains: params.search as const } } : {}),
     ...(params.enabled === undefined
       ? {}
       : {
